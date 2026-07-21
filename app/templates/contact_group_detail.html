@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Contact Group Detail</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            padding: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 1000px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+        }
+
+        a {
+            color: #0066cc;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .stat {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 14px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .stat b {
+            font-size: 22px;
+        }
+
+        .progress-wrap {
+            background: #e5e7eb;
+            height: 12px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            background: #0066cc;
+            height: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <a href="/web/contact-groups">← Back to groups</a>
+    &nbsp; | &nbsp;
+    <a href="/web/campaigns/new">Create Campaign</a>
+    &nbsp; | &nbsp;
+    <form method="post"
+        action="/web/contact-groups/{{ group.id }}/delete"
+        style="display:inline;"
+        onsubmit="return confirm('Delete this group? Contacts will NOT be deleted.');">
+        <button type="submit"
+                style="padding:6px 10px; background:#dc2626; color:white; border:none; border-radius:6px; cursor:pointer;">
+            Delete Group
+        </button>
+    </form>
+
+    <h1>{{ group.name }}</h1>
+    <p>{{ group.description or "" }}</p>
+
+    <div class="stat-grid">
+        <div class="stat">
+            <div>Total Members</div>
+            <b>{{ member_count }}</b>
+        </div>
+        <div class="stat">
+            <div>Campaigns Used</div>
+            <b>{{ campaigns|length }}</b>
+        </div>
+        <div class="stat">
+            <div>Group No.</div>
+            <b>#{{ group_display_id }}</b>
+        </div>
+        <div class="stat">
+            <div>Created</div>
+            <b style="font-size:14px;">{{ group.created_at }}</b>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Campaign Results for This Group</h2>
+
+    <table>
+        <tr>
+            <th>Campaign</th>
+            <th>Status</th>
+            <th>Progress</th>
+            <th>Completed</th>
+            <th>Busy</th>
+            <th>No Answer</th>
+            <th>Failed</th>
+            <th>Congestion</th>
+            <th>Open</th>
+        </tr>
+
+        {% for row in campaigns %}
+        <tr>
+            <td>{{ row.campaign.name }}</td>
+            <td>{{ row.campaign.status.value if row.campaign.status else row.campaign.status }}</td>
+            <td>
+                {{ row.progress_percent }}%
+                <div class="progress-wrap">
+                    <div class="progress-bar" style="width: {{ row.progress_percent }}%;"></div>
+                </div>
+                {{ row.finished }}/{{ row.total }}
+            </td>
+            <td>{{ row.completed }}</td>
+            <td>{{ row.busy }}</td>
+            <td>{{ row.no_answer }}</td>
+            <td>{{ row.failed }}</td>
+            <td>{{ row.congestion }}</td>
+            <td>
+                <a href="/web/campaigns/{{ row.campaign.id }}">Open</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+
+<div class="card">
+    <h2>Members</h2>
+
+    <table>
+        <tr>
+            <th>No.</th>
+            <th>Phone</th>
+            <th>Name</th>
+            <th>Active</th>
+        </tr>
+
+        {% for contact in members %}
+        <tr>
+            <td>{{ loop.index0 }}</td>
+            <td>{{ contact.phone }}</td>
+            <td>{{ contact.full_name or "" }}</td>
+            <td>{{ contact.is_active }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+
+</body>
+</html>

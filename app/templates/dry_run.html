@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dry-run Preview</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            padding: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th, td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background: #f0f0f0;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 10px 14px;
+            background: #0066cc;
+            color: white;
+            border-radius: 6px;
+            text-decoration: none;
+            margin-right: 10px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .danger {
+            background: #cc0000;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <a href="/web/campaigns/{{ campaign.id }}">← Back to campaign</a>
+
+    <h1>Dry-run Preview</h1>
+    <h2>Campaign #{{ campaign_display_id }} - {{ campaign.name }}</h2>
+
+    <p><b>Target count:</b> {{ target_count }}</p>
+
+    {% if target_count == 0 %}
+        <p style="color:red;">No frozen target contacts found. Do not start or simulate this campaign.</p>
+    {% endif %}
+
+    {% if target_count > 0 %}
+    <form method="post" action="/web/campaigns/{{ campaign.id }}/simulate">
+        <button class="btn danger" type="submit">
+            Simulate This Campaign
+        </button>
+    </form>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Contacts that would be called</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>No.</th>
+                <th>Phone</th>
+                <th>Name</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for contact in contacts %}
+            <tr>
+                <td>{{ loop.index0 }}</td>
+                <td>{{ contact.phone }}</td>
+                <td>{{ contact.full_name }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+</body>
+</html>

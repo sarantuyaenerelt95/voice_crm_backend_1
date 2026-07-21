@@ -1,0 +1,18 @@
+from app.models.company   import Company
+from app.models.user      import User, UserRole
+from app.models.contact   import Contact
+from app.models.sip_trunk import SIPTrunk, TrunkProvider
+from app.models.audio_file import AudioFile, AudioSource
+from app.models.campaign  import Campaign, CampaignStatus
+from app.models.call_log  import CallLog, CallStatus
+from app.models.campaign_target import CampaignTarget
+
+__all__ = [
+    "Company",
+    "User", "UserRole",
+    "Contact",
+    "SIPTrunk", "TrunkProvider",
+    "AudioFile", "AudioSource",
+    "Campaign", "CampaignStatus",
+    "CallLog", "CallStatus",
+]

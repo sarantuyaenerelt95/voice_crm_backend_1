@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SIP Numbers</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            padding: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        input {
+            padding: 10px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 6px;
+            margin-bottom: 12px;
+        }
+
+        button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn {
+            background: #0066cc;
+            color: white;
+        }
+
+        .disable-btn {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .enable-btn {
+            background: #16a34a;
+            color: white;
+        }
+
+        a {
+            color: #0066cc;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            margin-top: 15px;
+        }
+
+        th, td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        th {
+            background: #f0f0f0;
+        }
+
+        .active {
+            color: #16a34a;
+            font-weight: bold;
+        }
+
+        .disabled {
+            color: #6b7280;
+            font-weight: bold;
+        }
+
+        .registered {
+            color: #16a34a;
+            font-weight: bold;
+        }
+
+        .rejected {
+            color: #dc2626;
+            font-weight: bold;
+        }
+
+        .unregistered {
+            color: #f59e0b;
+            font-weight: bold;
+        }
+
+        .unknown {
+            color: #6b7280;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <a href="/web/logout">Logout</a>
+
+    <h1>SIP Trunks / SIP Numbers</h1>
+</div>
+
+<div class="card">
+    <h2>Add SIP Number</h2>
+
+    <form method="post" action="/admin/sip-numbers/add-apply">
+        <label>Provider</label>
+        <input type="text" name="provider" placeholder="Example: cally or mobinet" required>
+
+        <label>SIP Number</label>
+        <input type="text" name="number" placeholder="Example: 77090909" required>
+
+        <label>SIP Host / Server IP</label>
+        <input type="text" name="sip_host" placeholder="Example: 202.55.178.100 or portal.cally.mn" required>
+
+        <label>SIP Domain / Realm</label>
+        <input type="text" name="sip_domain" placeholder="Example: portal.cally.mn">
+
+        <label>SIP Username</label>
+        <input type="text" name="sip_username" placeholder="SIP username" required>
+
+        <label>SIP Password</label>
+        <input type="password" name="sip_password" placeholder="SIP password" required>
+
+        <p style="font-size:13px; color:#666; margin-top:10px;">
+            Asterisk endpoint is generated automatically from provider and SIP number.
+            Example: <b>vc_cally_77090909</b>
+        </p>
+
+        <label>Max Concurrent Calls</label>
+        <input type="number" name="max_concurrent" value="3" min="1">
+
+        <button class="btn" type="submit">Add & Apply to Asterisk</button>
+    </form>
+</div>
+
+<div class="card">
+    <h2>Current SIP Numbers</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>No.</th>
+                <th>Provider</th>
+                <th>SIP Number</th>
+                <th>Host</th>
+                <th>Domain</th>
+                <th>Username</th>
+                <th>Endpoint</th>
+                <th>DB Status</th>
+                <th>Register Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for trunk in trunks %}
+            <tr>
+                <td>{{ loop.index0 }}</td>
+
+                <td>
+                    {{ (trunk.provider|string).replace('TrunkProvider.', '') }}
+                </td>
+
+                <td>{{ trunk.number }}</td>
+                <td>{{ trunk.sip_host }}</td>
+                <td>{{ trunk.sip_domain or trunk.sip_host }}</td>
+                <td>{{ trunk.sip_username }}</td>
+                <td>{{ trunk.asterisk_endpoint }}</td>
+
+                <td>
+                    {% if trunk.is_active %}
+                        <span class="active">Active</span>
+                    {% else %}
+                        <span class="disabled">Disabled</span>
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if not trunk.is_active %}
+                        <span class="unknown">Not Applied</span>
+                    {% else %}
+                        {% set reg_status = registration_statuses.get(trunk.asterisk_endpoint, "Unknown") %}
+
+                        {% if reg_status == "Registered" %}
+                            <span class="registered">Registered</span>
+                        {% elif reg_status == "Rejected" %}
+                            <span class="rejected">Rejected</span>
+                        {% elif reg_status == "Unregistered" %}
+                            <span class="unregistered">Unregistered</span>
+                        {% else %}
+                            <span class="unknown">{{ reg_status }}</span>
+                        {% endif %}
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if trunk.is_active %}
+                        <form method="post"
+                              action="/admin/sip-numbers/{{ trunk.id }}/disable"
+                              onsubmit="return confirm('Disable this SIP number from Asterisk? Active calls must be finished first.');">
+                            <button type="submit" class="disable-btn">
+                                Disable
+                            </button>
+                        </form>
+                    {% else %}
+                        <form method="post"
+                              action="/admin/sip-numbers/{{ trunk.id }}/enable"
+                              onsubmit="return confirm('Enable and apply this SIP number to Asterisk?');">
+                            <button type="submit" class="enable-btn">
+                                Enable & Apply
+                            </button>
+                        </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+</body>
+</html>

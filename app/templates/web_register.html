@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Create Account - Voice CRM</title>
+  <link rel="stylesheet" href="/static/voicecrm.css">
+</head>
+<body>
+  <nav class="public-nav">
+    <div class="top-nav-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark">VC</span>
+        <span class="brand-text">Voice CRM</span>
+      </a>
+      <div class="nav-links">
+        <a href="/web/login">Login</a>
+        <a class="active" href="/web/register">Create account</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="auth-page page-shell">
+    <section class="auth-panel">
+      <div>
+        <span class="pill success">Company workspace</span>
+        <h1>Create account</h1>
+        <p class="muted">Create one company workspace and your first admin account.</p>
+      </div>
+
+      {% if error %}
+      <div class="alert danger">{{ error }}</div>
+      {% endif %}
+
+      <form method="post" action="/web/register" class="form-stack">
+        <label>Company name</label>
+        <input type="text" name="company_name" required>
+
+        <label>Your name</label>
+        <input type="text" name="full_name" required>
+
+        <label>Email</label>
+        <input type="email" name="email" autocomplete="email" required>
+
+        <label>Password</label>
+        <input type="password" name="password" autocomplete="new-password" minlength="6" required>
+
+        <button class="btn primary" type="submit">Create account</button>
+      </form>
+
+      <p class="muted">Already have an account? <a href="/web/login">Login</a>.</p>
+    </section>
+  </main>
+</body>
+</html>

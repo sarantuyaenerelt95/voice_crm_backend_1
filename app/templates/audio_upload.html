@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload Audio</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            padding: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        input {
+            margin-top: 10px;
+            padding: 10px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .btn {
+            margin-top: 15px;
+            padding: 10px 14px;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th, td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background: #f0f0f0;
+        }
+
+        a {
+            color: #0066cc;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .result {
+            background: #e8f5e9;
+        }
+
+        code {
+            background: #e6e1e1;
+            padding: 2px 5px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <a href="/web/dashboard">← Back to dashboard</a>
+
+    <h1>Upload Audio</h1>
+
+    <p>Supported: <b>mp3, wav, m4a, ogg, flac, gsm</b></p>
+    <p>System converts to <b>8kHz mono WAV</b> for Asterisk.</p>
+
+    <form method="post" action="/web/audio/upload" enctype="multipart/form-data">
+        <input type="file" name="file" accept=".mp3,.wav,.m4a,.ogg,.flac,.gsm" required>
+
+        <button class="btn" type="submit">
+            Upload Audio
+        </button>
+    </form>
+</div>
+
+{% if result %}
+<div class="card result">
+    <h2>Upload Result</h2>
+
+    <p>Audio No: <b>{{ result.display_id }}</b></p>
+    <p>Filename: <b>{{ result.filename }}</b></p>
+    <p>Duration: <b>{{ result.duration_sec }}</b> sec</p>
+    <p>Playback: <code>{{ result.playback_name }}</code></p>
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>Audio Files</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>No.</th>
+                <th>Filename</th>
+                <th>Duration</th>
+                <th>Playback Name</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for audio in audio_files %}
+            <tr>
+                <td>{{ loop.index0 }}</td>
+                <td>{{ audio.filename }}</td>
+                <td>{{ audio.duration_sec }}</td>
+                <td><code>custom/{{ audio.filename }}</code></td>
+                <td>
+                    <form method="post"
+                        action="/web/audio/{{ audio.id }}/delete"
+                        onsubmit="return confirm('Delete this audio from future campaigns? Old reports will remain.');">
+                        <button type="submit"
+                                style="padding:6px 10px; background:#660404; color:white; border:none; border-radius:6px; cursor:pointer;">
+                            Delete
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+</body>
+</html>

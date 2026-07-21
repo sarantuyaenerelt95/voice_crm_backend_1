@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Contact Groups</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f6f8; padding: 30px; }
+        .card { background: white; padding: 20px; border-radius: 10px; max-width: 900px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 10px; border-bottom: 1px solid #ddd; text-align: left; }
+        a { color: #0066cc; text-decoration: none; font-weight: bold; }
+        .btn { display: inline-block; padding: 10px 14px; background: #0066cc; color: white; border-radius: 6px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <a href="/web/dashboard">← Back to dashboard</a>
+
+    <h1>Contact Groups</h1>
+
+    <a class="btn" href="/web/contact-groups/new">+ Import New Group</a>
+
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Group Name</th>
+            <th>Contacts</th>
+            <th>Description</th>
+            <th>Created</th>
+            <th>Delete</th>
+        </tr>
+
+        {% for row in contact_groups %}
+        <tr>
+            <td>{{ loop.index0 }}</td>
+
+            <td>
+                <a href="/web/contact-groups/{{ row.group.id }}">
+                    <b>{{ row.group.name }}</b>
+                </a>
+            </td>
+
+            <td>{{ row.member_count }}</td>
+            <td>{{ row.group.description or "" }}</td>
+            <td>{{ row.group.created_at }}</td>
+            <td>
+                <form method="post"
+                    action="/web/contact-groups/{{ row.group.id }}/delete"
+                    onsubmit="return confirm('Delete this group? Contacts will NOT be deleted.');">
+                    <button type="submit"
+                            style="padding:6px 10px; background:#7d2626; color:white; border:none; border-radius:6px; cursor:pointer;">
+                        Delete
+                    </button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+
+</body>
+</html>

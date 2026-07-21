@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>New Contact Group - Voice CRM</title>
+  <link rel="stylesheet" href="/static/voicecrm.css">
+</head>
+<body>
+  {% include "_web_nav.html" %}
+  <main class="page-shell">
+    <div class="page-header">
+      <div>
+        <p class="eyebrow">Contact groups</p>
+        <h1>New contact group</h1>
+        <p class="muted">Create a reusable target group from pasted numbers or a CSV/TXT file.</p>
+      </div>
+      <div class="action-row">
+        <a class="btn secondary" href="/web/contact-groups">Back to groups</a>
+      </div>
+    </div>
+
+    <section class="card">
+      <form method="post" action="/web/contact-groups/new" enctype="multipart/form-data" class="form-stack">
+        <label>Group name</label>
+        <input type="text" name="group_name" required>
+
+        <label>Description</label>
+        <textarea name="description" rows="3"></textarea>
+
+        <label>Paste numbers</label>
+        <textarea name="bulk_numbers" rows="8" placeholder="90300226\n99112233"></textarea>
+
+        <label>Or upload CSV/TXT</label>
+        <input type="file" name="contact_file" accept=".csv,.txt">
+
+        <button class="btn primary" type="submit">Create group</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

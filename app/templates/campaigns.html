@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Campaigns - Voice CRM</title>
+  <link rel="stylesheet" href="/static/voicecrm.css">
+</head>
+<body>
+  {% include "_web_nav.html" %}
+  <main class="page-shell">
+    <div class="page-header">
+      <div>
+        <p class="eyebrow">{{ company_name }}</p>
+        <h1>Campaigns</h1>
+      </div>
+      <div class="action-row">
+        <a class="btn secondary" href="/web/campaigns/not-executed">Not executed</a>
+        <a class="btn primary" href="/web/campaigns/new">Create campaign</a>
+      </div>
+    </div>
+
+    <section class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>No.</th>
+              <th>Name</th>
+              <th>Status</th>
+              <th>Total</th>
+              <th>Completed</th>
+              <th>Busy</th>
+              <th>No Answer</th>
+              <th>Failed</th>
+              <th>Created</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in campaigns %}
+            {% set status = c.status.value if c.status else "" %}
+            <tr>
+              <td>{{ loop.index0 }}</td>
+              <td><strong>{{ c.name }}</strong></td>
+              <td><span class="badge {{ status }}">{{ status }}</span></td>
+              <td>{{ c.total_contacts or 0 }}</td>
+              <td>{{ c.completed_calls or 0 }}</td>
+              <td>{{ c.busy_calls or 0 }}</td>
+              <td>{{ c.no_answer_calls or 0 }}</td>
+              <td>{{ c.failed_calls or 0 }}</td>
+              <td>{{ c.created_at }}</td>
+              <td><a href="/web/campaigns/{{ c.id }}">Open</a></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="10" class="empty-state">No campaigns yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

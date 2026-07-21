@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login - Voice CRM</title>
+  <link rel="stylesheet" href="/static/voicecrm.css">
+</head>
+<body>
+  <nav class="public-nav">
+    <div class="top-nav-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark">VC</span>
+        <span class="brand-text">Voice CRM</span>
+      </a>
+      <div class="nav-links">
+        <a class="active" href="/web/login">Login</a>
+        <a href="/web/register">Create account</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="auth-page page-shell">
+    <section class="auth-panel">
+      <div>
+        <span class="pill success">Secure workspace</span>
+        <h1>Login</h1>
+        <p class="muted">Open your broadcast dashboard, contacts, audio files, and campaign reports.</p>
+      </div>
+
+      {% if error %}
+      <div class="alert danger">{{ error }}</div>
+      {% endif %}
+
+      <form method="post" action="/web/login" class="form-stack">
+        <label>Email</label>
+        <input type="email" name="email" autocomplete="email" required>
+
+        <label>Password</label>
+        <input type="password" name="password" autocomplete="current-password" required>
+
+        <button class="btn primary" type="submit">Login</button>
+      </form>
+
+      <p class="muted">New here? <a href="/web/register">Create an account</a>.</p>
+    </section>
+  </main>
+</body>
+</html>

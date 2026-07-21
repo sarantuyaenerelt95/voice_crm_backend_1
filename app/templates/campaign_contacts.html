@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Campaign Numbers - Voice CRM</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/voicecrm.css">
+</head>
+<body>
+{% include "_web_nav.html" %}
+<div class="page-shell">
+  <div class="page-header">
+    <div>
+      <a class="back-link" href="/web/campaigns/{{ campaign.id }}">Back to campaign</a>
+      <p class="page-eyebrow">Campaign targets</p>
+      <h1>Campaign #{{ campaign_display_id }} Numbers</h1>
+      <p class="muted"><strong>{{ campaign.name }}</strong></p>
+    </div>
+  </div>
+
+  {% if can_edit %}
+    <div class="warning">This campaign has not been executed yet. You can remove selected numbers from this campaign.</div>
+  {% else %}
+    <div class="warning">This campaign is locked because it was executed or has call logs. Numbers cannot be removed.</div>
+  {% endif %}
+
+  <div class="card">
+    {% if can_edit %}
+    <div class="actions">
+      <button class="btn btn-secondary" type="button" onclick="selectAllContacts()">Select All</button>
+      <button class="btn btn-secondary" type="button" onclick="clearSelection()">Clear</button>
+    </div>
+
+    <form id="bulkForm" method="post" action="/web/campaigns/{{ campaign.id }}/contacts/remove">
+      <div class="actions" style="margin-top:12px;">
+        <button class="btn btn-danger" type="submit" onclick="return confirm('Remove selected numbers from this campaign only?');">Remove Selected From Campaign</button>
+      </div>
+    {% endif %}
+
+      <div class="tool-row">
+        <div class="muted">Showing page {{ page }} / {{ total_pages }} - total campaign numbers: <strong>{{ total_campaign_contacts }}</strong></div>
+        <div class="actions">
+          {% if page > 1 %}<a class="btn btn-secondary" href="/web/campaigns/{{ campaign.id }}/contacts?page={{ page - 1 }}">Previous</a>{% endif %}
+          {% if page < total_pages %}<a class="btn btn-secondary" href="/web/campaigns/{{ campaign.id }}/contacts?page={{ page + 1 }}">Next</a>{% endif %}
+        </div>
+      </div>
+
+      <div class="contact-grid">
+        {% for contact in contacts %}
+        <div class="contact-card" onclick="toggleCard(this, event)">
+          {% if can_edit %}<input type="checkbox" name="contact_ids" value="{{ contact.id }}" onchange="syncCard(this)">{% endif %}
+          <div class="muted small-text">No. {{ ((page - 1) * per_page) + loop.index }}</div>
+          <div class="phone-row">
+            <span class="phone-text">{{ contact.phone }}</span>
+            <a class="history-btn" href="/web/contacts/{{ contact.id }}" onclick="event.stopPropagation();">History</a>
+          </div>
+          <div>{{ contact.full_name or "" }}</div>
+          {% if contact.target_status is defined %}
+            <div class="muted">
+                Status: {{ contact.target_status }}
+                | Attempts: {{ contact.target_attempts or 0 }}
+            </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="empty-state">No numbers in this campaign.</div>
+        {% endfor %}
+      </div>
+
+    {% if can_edit %}
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+function toggleCard(card, event) {
+  if (["A", "INPUT", "BUTTON"].includes(event.target.tagName)) return;
+  const checkbox = card.querySelector('input[type="checkbox"]');
+  if (!checkbox) return;
+  checkbox.checked = !checkbox.checked;
+  card.classList.toggle("selected", checkbox.checked);
+}
+
+function syncCard(checkbox) {
+  const card = checkbox.closest(".contact-card");
+  card.classList.toggle("selected", checkbox.checked);
+}
+
+function selectAllContacts() {
+  document.querySelectorAll('.contact-card input[type="checkbox"]').forEach(function(cb) {
+    cb.checked = true;
+    cb.closest(".contact-card").classList.add("selected");
+  });
+}
+
+function clearSelection() {
+  document.querySelectorAll('.contact-card input[type="checkbox"]').forEach(function(cb) {
+    cb.checked = false;
+    cb.closest(".contact-card").classList.remove("selected");
+  });
+}
+</script>
+</body>
+</html>

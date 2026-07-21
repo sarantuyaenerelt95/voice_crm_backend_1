@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Import Contacts - Voice CRM</title>
+  <link rel="stylesheet" href="/static/voicecrm.css">
+</head>
+<body>
+  {% include "_web_nav.html" %}
+  <main class="page-shell">
+    <div class="page-header">
+      <div>
+        <p class="eyebrow">Contacts</p>
+        <h1>Import contacts</h1>
+        <p class="muted">Upload a CSV or TXT file. Existing company numbers are skipped.</p>
+      </div>
+      <div class="action-row">
+        <a class="btn secondary" href="/web/contacts">Back to contacts</a>
+      </div>
+    </div>
+
+    {% if result %}
+    <section class="card">
+      <h2>Import result</h2>
+      <div class="metrics-grid">
+        <div class="metric-card"><span>Created</span><strong>{{ result.created }}</strong></div>
+        <div class="metric-card"><span>Skipped</span><strong>{{ result.skipped }}</strong></div>
+        <div class="metric-card"><span>Total rows</span><strong>{{ result.total_rows }}</strong></div>
+      </div>
+      <p class="muted">File: {{ result.filename }}</p>
+    </section>
+    {% endif %}
+
+    <section class="card">
+      <h2>Upload file</h2>
+      <p class="muted">Current active contacts: <strong>{{ total_contacts }}</strong></p>
+      <form method="post" action="/web/contacts/import" enctype="multipart/form-data" class="form-stack">
+        <label>CSV or TXT file</label>
+        <input type="file" name="file" accept=".csv,.txt" required>
+        <button class="btn primary" type="submit">Import contacts</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

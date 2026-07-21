@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Profile - Voice CRM</title>
+  <link rel="stylesheet" href="/static/voicecrm.css">
+</head>
+<body>
+  {% include "_web_nav.html" %}
+  <main class="page-shell">
+    <div class="page-header">
+      <div>
+        <p class="eyebrow">Company profile</p>
+        <h1>Profile</h1>
+      </div>
+    </div>
+
+    {% if message %}<div class="alert success">{{ message }}</div>{% endif %}
+    {% if error %}<div class="alert danger">{{ error }}</div>{% endif %}
+
+    <div class="metrics-grid">
+      <section class="metric-card"><span>Contacts</span><strong>{{ active_contact_count }}</strong></section>
+      <section class="metric-card"><span>Campaigns</span><strong>{{ campaign_count }}</strong></section>
+      <section class="metric-card"><span>Audio files</span><strong>{{ audio_count }}</strong></section>
+      <section class="metric-card"><span>Role</span><strong>{{ role_value }}</strong></section>
+    </div>
+
+    <div class="two-column">
+      <section class="card">
+        <h2>Your account</h2>
+        <form method="post" action="/web/profile" class="form-stack">
+          <label>Full name</label>
+          <input type="text" name="full_name" value="{{ user.full_name or '' }}">
+          <label>Email</label>
+          <input type="email" name="email" value="{{ user.email or '' }}" required>
+          {% if user_has_phone %}
+          <label>Phone</label>
+          <input type="text" name="phone" value="{{ user.phone or '' }}">
+          {% endif %}
+          <button class="btn primary" type="submit">Save profile</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Password</h2>
+        <form method="post" action="/web/profile/password" class="form-stack">
+          <label>Current password</label>
+          <input type="password" name="current_password" autocomplete="current-password" required>
+          <label>New password</label>
+          <input type="password" name="new_password" autocomplete="new-password" minlength="6" required>
+          <label>Confirm new password</label>
+          <input type="password" name="confirm_password" autocomplete="new-password" minlength="6" required>
+          <button class="btn secondary" type="submit">Change password</button>
+        </form>
+      </section>
+    </div>
+
+    <section class="card">
+      <h2>Company</h2>
+      <form method="post" action="/web/profile/company" class="form-stack">
+        <label>Company name</label>
+        <input type="text" name="company_name" value="{{ company.name if company else '' }}" {% if not can_edit_company %}readonly{% endif %} required>
+        <label>Company email</label>
+        <input type="email" name="company_email" value="{{ company.email if company else '' }}" {% if not can_edit_company %}readonly{% endif %} required>
+        <label>Company phone</label>
+        <input type="text" name="company_phone" value="{{ company.phone if company else '' }}" {% if not can_edit_company %}readonly{% endif %}>
+        {% if can_edit_company %}
+        <button class="btn primary" type="submit">Save company</button>
+        {% endif %}
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Company users</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for row in company_users %}
+            <tr>
+              <td>{{ row.email }}</td>
+              <td>{{ row.full_name or '-' }}</td>
+              <td>{{ row.role.value if row.role else '' }}</td>
+              <td>{% if row.is_active %}<span class="badge completed">active</span>{% else %}<span class="badge failed">inactive</span>{% endif %}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="empty-state">No users found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

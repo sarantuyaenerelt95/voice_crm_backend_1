@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Campaign Detail - Voice CRM</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/voicecrm.css">
+</head>
+<body>
+{% include "_web_nav.html" %}
+{% set campaign_status = campaign.status.value if campaign.status else '' %}
+<div class="page-shell">
+  <div class="page-header">
+    <div>
+      <p><a href="/web/dashboard">Back to dashboard</a></p>
+      <h1>Campaign #{{ campaign_display_id }}: {{ campaign.name }}</h1>
+      <span class="badge badge-{{ campaign_status }}">{{ campaign_status }}</span>
+    </div>
+    <div class="actions">
+      <a class="btn btn-secondary" href="/web/campaigns/{{ campaign.id }}/contacts">Manage Numbers</a>
+      <a class="btn btn-secondary" href="/web/campaigns/{{ campaign.id }}/report.csv">Download CSV</a>
+    </div>
+  </div>
+
+  <div class="grid grid-4">
+    <div class="stat"><div class="stat-label">Total</div><div class="stat-value">{{ campaign.total_contacts or 0 }}</div></div>
+    <div class="stat"><div class="stat-label">Completed</div><div class="stat-value">{{ campaign.completed_calls or 0 }}</div></div>
+    <div class="stat"><div class="stat-label">Busy</div><div class="stat-value">{{ campaign.busy_calls or 0 }}</div></div>
+    <div class="stat"><div class="stat-label">Failed</div><div class="stat-value">{{ campaign.failed_calls or 0 }}</div></div>
+  </div>
+
+  <div class="card">
+    <div class="page-header compact-header">
+      <div>
+        <h2>Start Readiness</h2>
+        <p class="muted">Only registered SIP numbers with free slots are shown for real start.</p>
+      </div>
+      <div class="start-panel">
+        {% if not start_disabled_reason %}
+          <form method="post" action="/web/campaigns/{{ campaign.id }}/real-start" class="start-form" onsubmit="return confirm('Start REAL campaign calls now?');">
+            <label for="sip_trunk_id">SIP Number</label>
+            <select name="sip_trunk_id" required>
+              {% for row in sip_rows %}
+                  {% if row.available %}
+                      <option value="{{ row.id }}">
+                          {{ row.number }} / {{ row.endpoint }} / Free {{ row.free_slots }}
+                      </option>
+                  {% endif %}
+              {% endfor %}
+          </select>
+            <button class="btn btn-success" type="submit">Real Start Campaign</button>
+          </form>
+        {% else %}
+          <button class="btn btn-disabled" disabled>Real Start Disabled</button>
+          <p class="muted small-text">{{ start_disabled_reason }}</p>
+        {% endif %}
+      </div>
+    </div>
+    <div class="grid grid-2">
+      <div><strong>Created</strong><br><span class="muted">{{ campaign.created_at }}</span></div>
+      <div><strong>Completed At</strong><br><span class="muted">{{ campaign.completed_at or 'Not completed' }}</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Available SIP Numbers</h2>
+    {% if sip_rows and sip_rows|length > 0 %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>No.</th><th>SIP Number</th><th>Provider</th><th>Endpoint</th><th>Register</th><th>Active Calls</th><th>Free Slots</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          {% for sip in sip_rows %}
+          <tr>
+            <td>{{ loop.index0 }}</td>
+            <td><strong>{{ sip.number }}</strong></td>
+            <td>{{ sip.provider }}</td>
+            <td>{{ sip.endpoint }}</td>
+            <td><span class="badge badge-registered">{{ sip.register_status }}</span></td>
+            <td>{{ sip.active_calls }} / {{ sip.max_concurrent }}</td>
+            <td>{{ sip.free_slots }}</td>
+            <td><span class="badge badge-available">Available</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="alert alert-error">No registered SIP number has a free call slot right now.</div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Groups Used</h2>
+    {% if campaign_groups %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Group</th><th>Total</th><th>Progress</th><th>Calling</th><th>Completed</th><th>Busy</th><th>No Answer</th><th>Failed</th><th>Congestion</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for row in campaign_groups %}
+          <tr>
+            <td><strong>{{ row.group.name }}</strong></td>
+            <td>{{ row.total }}</td>
+            <td>
+              {{ row.progress_percent }}% ({{ row.finished }}/{{ row.total }})
+              <div class="progress-track"><div class="progress-fill" style="width:{{ row.progress_percent }}%;"></div></div>
+            </td>
+            <td>{{ row.calling }}</td>
+            <td>{{ row.completed }}</td>
+            <td>{{ row.busy }}</td>
+            <td>{{ row.no_answer }}</td>
+            <td>{{ row.failed }}</td>
+            <td>{{ row.congestion }}</td>
+            <td><a href="/web/contact-groups/{{ row.group.id }}">Open</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p class="muted">No contact group was linked to this campaign.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="section-title-row">
+      <div>
+        <h2>Target Number Status</h2>
+        <p class="muted">
+          Shows all frozen campaign numbers, including pending and cancelled numbers.
+          Total targets: {{ target_status_total or 0 }}
+        </p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table id="targetStatusTable">
+        <thead>
+          <tr>
+            <th>No.</th>
+            <th>Phone</th>
+            <th>Status</th>
+            <th>Attempts</th>
+            <th>Call Log ID</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for target in target_status_rows %}
+          <tr data-call-status="{{ target.status }}">
+            <td>{{ loop.index }}</td>
+            <td>{{ target.phone }}</td>
+            <td><span class="badge badge-{{ target.status }}">{{ target.status }}</span></td>
+            <td>{{ target.attempts or 0 }}</td>
+            <td>{{ target.call_log_id or '' }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" style="text-align:center; padding:24px;">No campaign targets found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if target_status_total and target_status_total > 300 %}
+      <p class="muted small-text">
+        Showing first 300 targets only. Use Manage Numbers to view more.
+      </p>
+    {% endif %}
+  </div>
+  <div class="card">
+    <div class="section-title-row">
+      <div>
+        <h2>Call Results</h2>
+        <p class="muted" id="monitorStatus">Manual refresh mode.</p>
+      </div>
+      <div class="monitor-controls">
+        <select id="callStatusFilter" class="status-filter" aria-label="Filter call results by status">
+          <option value="all">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="calling">Calling</option>
+          <option value="completed">Completed</option>
+          <option value="busy">Busy</option>
+          <option value="no_answer">No answer</option>
+          <option value="failed">Failed</option>
+          <option value="congestion">Congestion</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <button class="btn btn-secondary" type="button" id="autoRefreshToggle">Auto-refresh off</button>
+        <a class="btn btn-secondary" href="/web/campaigns/{{ campaign.id }}">Refresh</a>
+        {% if campaign_status in ["running", "queued"] %}
+        <form method="post"
+              action="/web/campaigns/{{ campaign.id }}/cancel"
+              style="display:inline;"
+              onsubmit="return confirm('Cancel this running campaign? Pending numbers will be marked cancelled.');">
+          <button class="btn btn-danger" type="submit">Cancel Campaign</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    
+    <div class="tool-row">
+      <div>
+        Showing page {{ page }} / {{ total_pages }}
+        — call logs: {{ total_call_logs }}
+        {% if cancelled_result_total %}
+          | cancelled: {{ cancelled_result_total }}
+        {% endif %}
+      </div>
+
+      <div class="actions">
+        {% if page > 1 %}
+          <a class="btn btn-secondary" href="/web/campaigns/{{ campaign.id }}?page={{ page - 1 }}">Previous</a>
+        {% endif %}
+
+        {% if page < total_pages %}
+          <a class="btn btn-secondary" href="/web/campaigns/{{ campaign.id }}?page={{ page + 1 }}">Next</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table id="callResultsTable">
+        <thead>
+          <tr>
+            <th>No.</th>
+            <th>Phone</th>
+            <th>Status</th>
+            <th>Duration</th>
+            <th>Cause</th>
+            <th>Started</th>
+            <th>Answered</th>
+            <th>Ended</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for call in calls %}
+          {% set status = call.status.value if call.status else '' %}
+          <tr data-call-status="{{ status }}">
+            <td>{{ ((page - 1) * per_page) + loop.index }}</td>
+            <td>{{ call.phone }}</td>
+            <td><span class="badge badge-{{ status }}">{{ status }}</span></td>
+            <td>{{ call.duration_sec if call.duration_sec is not none else '' }}</td>
+            <td>{{ call.hangup_cause if call.hangup_cause is not none else '' }}</td>
+            <td>{{ call.started_at }}</td>
+            <td>{{ call.answered_at or '' }}</td>
+            <td>{{ call.ended_at or '' }}</td>
+          </tr>
+          {% endfor %}
+
+          {% if page == 1 %}
+            {% for target in cancelled_result_rows %}
+            <tr data-call-status="cancelled">
+              <td>{{ calls|length + loop.index }}</td>
+              <td>{{ target.phone }}</td>
+              <td><span class="badge badge-cancelled">cancelled</span></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+            {% endfor %}
+          {% endif %}
+
+          {% if calls|length == 0 and cancelled_result_rows|length == 0 %}
+          <tr>
+            <td colspan="8" style="text-align:center; padding:24px;">No calls recorded yet.</td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const campaignId = "{{ campaign.id }}";
+  const autoKey = "voicecrm:auto-refresh:" + campaignId;
+  const filterKey = "voicecrm:call-filter:" + campaignId;
+  const toggle = document.getElementById("autoRefreshToggle");
+  const filter = document.getElementById("callStatusFilter");
+  const status = document.getElementById("monitorStatus");
+  const rows = Array.from(document.querySelectorAll(
+  "#targetStatusTable tbody tr[data-call-status], #callResultsTable tbody tr[data-call-status]"
+));
+  let timer = null;
+
+  function applyFilter() {
+    if (!filter) return;
+    const value = filter.value || "all";
+    let visible = 0;
+
+    rows.forEach(function(row) {
+      const matches = value === "all" || row.dataset.callStatus === value;
+      row.style.display = matches ? "" : "none";
+      if (matches) visible += 1;
+    });
+
+    localStorage.setItem(filterKey, value);
+    updateStatus(visible);
+  }
+
+  function updateStatus(visibleCount) {
+    if (!status) return;
+    const enabled = localStorage.getItem(autoKey) === "1";
+    const visible = typeof visibleCount === "number" ? visibleCount : rows.filter(function(row) {
+      return row.style.display !== "none";
+    }).length;
+    status.textContent = (enabled ? "Auto-refreshing every 5 seconds" : "Manual refresh mode") + " - showing " + visible + " visible rows on this page.";
+  }
+
+  function setAutoRefresh(enabled) {
+    if (timer) {
+      clearInterval(timer);
+      timer = null;
+    }
+
+    localStorage.setItem(autoKey, enabled ? "1" : "0");
+
+    if (toggle) {
+      toggle.textContent = enabled ? "Auto-refresh 5s on" : "Auto-refresh off";
+      toggle.classList.toggle("btn-success", enabled);
+      toggle.classList.toggle("btn-secondary", !enabled);
+    }
+
+    if (enabled) {
+      timer = setInterval(function() {
+        window.location.reload();
+      }, 5000);
+    }
+
+    updateStatus();
+  }
+
+  if (filter) {
+    const savedFilter = localStorage.getItem(filterKey);
+    if (savedFilter) filter.value = savedFilter;
+    filter.addEventListener("change", applyFilter);
+  }
+
+  if (toggle) {
+    toggle.addEventListener("click", function() {
+      setAutoRefresh(localStorage.getItem(autoKey) !== "1");
+    });
+  }
+
+  applyFilter();
+  setAutoRefresh(localStorage.getItem(autoKey) === "1");
+
+  window.addEventListener("beforeunload", function() {
+    if (timer) clearInterval(timer);
+  });
+})();
+</script>
+</body>
+</html>

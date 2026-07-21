@@ -1,0 +1,15 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+sqlalchemy
+psycopg2-binary
+pydantic
+pydantic-settings
+python-multipart
+jinja2
+PyJWT
+passlib[bcrypt]
+celery
+redis
+email-validator
+
+itsdangerous

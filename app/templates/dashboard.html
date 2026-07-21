@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Voice CRM Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            padding: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th, td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background: #f0f0f0;
+        }
+
+        a {
+            color: #0066cc;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .status {
+            padding: 4px 8px;
+            border-radius: 5px;
+            background: #eee;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <form method="post" action="/web/logout" style="float:right;">
+        <button type="submit" style="padding:8px 12px; background:#3a06ab; color:white; border:none; border-radius:6px; cursor:pointer;">
+            Logout
+        </button>
+    </form>
+
+    <h1>Voice CRM Dashboard</h1>
+    <p>Campaign list</p>
+
+    <a href="/web/campaigns/new">+ Create New Campaign</a>
+    &nbsp; | &nbsp;
+    <a href="/web/audio/upload">Upload Audio</a>
+    &nbsp; | &nbsp;
+    <a href="/web/contact-groups">Contact Groups</a>
+    &nbsp; | &nbsp;
+    <a href="/web/contacts">Contacts</a>
+    &nbsp; | &nbsp;
+    <a href="/web/campaigns/not-executed">Not Executed Campaigns</a>
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Campaign Name</th>
+                <th>Status</th>
+                <th>Total</th>
+                <th>Completed</th>
+                <th>Busy</th>
+                <th>No Answer</th>
+                <th>Failed</th>
+                <th>Created</th>
+                <th>Open</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in campaigns %}
+            <tr>
+                <td>{{ loop.index0 }}</td>
+                <td>{{ c.name }}</td>
+                <td>
+                    <span class="status">
+                        {{ c.status.value if c.status else "" }}
+                    </span>
+                </td>
+                <td>{{ c.total_contacts or 0 }}</td>
+                <td>{{ c.completed_calls or 0 }}</td>
+                <td>{{ c.busy_calls or 0 }}</td>
+                <td>{{ c.no_answer_calls or 0 }}</td>
+                <td>{{ c.failed_calls or 0 }}</td>
+                <td>{{ c.created_at }}</td>
+                <td>
+                    <a href="/web/campaigns/{{ c.id }}">View</a>
+                </td>
+                <td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="10" style="text-align:center; padding:20px;">
+                    No campaigns yet for this company.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+</body>
+</html>

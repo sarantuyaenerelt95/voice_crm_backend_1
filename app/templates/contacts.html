@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Contacts</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            padding: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        a {
+            color: #0066cc;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        input, select {
+            padding: 10px;
+            margin: 5px 0;
+        }
+
+        .btn {
+            padding: 9px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            color: white;
+            background: #0066cc;
+        }
+
+        .danger {
+            background: #dc2626;
+        }
+
+        .restore {
+            background: #16a34a;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .contact-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 14px;
+            background: #f8fafc;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .contact-card.selected {
+            outline: 3px solid #0066cc;
+            background: #eaf3ff;
+        }
+
+        .phone {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .muted {
+            color: #666;
+            font-size: 13px;
+        }
+
+        .status-active {
+            color: #16a34a;
+            font-weight: bold;
+        }
+
+        .status-inactive {
+            color: #dc2626;
+            font-weight: bold;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .phone-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .history-btn {
+            font-size: 12px;
+            padding: 5px 8px;
+            background: #0066cc;
+            color: white;
+            border-radius: 6px;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <a href="/web/dashboard">← Back to dashboard</a>
+
+    <h1>Contacts</h1>
+
+    <p>
+        Active: <b>{{ total_active }}</b>
+        &nbsp; | &nbsp;
+        Inactive: <b>{{ total_inactive }}</b>
+    </p>
+
+    <form method="get" action="/web/contacts" class="toolbar">
+        <input type="text" name="q" placeholder="Search phone or name" value="{{ q }}">
+
+        <select name="status">
+            <option value="all" {% if status == "all" %}selected{% endif %}>All</option>
+            <option value="active" {% if status == "active" %}selected{% endif %}>Active</option>
+            <option value="inactive" {% if status == "inactive" %}selected{% endif %}>Inactive</option>
+        </select>
+
+        <button class="btn" type="submit">Search</button>
+        <a href="/web/contacts">Clear</a>
+    </form>
+</div>
+
+<div class="card">
+    <div class="toolbar">
+        <button class="btn" type="button" onclick="selectAllContacts()">Select All</button>
+        <button class="btn" type="button" onclick="clearSelection()">Clear</button>
+    </div>
+
+    <form id="bulkForm" method="post">
+        <div style="margin-top:15px;">
+            <button class="btn danger"
+                    type="submit"
+                    formaction="/web/contacts/bulk-deactivate"
+                    onclick="return confirm('Deactivate selected numbers? Logs and reports will remain.');">
+                Deactivate Selected
+            </button>
+
+            <button class="btn restore"
+                    type="submit"
+                    formaction="/web/contacts/bulk-restore"
+                    onclick="return confirm('Restore selected numbers?');">
+                Restore Selected
+            </button>
+        </div>
+
+        <div class="grid">
+            {% for contact in contacts %}
+            <div class="contact-card" onclick="toggleCard(this, event)">
+                <input type="checkbox" name="contact_ids" value="{{ contact.id }}" onchange="syncCard(this)">
+
+                <div class="muted">No. {{ loop.index0 }}</div>
+
+                <div class="phone">
+                    <div class="phone-row">
+                        <span class="phone">{{ contact.phone }}</span>
+
+                        <a class="history-btn"
+                        href="/web/contacts/{{ contact.id }}"
+                        onclick="event.stopPropagation();">
+                            History
+                        </a>
+                    </div>
+                    </a>
+                </div>
+
+                <div>{{ contact.full_name or "" }}</div>
+
+                <div class="muted">
+                    {% if contact.is_active %}
+                        <span class="status-active">Active</span>
+                    {% else %}
+                        <span class="status-inactive">Inactive</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <p>No contacts found.</p>
+            {% endfor %}
+        </div>
+    </form>
+</div>
+
+<script>
+function toggleCard(card, event) {
+    if (event.target.tagName === "A" || event.target.tagName === "INPUT" || event.target.tagName === "BUTTON") {
+        return;
+    }
+
+    const checkbox = card.querySelector('input[type="checkbox"]');
+    checkbox.checked = !checkbox.checked;
+    card.classList.toggle("selected", checkbox.checked);
+}
+
+function syncCard(checkbox) {
+    const card = checkbox.closest(".contact-card");
+    card.classList.toggle("selected", checkbox.checked);
+}
+
+function selectAllContacts() {
+    document.querySelectorAll('.contact-card input[type="checkbox"]').forEach(function(cb) {
+        cb.checked = true;
+        cb.closest(".contact-card").classList.add("selected");
+    });
+}
+
+function clearSelection() {
+    document.querySelectorAll('.contact-card input[type="checkbox"]').forEach(function(cb) {
+        cb.checked = false;
+        cb.closest(".contact-card").classList.remove("selected");
+    });
+}
+</script>
+
+</body>
+</html>

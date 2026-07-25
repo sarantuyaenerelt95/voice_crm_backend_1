@@ -103,15 +103,14 @@ def calculate_duration_sec(answered_at, ended_at, cause_code: int, audio_duratio
 
     raw_duration = max(0, (ended_at - answered_at).total_seconds())
 
+    # Rule:
+    # cause 44 = RTP timeout / delayed hangup detection, subtract delay.
+    # cause 16 = normal clearing, keep raw real duration.
+    # Do NOT force duration to audio_duration.
     if cause_code == RTP_TIMEOUT_CAUSE:
-        estimated_duration = max(0, raw_duration - RTP_TIMEOUT_DELAY_SEC)
-    else:
-        estimated_duration = raw_duration
+        return round(max(0, raw_duration - RTP_TIMEOUT_DELAY_SEC), 2)
 
-    if audio_duration is not None and audio_duration > 0:
-        estimated_duration = min(estimated_duration, float(audio_duration))
-
-    return round(estimated_duration, 2)
+    return round(raw_duration, 2)
 
 
 def extract_call_log_id_from_event(event: dict):
@@ -422,20 +421,28 @@ def handle_hangup(db, event: dict):
     if not call:
         return
 
+    cause_code = safe_int(event.get("Cause"))
+
     if call.ended_at:
+        if cause_code and not call.hangup_cause:
+            call.hangup_cause = cause_code
+            db.commit()
         return
 
     call.ended_at = utc_now()
-
-    cause_code = safe_int(event.get("Cause"))
-
     call.hangup_cause = cause_code
 
     answered = call.answered_at is not None
-    call.status = classify_status(cause_code, answered)
 
-    if call.status == CallStatus.completed:
+    if answered:
+        call.status = CallStatus.completed
         audio_duration = get_audio_duration(call)
+
+        raw_duration = (
+            max(0, (call.ended_at - call.answered_at).total_seconds())
+            if call.answered_at and call.ended_at
+            else 0
+        )
 
         call.duration_sec = calculate_duration_sec(
             answered_at=call.answered_at,
@@ -444,19 +451,16 @@ def handle_hangup(db, event: dict):
             audio_duration=audio_duration,
         )
 
-        raw_duration = (
-            (call.ended_at - call.answered_at).total_seconds()
-            if call.answered_at
-            else 0
-        )
-
         print(
             f"AMI HANGUP: {call.phone} completed. "
-            f"raw={raw_duration:.2f}s audio={audio_duration} "
-            f"saved={call.duration_sec:.2f}s cause={cause_code}"
+            f"raw={raw_duration:.2f}s "
+            f"audio={audio_duration} "
+            f"saved={call.duration_sec:.2f}s "
+            f"cause={cause_code}"
         )
 
     else:
+        call.status = classify_status(cause_code, answered)
         call.duration_sec = 0
 
         print(

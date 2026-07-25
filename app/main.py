@@ -37,13 +37,6 @@ app = FastAPI(
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=os.getenv("SESSION_SECRET_KEY", settings.SECRET_KEY),
-    same_site="lax",
-    https_only=False,
-)
-
 
 if STATIC_DIR.exists():
     app.mount(
@@ -95,6 +88,14 @@ async def require_web_login(request: Request, call_next):
             return RedirectResponse(url="/web/login", status_code=303)
 
     return await call_next(request)
+
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SESSION_SECRET_KEY", settings.SECRET_KEY),
+    same_site="lax",
+    https_only=False,
+)
 
 
 @app.get("/docs", include_in_schema=False)

@@ -1,62 +1,124 @@
+<!-- app/templates/contact_groups.html -->
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Contact Groups</title>
-    <style>
-        body { font-family: Arial, sans-serif; background: #f4f6f8; padding: 30px; }
-        .card { background: white; padding: 20px; border-radius: 10px; max-width: 900px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { padding: 10px; border-bottom: 1px solid #ddd; text-align: left; }
-        a { color: #0066cc; text-decoration: none; font-weight: bold; }
-        .btn { display: inline-block; padding: 10px 14px; background: #0066cc; color: white; border-radius: 6px; margin-top: 10px; }
-    </style>
+  <meta charset="UTF-8">
+  <title>Contact Groups | Voice CRM</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/voicecrm.css">
 </head>
+
 <body>
 
-<div class="card">
-    <a href="/web/dashboard">← Back to dashboard</a>
+{% include "_web_nav.html" %}
 
-    <h1>Contact Groups</h1>
+<main class="page-shell">
 
-    <a class="btn" href="/web/contact-groups/new">+ Import New Group</a>
+  <div class="page-header">
+    <div>
+      <a class="back-link" href="/web/dashboard">← Back to dashboard</a>
+      <p class="page-eyebrow">Contact groups</p>
+      <h1>Contact Groups</h1>
+      <p class="muted">
+        Manage reusable contact groups for campaign targeting.
+      </p>
+    </div>
 
-    <table>
-        <tr>
-            <th>ID</th>
+    <div class="actions">
+      <a class="btn" href="/web/contact-groups/new">
+        + Import New Group
+      </a>
+    </div>
+  </div>
+
+  <section class="card">
+    <div class="section-title-row">
+      <div>
+        <h2>Groups</h2>
+        <p class="muted small-text">
+          Deleting a group will not delete contacts.
+        </p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>No.</th>
             <th>Group Name</th>
             <th>Contacts</th>
             <th>Description</th>
             <th>Created</th>
+            <th>Open</th>
             <th>Delete</th>
-        </tr>
+          </tr>
+        </thead>
 
-        {% for row in contact_groups %}
-        <tr>
-            <td>{{ loop.index0 }}</td>
+        <tbody>
+          {% for row in contact_groups %}
+            <tr>
+              <td>{{ loop.index }}</td>
 
-            <td>
-                <a href="/web/contact-groups/{{ row.group.id }}">
-                    <b>{{ row.group.name }}</b>
+              <td>
+                <strong>{{ row.group.name }}</strong>
+              </td>
+
+              <td>{{ row.member_count }}</td>
+
+              <td>
+                {{ row.group.description or "" }}
+              </td>
+
+              <td>
+                {{ row.group.created_at }}
+              </td>
+
+              <td>
+                <a class="btn btn-secondary" href="/web/contact-groups/{{ row.group.id }}">
+                  Open
                 </a>
-            </td>
+              </td>
 
-            <td>{{ row.member_count }}</td>
-            <td>{{ row.group.description or "" }}</td>
-            <td>{{ row.group.created_at }}</td>
-            <td>
-                <form method="post"
-                    action="/web/contact-groups/{{ row.group.id }}/delete"
-                    onsubmit="return confirm('Delete this group? Contacts will NOT be deleted.');">
-                    <button type="submit"
-                            style="padding:6px 10px; background:#7d2626; color:white; border:none; border-radius:6px; cursor:pointer;">
-                        Delete
-                    </button>
+              <td>
+                <form class="inline-form"
+                      method="post"
+                      action="/web/contact-groups/{{ row.group.id }}/delete">
+                  <button type="submit"
+                          class="btn btn-danger delete-group-btn">
+                    Delete
+                  </button>
                 </form>
-            </td>
-        </tr>
-        {% endfor %}
-    </table>
-</div>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="7">
+                <div class="empty-state">
+                  No contact groups yet.
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<script>
+(function () {
+  document.querySelectorAll(".delete-group-btn").forEach(function (button) {
+    button.addEventListener("click", function (event) {
+      if (!confirm("Delete this group? Contacts will NOT be deleted.")) {
+        event.preventDefault();
+      }
+    });
+  });
+})();
+</script>
 
 </body>
 </html>

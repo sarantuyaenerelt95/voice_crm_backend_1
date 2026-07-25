@@ -1,17 +1,30 @@
 # app/main.py
+
+from __future__ import annotations
+
 import os
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from fastapi import Request
-from fastapi.templating import Jinja2Templates
+from app.config import settings
+from app.routes import (
+    auth_routes,
+    campaign_routes,
+    web_routes,
+    web_auth_routes,
+    admin_routes,
+)
 
-from app.routes import auth_routes, campaign_routes, web_routes, web_auth_routes, admin_routes
-STATIC_DIR = Path(__file__).resolve().parent / "static"
+
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
+TEMPLATES_DIR = BASE_DIR / "templates"
+
 
 app = FastAPI(
     title="Voice CRM Backend",
@@ -20,13 +33,68 @@ app = FastAPI(
     docs_url=None,
     redoc_url=None,
 )
-templates = Jinja2Templates(directory="app/templates")
+
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SESSION_SECRET_KEY", settings.SECRET_KEY),
+    same_site="lax",
+    https_only=False,
+)
 
 
+if STATIC_DIR.exists():
+    app.mount(
+        "/static",
+        StaticFiles(directory=str(STATIC_DIR)),
+        name="static",
+    )
 
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+@app.middleware("http")
+async def require_web_login(request: Request, call_next):
+    path = request.url.path
+
+    public_paths = {
+        "/",
+        "/home",
+        "/health",
+        "/docs",
+        "/openapi.json",
+        "/web",
+        "/web/",
+        "/web/login",
+        "/web/register",
+        "/web/logout",
+    }
+
+    if (
+        path in public_paths
+        or path.startswith("/static")
+        or path.startswith("/auth")
+        or path.startswith("/campaigns")
+    ):
+        return await call_next(request)
+
+    if path.startswith("/web"):
+        if not request.session.get("user_id"):
+            return RedirectResponse(url="/web/login", status_code=303)
+
+        role_value = str(request.session.get("role", "")).lower().strip()
+
+        if "." in role_value:
+            role_value = role_value.split(".")[-1]
+
+        if role_value == "owner":
+            return RedirectResponse(url="/admin/sip-numbers", status_code=303)
+
+    if path.startswith("/admin"):
+        if not request.session.get("user_id"):
+            return RedirectResponse(url="/web/login", status_code=303)
+
+    return await call_next(request)
 
 
 @app.get("/docs", include_in_schema=False)
@@ -94,6 +162,7 @@ def public_home(request: Request):
         },
     )
 
+
 @app.get("/home", response_class=HTMLResponse)
 def public_home_alias(request: Request):
     return templates.TemplateResponse(
@@ -103,52 +172,17 @@ def public_home_alias(request: Request):
         },
     )
 
-@app.middleware("http")
-async def require_web_login(request, call_next):
-    path = request.url.path
 
-    public_paths = {
-        "/web/login",
-        "/web/register",
-        "/web/logout",
+@app.get("/health")
+def health_check():
+    return {
+        "status": "ok",
+        "service": "Voice CRM API",
     }
 
-    if path.startswith("/web") and path not in public_paths:
-        if not request.session.get("user_id"):
-            return RedirectResponse(url="/web/login", status_code=303)
 
-        role_value = str(request.session.get("role", "")).lower().strip()
-
-        if "." in role_value:
-            role_value = role_value.split(".")[-1]
-
-        if role_value == "owner":
-            return RedirectResponse(url="/admin/sip-numbers", status_code=303)
-
-    if path.startswith("/admin"):
-        if not request.session.get("user_id"):
-            return RedirectResponse(url="/web/login", status_code=303)
-
-    return await call_next(request)
-
-
-
-
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=os.getenv("SESSION_SECRET_KEY", "change-this-secret-key-in-production"),
-    same_site="lax",
-    https_only=False,
-)
-
-# Register routes
 app.include_router(auth_routes.router)
 app.include_router(campaign_routes.router)
 app.include_router(web_auth_routes.router)
 app.include_router(web_routes.router)
 app.include_router(admin_routes.router)
-
-
-@app.get("/health")
-def health_check():
-    return {"status": "ok", "service": "Voice CRM API"}

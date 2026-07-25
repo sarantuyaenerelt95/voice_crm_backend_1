@@ -1,5 +1,8 @@
 # app/config.py
-from pydantic_settings import BaseSettings
+
+from __future__ import annotations
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -11,11 +14,15 @@ class Settings(BaseSettings):
     ASTERISK_AMI_HOST: str = "127.0.0.1"
     ASTERISK_AMI_PORT: int = 5038
     ASTERISK_AMI_USER: str = "voicebroadcast"
-    ASTERISK_AMI_PASS: str = "broadcast123"
-    ENABLE_SIMULATION: bool = False 
+    ASTERISK_AMI_PASS: str = "change-me"
 
-    class Config:
-        env_file = ".env"
+    ENABLE_SIMULATION: bool = False
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
 
 settings = Settings()

@@ -1,6 +1,13 @@
+# app/routes/web_auth_routes.py
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 
@@ -46,12 +53,28 @@ def user_password_column():
     raise RuntimeError("User model must have hashed_password, password_hash, or password column")
 
 
+def is_bcrypt_safe_password(password: str) -> bool:
+    return len((password or "").encode("utf-8")) <= 72
+
+
 def hash_password(password: str) -> str:
+    if not is_bcrypt_safe_password(password):
+        raise ValueError("Password is too long. Maximum is 72 bytes.")
     return pwd_context.hash(password)
 
 
 def verify_password(password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(password, hashed_password)
+    if not password or not hashed_password:
+        return False
+
+    if not is_bcrypt_safe_password(password):
+        return False
+
+    try:
+        return pwd_context.verify(password, hashed_password)
+    except Exception:
+        return False
+
 
 def normalized_role(user: User) -> str:
     role_raw = getattr(user, "role", "")
@@ -67,7 +90,6 @@ def normalized_role(user: User) -> str:
         role_value = role_value.split(".")[-1]
 
     return role_value
-
 
 
 def get_logged_in_web_user(request: Request, db: Session) -> User:
@@ -117,7 +139,7 @@ def web_login(
     password_col = user_password_column()
 
     user = db.query(User).filter(
-        getattr(User, identity_col) == email
+        getattr(User, identity_col) == email,
     ).first()
 
     if not user:
@@ -132,7 +154,7 @@ def web_login(
 
     stored_hash = getattr(user, password_col)
 
-    if not stored_hash or not verify_password(password, stored_hash):
+    if not verify_password(password, stored_hash):
         return templates.TemplateResponse(
             "web_login.html",
             {
@@ -152,11 +174,21 @@ def web_login(
             status_code=400,
         )
 
+    if hasattr(user, "last_login"):
+        user.last_login = datetime.now(timezone.utc)
+        db.commit()
+
+    role_value = normalized_role(user)
+
     request.session.clear()
     request.session["user_id"] = user.id
+    request.session["role"] = role_value
 
     if hasattr(user, "company_id"):
         request.session["company_id"] = user.company_id
+
+    if role_value == "owner":
+        return RedirectResponse(url="/admin/sip-numbers", status_code=303)
 
     return RedirectResponse(url="/web/dashboard", status_code=303)
 
@@ -195,11 +227,22 @@ def web_register(
             status_code=400,
         )
 
+
+    if not is_bcrypt_safe_password(password):
+        return templates.TemplateResponse(
+            "web_register.html",
+            {
+                "request": request,
+                "error": "Password is too long. Please use 72 bytes or less.",
+            },
+            status_code=400,
+        )
+
     identity_col = user_email_column()
     password_col = user_password_column()
 
     existing_user = db.query(User).filter(
-        getattr(User, identity_col) == email
+        getattr(User, identity_col) == email,
     ).first()
 
     if existing_user:
@@ -221,11 +264,9 @@ def web_register(
     if "company_name" in company_cols:
         company_kwargs["company_name"] = company_name
 
-    # Your companies table requires email NOT NULL
     if "email" in company_cols:
         company_kwargs["email"] = email
 
-    # Optional: if phone column exists, keep empty string instead of NULL
     if "phone" in company_cols:
         company_kwargs["phone"] = ""
 
@@ -241,64 +282,72 @@ def web_register(
     if "max_campaigns" in company_cols:
         company_kwargs["max_campaigns"] = 1000
 
-    company = Company(**company_kwargs)
-    db.add(company)
-    db.flush()
-
     user_cols = model_columns(User)
     user_kwargs = {}
 
-    if "company_id" in user_cols:
-        user_kwargs["company_id"] = company.id
+    try:
+        company = Company(**company_kwargs)
+        db.add(company)
+        db.flush()
 
-    if "email" in user_cols:
-        user_kwargs["email"] = email
+        if "company_id" in user_cols:
+            user_kwargs["company_id"] = company.id
 
-    if "username" in user_cols:
-        user_kwargs["username"] = email
+        if "email" in user_cols:
+            user_kwargs["email"] = email
 
-    if "full_name" in user_cols:
-        user_kwargs["full_name"] = full_name
+        if "username" in user_cols:
+            user_kwargs["username"] = email
 
-    if "name" in user_cols:
-        user_kwargs["name"] = full_name
+        if "full_name" in user_cols:
+            user_kwargs["full_name"] = full_name
 
-    if "role" in user_cols:
-        user_kwargs["role"] = "admin"
+        if "name" in user_cols:
+            user_kwargs["name"] = full_name
 
-    if "is_active" in user_cols:
-        user_kwargs["is_active"] = True
+        if "role" in user_cols:
+            user_kwargs["role"] = "owner"
 
-    user_kwargs[password_col] = hash_password(password)
+        if "is_active" in user_cols:
+            user_kwargs["is_active"] = True
 
-    user = User(**user_kwargs)
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+        user_kwargs[password_col] = hash_password(password)
+
+        user = User(**user_kwargs)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    except IntegrityError:
+        db.rollback()
+        return templates.TemplateResponse(
+            "web_register.html",
+            {
+                "request": request,
+                "error": "Company or email already exists",
+            },
+            status_code=400,
+        )
+
+    except Exception as e:
+        db.rollback()
+        return templates.TemplateResponse(
+            "web_register.html",
+            {
+                "request": request,
+                "error": str(e),
+            },
+            status_code=500,
+        )
+
+    role_value = normalized_role(user)
 
     request.session.clear()
     request.session["user_id"] = user.id
-
-    role_raw = getattr(user, "role", None)
-
-    if hasattr(role_raw, "value"):
-        role_value = role_raw.value
-    elif role_raw is not None:
-        role_value = str(role_raw)
-    else:
-        role_value = ""
-
-    role_value = str(role_value).lower().strip()
-
-    if "." in role_value:
-        role_value = role_value.split(".")[-1]
-
     request.session["role"] = role_value
 
     if hasattr(user, "company_id"):
         request.session["company_id"] = user.company_id
-
-    print("LOGIN DEBUG:", email, role_value)
 
     if role_value == "owner":
         return RedirectResponse(url="/admin/sip-numbers", status_code=303)
@@ -310,6 +359,7 @@ def web_register(
 def web_logout(request: Request):
     request.session.clear()
     return RedirectResponse(url="/web/login", status_code=303)
+
 
 @router.get("/logout")
 def web_logout_get(request: Request):

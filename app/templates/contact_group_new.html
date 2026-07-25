@@ -1,42 +1,83 @@
+<!-- app/templates/contact_group_new.html -->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
+  <title>New Contact Group | Voice CRM</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>New Contact Group - Voice CRM</title>
   <link rel="stylesheet" href="/static/voicecrm.css">
 </head>
+
 <body>
-  {% include "_web_nav.html" %}
-  <main class="page-shell">
-    <div class="page-header">
-      <div>
-        <p class="eyebrow">Contact groups</p>
-        <h1>New contact group</h1>
-        <p class="muted">Create a reusable target group from pasted numbers or a CSV/TXT file.</p>
-      </div>
-      <div class="action-row">
-        <a class="btn secondary" href="/web/contact-groups">Back to groups</a>
-      </div>
+
+{% include "_web_nav.html" %}
+
+<main class="page-shell">
+
+  <div class="page-header">
+    <div>
+      <p class="page-eyebrow">Contact groups</p>
+      <h1>New Contact Group</h1>
+      <p class="muted">
+        Create a reusable target group from pasted numbers or a CSV/TXT file.
+      </p>
     </div>
 
-    <section class="card">
-      <form method="post" action="/web/contact-groups/new" enctype="multipart/form-data" class="form-stack">
+    <div class="actions">
+      <a class="btn btn-secondary" href="/web/contact-groups">
+        ← Back to groups
+      </a>
+    </div>
+  </div>
+
+  <section class="card">
+    <h2>Group Information</h2>
+
+    <form method="post"
+          action="/web/contact-groups/new"
+          enctype="multipart/form-data"
+          class="form-grid">
+
+      <div>
         <label>Group name</label>
         <input type="text" name="group_name" required>
+      </div>
 
+      <div>
         <label>Description</label>
-        <textarea name="description" rows="3"></textarea>
+        <textarea name="description" rows="3" placeholder="Optional group description"></textarea>
+      </div>
 
+      <div>
         <label>Paste numbers</label>
-        <textarea name="bulk_numbers" rows="8" placeholder="90300226\n99112233"></textarea>
+        <textarea name="bulk_numbers"
+                  rows="8"
+                  placeholder="90300226&#10;99112233&#10;88001122"></textarea>
+        <p class="muted small-text">
+          One phone number per line, or separated by comma/space.
+        </p>
+      </div>
 
+      <div>
         <label>Or upload CSV/TXT</label>
         <input type="file" name="contact_file" accept=".csv,.txt">
 
-        <button class="btn primary" type="submit">Create group</button>
-      </form>
-    </section>
-  </main>
+        <div class="alert alert-info" style="margin-top:12px;">
+          TXT: one phone number per line.<br>
+          CSV format: <code>phone,full_name,notes</code>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" type="submit">
+          Create Group
+        </button>
+      </div>
+    </form>
+  </section>
+
+</main>
+
 </body>
 </html>

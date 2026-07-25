@@ -1,3 +1,7 @@
+# app/models/contact_group.py
+
+from __future__ import annotations
+
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, UniqueConstraint, Boolean, func
 from sqlalchemy.orm import relationship
 
@@ -16,6 +20,7 @@ class CampaignContactGroup(Base):
     __table_args__ = (
         UniqueConstraint("campaign_id", "group_id", name="uq_campaign_contact_group"),
     )
+
 
 class ContactGroup(Base):
     __tablename__ = "contact_groups"

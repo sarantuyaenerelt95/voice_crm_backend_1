@@ -1,3 +1,7 @@
+# app/services/asterisk_trunk_generator.py
+
+from __future__ import annotations
+
 import os
 import re
 import subprocess
@@ -31,7 +35,7 @@ def _safe_endpoint(value: str) -> str:
 
 
 def _server_with_port(host: str) -> str:
-    host = host.strip()
+    host = _text(host).strip()
 
     if not host:
         return ""
@@ -40,6 +44,19 @@ def _server_with_port(host: str) -> str:
         return host
 
     return f"{host}:5060"
+
+
+def _host_without_port(host: str) -> str:
+    host = _text(host).strip()
+
+    if not host:
+        return ""
+
+    # IPv6 is not used here. This keeps normal provider IP clean for identify match.
+    if ":" in host:
+        return host.split(":", 1)[0]
+
+    return host
 
 
 def _bool_value(value, default=True) -> bool:
@@ -73,8 +90,7 @@ def generate_pjsip_config(trunks) -> dict:
 
         managed_by_crm = _bool_value(getattr(trunk, "managed_by_crm", True), True)
 
-        # Important:
-        # Existing/manual Asterisk trunks like mobinet/75350957 must NOT be generated again.
+        # Existing/manual Asterisk trunks like mobinet_75004814 must NOT be generated again.
         if not managed_by_crm:
             skipped.append({
                 "id": getattr(trunk, "id", None),
@@ -106,26 +122,29 @@ def generate_pjsip_config(trunks) -> dict:
         server = _server_with_port(sip_host)
 
         sip_domain = _text(getattr(trunk, "sip_domain", None), sip_host).strip()
-        provider_ip = _text(getattr(trunk, "provider_ip", None), sip_host).strip()
+        provider_ip = _text(getattr(trunk, "provider_ip", None), "").strip()
+
+        if not provider_ip:
+            provider_ip = _host_without_port(sip_host)
+        else:
+            provider_ip = _host_without_port(provider_ip)
+
         transport = _text(getattr(trunk, "transport", None), "transport-udp").strip()
 
         # CRM-added SIP trunks are outbound-only.
-        # Inbound calls to these SIP numbers are rejected by dialplan.
         inbound_context = "voicecrm-deny-inbound"
 
         lines.append("; ------------------------------")
         lines.append(f"; SIP trunk: {number}")
         lines.append(f"; Endpoint: {endpoint}")
         lines.append("; ------------------------------")
+        lines.append("")
 
         lines.append(f"[{endpoint}]")
         lines.append("type=endpoint")
-
-        # Same working RTP behavior as your manual Mobinet config
         lines.append("rtp_timeout=3")
         lines.append("rtp_timeout_hold=3")
         lines.append("direct_media=no")
-
         lines.append(f"transport={transport}")
         lines.append(f"context={inbound_context}")
         lines.append("disallow=all")
@@ -134,8 +153,6 @@ def generate_pjsip_config(trunks) -> dict:
         lines.append(f"aors={endpoint}_aor")
         lines.append(f"from_user={number}")
         lines.append(f"from_domain={sip_domain}")
-
-        # NAT-safe options
         lines.append("rewrite_contact=yes")
         lines.append("rtp_symmetric=yes")
         lines.append("force_rport=yes")
@@ -199,7 +216,7 @@ def generate_pjsip_config(trunks) -> dict:
 def apply_pjsip_config() -> dict:
     try:
         result = subprocess.run(
-            ["sudo", APPLY_SCRIPT],
+            ["sudo", "-n", APPLY_SCRIPT],
             capture_output=True,
             text=True,
             timeout=20,

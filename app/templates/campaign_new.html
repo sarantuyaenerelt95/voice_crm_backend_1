@@ -1,580 +1,814 @@
+<!-- app/templates/campaign_new.html -->
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Create Campaign</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f4f6f8;
-            padding: 30px;
-        }
-
-        .card {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            max-width: 900px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            margin-bottom: 20px;
-        }
-
-        label {
-            display: block;
-            margin-top: 15px;
-            font-weight: bold;
-        }
-
-        input, select, textarea {
-            width: 100%;
-            padding: 10px;
-            margin-top: 5px;
-            box-sizing: border-box;
-        }
-
-        textarea {
-            min-height: 110px;
-        }
-
-        .btn {
-            margin-top: 20px;
-            padding: 12px 16px;
-            background: #0066cc;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        a {
-            color: #0066cc;
-            text-decoration: none;
-            font-weight: bold;
-        }
-
-        .warning {
-            background: #fff3cd;
-            padding: 10px;
-            border-radius: 6px;
-            margin-top: 15px;
-        }
-
-        details {
-            margin-top: 18px;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            background: #fafafa;
-        }
-
-        summary {
-            padding: 14px;
-            cursor: pointer;
-            font-weight: bold;
-            background: #eef4ff;
-            border-radius: 10px;
-        }
-
-        details[open] summary {
-            border-bottom: 1px solid #ddd;
-            border-radius: 10px 10px 0 0;
-        }
-
-        .inside {
-            padding: 15px;
-        }
-
-        .selection-box {
-            position: fixed;
-            border: 2px dashed #0066cc;
-            background: rgba(0, 102, 204, 0.12);
-            pointer-events: none;
-            z-index: 9999;
-            display: none;
-        }
-
-        .contact-grid {
-            max-height: 70vh;
-            overflow-y: auto;
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            border: 1px solid #ddd;
-            padding: 10px;
-            border-radius: 10px;
-            overscroll-behavior: contain;
-        }
-
-        .contact-card {
-            border: 2px solid #ddd;
-            border-radius: 12px;
-            padding: 14px;
-            background: white;
-            cursor: pointer;
-            font-weight: normal;
-            user-select: none;
-            transition: 0.15s;
-        }
-
-        .contact-card:hover {
-            border-color: #0066cc;
-            background: #f2f7ff;
-        }
-
-        .contact-card input {
-            display: none;
-        }
-
-        .contact-card:has(input:checked) {
-            border-color: #0066cc;
-            background: #dbeafe;
-            box-shadow: 0 0 0 2px rgba(0,102,204,0.15);
-        }
-        .contact-card.selected {
-            border-color: #012142;
-            background: #dbeafe;
-            box-shadow: 0 0 0 2px rgba(0,102,204,0.15);
-        }
-
-        .phone {
-            font-size: 18px;
-            font-weight: bold;
-            margin-top: 5px;
-        }
-
-        .hint {
-            color: #666;
-            font-size: 14px;
-        }
-
-        code {
-            background: #eee;
-            padding: 2px 5px;
-            border-radius: 4px;
-        }
-        .group-grid {
-            max-height: 300px;
-            overflow-y: auto;
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-        }
-
-        .group-card {
-            border: 2px solid #ddd;
-            border-radius: 12px;
-            padding: 14px;
-            background: white;
-            cursor: pointer;
-            user-select: none;
-            font-weight: normal;
-        }
-
-        .group-card input {
-            display: none;
-        }
-
-        .group-card:hover {
-            border-color: #0066cc;
-            background: #f2f7ff;
-        }
-
-        .group-card:has(input:checked) {
-            border-color: #0066cc;
-            background: #dbeafe;
-            box-shadow: 0 0 0 2px rgba(0,102,204,0.15);
-        }
-
-        .group-name {
-            font-size: 18px;
-            font-weight: bold;
-            margin-top: 5px;
-        }
-        body.selecting-active {
-            user-select: none;
-            overflow: hidden;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Create Campaign | Voice CRM</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260725-preview-fix-2">
 </head>
+
 <body>
 
-<div class="card">
-    <a href="/web/dashboard">← Back to dashboard</a>
+{% include "_web_nav.html" %}
 
-    <h1>Create Campaign</h1>
+<div class="page-shell campaign-page">
 
-    <p>Active contacts: <b>{{ active_contacts_count }}</b></p>
-
-    <div class="warning">
-        This page creates only a draft campaign and frozen target list. It will not call anyone.
-        After create, dry-run opens automatically.
+  <div class="builder-heading">
+    <div>
+      <a class="back-link" href="/web/dashboard">← Back to dashboard</a>
+      <p class="page-eyebrow">Campaign builder</p>
+      <h1>Create Campaign</h1>
+      <p class="muted">
+        Active contacts: <strong>{{ active_contacts_count }}</strong>
+      </p>
     </div>
 
-    <form method="post" action="/web/campaigns/new" enctype="multipart/form-data">
-        <label>Campaign Name</label>
-        <input type="text" name="name" value="Web test campaign" required>
+    <div class="actions">
+      <a class="btn btn-secondary" href="/web/audio/upload">Upload Audio</a>
+      <a class="btn btn-secondary" href="/web/contact-groups/new">Import Group</a>
+    </div>
+  </div>
 
-        <label>Audio File</label>
-        <select name="audio_file_id" required>
-            {% for audio in audio_files %}
-            <option value="{{ audio.id }}">
-                #{{ loop.index0 }} - {{ audio.filename }} - {{ audio.duration_sec }} sec
-            </option>
-            {% endfor %}
-        </select>
+  <div class="alert alert-info">
+    This page creates only a draft campaign and frozen target list.
+    It will not call anyone. After create, dry-run opens automatically.
+  </div>
 
-        <details open>
+  <form method="post" action="/web/campaigns/new" enctype="multipart/form-data">
+
+    <div class="campaign-builder">
+
+      <div class="builder-main">
+
+        <div class="card builder-card">
+          <h2>Campaign Info</h2>
+
+          <div class="form-grid">
+            <div>
+              <label>Campaign Name</label>
+              <input type="text" name="name" value="Web test campaign" required>
+            </div>
+
+            <div>
+              <label>Audio File</label>
+              <select name="audio_file_id" required>
+                {% for audio in audio_files %}
+                  <option value="{{ audio.id }}">
+                    #{{ loop.index }} - {{ audio.filename }} - {{ audio.duration_sec }} sec
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="card builder-card">
+          <details open>
             <summary>1. Select contact groups</summary>
+
             <div class="inside">
-                <p class="hint">
-                    Select one or more groups. All numbers inside selected groups will be added to this campaign.
-                </p>
+              <p class="muted small-text">
+                Select one or more groups. All numbers inside selected groups will be added to this campaign.
+              </p>
 
-                <div class="group-grid">
-                    {% for row in contact_groups %}
-                    <label class="group-card">
-                        <input type="checkbox" name="group_ids" value="{{ row.group.id }}">
-                        <div>#{{ loop.index0 }}</div>
-                        <div class="group-name">{{ row.group.name }}</div>
-                        <div>{{ row.member_count }} contacts</div>
-                        <div class="hint">{{ row.group.description or "" }}</div>
-                    </label>
-                    {% endfor %}
-                </div>
+              <div class="choice-grid">
+                {% for row in contact_groups %}
+                  <label class="choice-card" data-group-id="{{ row.group.id }}" data-group-name="{{ row.group.name }}">
+                    <input type="checkbox" name="group_ids" value="{{ row.group.id }}">
 
-                <p>
-                    <a href="/web/contact-groups/new">+ Import new group</a>
-                    &nbsp; | &nbsp;
-                    <a href="/web/contact-groups">Monitor groups</a>
-                </p>
+                    <div class="choice-index muted small-text">
+                      #{{ loop.index }}
+                    </div>
+
+                    <div class="phone-text">
+                      {{ row.group.name }}
+                    </div>
+
+                    <div>
+                      {{ row.member_count }} contacts
+                    </div>
+
+                    <div class="muted small-text">
+                      {{ row.group.description or "" }}
+                    </div>
+                  </label>
+                {% else %}
+                  <div class="empty-state">
+                    No contact groups yet.
+                  </div>
+                {% endfor %}
+              </div>
+
+              <div class="actions" style="margin-top:14px;">
+                <a class="btn btn-secondary" href="/web/contact-groups/new">
+                  + Import new group
+                </a>
+
+                <a class="btn btn-secondary" href="/web/contact-groups">
+                  Monitor groups
+                </a>
+              </div>
             </div>
-        </details>
+          </details>
+        </div>
 
-        <details>
+        <div class="card builder-card">
+          <details>
             <summary>2. Add one number</summary>
+
             <div class="inside">
-                <label>Phone number</label>
-                <input type="text" name="single_phone" placeholder="90300226">
-
-                <label>Name</label>
-                <input type="text" name="single_name" placeholder="Optional name">
-            </div>
-        </details>
-
-        <details>
-            <summary>3. Paste many numbers</summary>
-            <div class="inside">
-                <p class="hint">One number per line, or separated by comma/space.</p>
-                <textarea name="bulk_numbers" placeholder="90300226&#10;99112233&#10;88001122"></textarea>
-            </div>
-        </details>
-
-        <details>
-            <summary>4. Import CSV/TXT contacts</summary>
-            <div class="inside">
-                <p class="hint">
-                    TXT: one phone per line. CSV: <code>phone,full_name,notes</code>
-                </p>
-
-                <input type="file" name="contact_file" accept=".csv,.txt">
-            </div>
-        </details>
-
-        <details open>
-            <summary>5. Select existing contacts like gallery</summary>
-                <div class="inside">
-                    <p class="hint">
-                        Click one card to select. Hold mouse and drag over cards to select many.
-                    </p>
-
-                    <div style="margin-bottom: 10px;">
-                        <button type="button" onclick="clearSelectedContacts()">Clear selected</button>
-                        <span id="selectedCount" style="margin-left: 10px; font-weight: bold;">0 selected</span>
-                    </div>
-
-                    <div class="contact-grid" id="contactGrid">
-                        {% for contact in contacts %}
-                        <div class="contact-card" data-contact-id="{{ contact.id }}">
-                            <input type="checkbox" name="contact_ids" value="{{ contact.id }}">
-                            <div>#{{ contact.id }}</div>
-                            <div class="phone">{{ contact.phone }}</div>
-                            <div>{{ contact.full_name or "" }}</div>
-                        </div>
-                        {% endfor %}
-                    </div>
+              <div class="grid grid-2">
+                <div>
+                  <label>Phone number</label>
+                  <input type="text" name="single_phone" placeholder="90300226">
                 </div>
-            </details>
 
-        <button class="btn" type="submit">
-            Create Campaign and Open Dry-run
-        </button>
-    </form>
+                <div>
+                  <label>Name</label>
+                  <input type="text" name="single_name" placeholder="Optional name">
+                </div>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <div class="card builder-card">
+          <details>
+            <summary>3. Paste many numbers</summary>
+
+            <div class="inside">
+              <p class="muted small-text">
+                One number per line, or separated by comma/space.
+              </p>
+
+              <textarea name="bulk_numbers" placeholder="90300226&#10;99112233&#10;88001122"></textarea>
+            </div>
+          </details>
+        </div>
+
+        <div class="card builder-card">
+          <details>
+            <summary>4. Import CSV/TXT contacts</summary>
+
+            <div class="inside">
+              <p class="muted small-text">
+                TXT: one phone per line. CSV: <code>phone,full_name,notes</code>
+              </p>
+
+              <input type="file" name="contact_file" accept=".csv,.txt">
+            </div>
+          </details>
+        </div>
+
+        <div class="card builder-card">
+          <details open>
+            <summary>5. Select existing contacts like gallery</summary>
+
+            <div class="inside">
+              <p class="muted small-text">
+                Click one card to select. Hold mouse and drag over cards to select many.
+              </p>
+
+              <div class="selection-tools">
+                <button class="btn btn-secondary" type="button" id="clearSelectedContactsBtn">
+                  Clear selected
+                </button>
+
+                <span id="selectedCount" class="selection-count">
+                  0 selected
+                </span>
+              </div>
+
+              <div class="contact-grid selectable-grid" id="contactGrid" style="margin-top:14px;">
+                {% for contact in contacts %}
+                  <div class="contact-card" data-contact-id="{{ contact.id }}" data-phone="{{ contact.phone }}">
+                    <input type="checkbox" name="contact_ids" value="{{ contact.id }}">
+
+                    <div class="muted small-text">
+                      #{{ contact.id }}
+                    </div>
+
+                    <div class="phone">
+                      {{ contact.phone }}
+                    </div>
+
+                    <div>
+                      {{ contact.full_name or "" }}
+                    </div>
+                  </div>
+                {% else %}
+                  <div class="empty-state">
+                    No active contacts found.
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          </details>
+        </div>
+
+      </div>
+
+      <aside class="preview-panel">
+        <div class="card preview-card sticky-card">
+          <p class="card-kicker">Ready</p>
+          <h2>Create draft campaign</h2>
+
+          <p class="muted">
+            Selected groups, pasted numbers, imported file contacts, and selected existing contacts will be frozen into this campaign.
+          </p>
+
+          <div class="preview-stat">
+            <span class="muted">Estimated unique targets</span>
+            <strong id="selectedPreviewCount">0</strong>
+          </div>
+
+          <div class="preview-grid-mini">
+            <div>
+              <span class="muted">Selected contacts</span>
+              <strong id="selectedExistingCount">0</strong>
+            </div>
+            <div>
+              <span class="muted">Groups</span>
+              <strong id="selectedGroupCount">0</strong>
+            </div>
+          </div>
+
+          <div class="alert alert-info preview-message" id="duplicateMessage" hidden></div>
+          <div class="alert alert-error preview-message" id="invalidMessage" hidden></div>
+
+          <div class="preview-block">
+            <h3>Selected groups</h3>
+            <div class="preview-chip-row" id="previewGroups">No groups selected.</div>
+          </div>
+
+          <div class="preview-block">
+            <h3>Unique selected numbers</h3>
+            <p class="muted small-text" id="previewLimitMessage">No numbers selected yet.</p>
+            <div class="preview-number-list" id="previewNumbers"></div>
+          </div>
+
+          <div class="preview-actions actions">
+            <button class="btn btn-success" type="submit">
+              Create Campaign and Open Dry-run
+            </button>
+          </div>
+        </div>
+      </aside>
+
+    </div>
+
+  </form>
 </div>
+
+<script type="application/json" id="groupPhoneData">{{ group_phone_preview|default({})|tojson }}</script>
+
 <script>
-    console.log("RECT_SELECT_V3 loaded");
+(function () {
+  let isSelecting = false;
+  let dragMoved = false;
 
-    let isSelecting = false;
-    let dragMoved = false;
+  let startX = 0;
+  let startY = 0;
+  let currentX = 0;
+  let currentY = 0;
 
-    let startX = 0;
-    let startY = 0;
-    let currentX = 0;
-    let currentY = 0;
+  let clickedCard = null;
+  let autoScrollTimer = null;
+  let wheelPauseAutoScrollUntil = 0;
 
-    let clickedCard = null;
-    let autoScrollTimer = null;
-    let wheelPauseAutoScrollUntil = 0;
+  const contactGrid = document.getElementById("contactGrid");
+  const clearButton = document.getElementById("clearSelectedContactsBtn");
+  const selectedCount = document.getElementById("selectedCount");
+  const selectedPreviewCount = document.getElementById("selectedPreviewCount");
 
-    const contactGrid = document.getElementById("contactGrid");
+  const selectionBox = document.createElement("div");
+  selectionBox.className = "selection-box";
+  document.body.appendChild(selectionBox);
 
-    const selectionBox = document.createElement("div");
-    selectionBox.className = "selection-box";
-    document.body.appendChild(selectionBox);
+  const selectedExistingCount = document.getElementById("selectedExistingCount");
+  const selectedGroupCount = document.getElementById("selectedGroupCount");
+  const duplicateMessage = document.getElementById("duplicateMessage");
+  const invalidMessage = document.getElementById("invalidMessage");
+  const previewGroups = document.getElementById("previewGroups");
+  const previewNumbers = document.getElementById("previewNumbers");
+  const previewLimitMessage = document.getElementById("previewLimitMessage");
+  const singlePhoneInput = document.querySelector("input[name='single_phone']");
+  const bulkNumbersInput = document.querySelector("textarea[name='bulk_numbers']");
+  const contactFileInput = document.querySelector("input[name='contact_file']");
+  const groupPhoneDataElement = document.getElementById("groupPhoneData");
+  let importedFileText = "";
+  let importedFileName = "";
+  let groupPhoneData = {};
 
-    function updateSelectedCount() {
-        const selected = document.querySelectorAll(".contact-card input:checked").length;
-        const counter = document.getElementById("selectedCount");
+  try {
+    groupPhoneData = JSON.parse(groupPhoneDataElement ? groupPhoneDataElement.textContent || "{}" : "{}");
+  } catch (error) {
+    groupPhoneData = {};
+  }
 
-        if (counter) {
-            counter.innerText = selected + " selected";
+  function normalizePhone(value) {
+    return String(value || "").replace(/\D/g, "");
+  }
+
+  function splitNumbers(value) {
+    const items = [];
+
+    String(value || "").split(/[\n,;]+/).forEach(function (segment) {
+      const trimmed = segment.trim();
+      const phone = normalizePhone(trimmed);
+
+      if (!trimmed && !phone) {
+        return;
+      }
+
+      if (!phone) {
+        items.push(trimmed);
+        return;
+      }
+
+      if (phone.length === 8) {
+        items.push(phone);
+        return;
+      }
+
+      if (phone.length > 8 && phone.length % 8 === 0) {
+        for (let index = 0; index < phone.length; index += 8) {
+          items.push(phone.slice(index, index + 8));
         }
-    }
+        return;
+      }
 
-    function setCardSelected(card, selected) {
-        if (!card) return;
-
-        const checkbox = card.querySelector("input[type='checkbox']");
-        if (!checkbox) return;
-
-        checkbox.checked = selected;
-
-        if (selected) {
-            card.classList.add("selected");
-        } else {
-            card.classList.remove("selected");
-        }
-
-        updateSelectedCount();
-    }
-
-    function toggleCard(card) {
-        const checkbox = card.querySelector("input[type='checkbox']");
-        if (!checkbox) return;
-
-        setCardSelected(card, !checkbox.checked);
-    }
-
-    function clearSelectedContacts() {
-        document.querySelectorAll(".contact-card").forEach(function(card) {
-            setCardSelected(card, false);
-        });
-    }
-
-    function getSelectionRect() {
-        const left = Math.min(startX, currentX);
-        const top = Math.min(startY, currentY);
-        const right = Math.max(startX, currentX);
-        const bottom = Math.max(startY, currentY);
-
-        return {
-            left: left,
-            top: top,
-            right: right,
-            bottom: bottom,
-            width: right - left,
-            height: bottom - top
-        };
-    }
-
-    function updateSelectionBox() {
-        if (!dragMoved) {
-            selectionBox.style.display = "none";
-            return;
-        }
-
-        const rect = getSelectionRect();
-
-        selectionBox.style.left = rect.left + "px";
-        selectionBox.style.top = rect.top + "px";
-        selectionBox.style.width = rect.width + "px";
-        selectionBox.style.height = rect.height + "px";
-        selectionBox.style.display = "block";
-    }
-
-    function hideSelectionBox() {
-        selectionBox.style.display = "none";
-    }
-
-    function rectanglesIntersect(a, b) {
-        return !(
-            a.right < b.left ||
-            a.left > b.right ||
-            a.bottom < b.top ||
-            a.top > b.bottom
-        );
-    }
-
-    function applyRectangleSelection() {
-        if (!isSelecting || !dragMoved) return;
-
-        const selectionRect = getSelectionRect();
-
-        document.querySelectorAll(".contact-card").forEach(function(card) {
-            const cardRect = card.getBoundingClientRect();
-
-            if (rectanglesIntersect(selectionRect, cardRect)) {
-                setCardSelected(card, true);
-            }
-        });
-    }
-
-    function scrollContactGrid(delta) {
-        if (!contactGrid) return;
-
-        const maxScroll = contactGrid.scrollHeight - contactGrid.clientHeight;
-        const nextScroll = Math.max(0, Math.min(maxScroll, contactGrid.scrollTop + delta));
-
-        contactGrid.scrollTop = nextScroll;
-
-        requestAnimationFrame(function() {
-            updateSelectionBox();
-            applyRectangleSelection();
-        });
-    }
-
-    function startAutoScroll() {
-        if (autoScrollTimer) return;
-
-        autoScrollTimer = setInterval(function() {
-            if (!isSelecting || !contactGrid) return;
-
-            // Do not fight mouse wheel scrolling
-            if (Date.now() < wheelPauseAutoScrollUntil) return;
-
-            const gridRect = contactGrid.getBoundingClientRect();
-            const edgeSize = 90;
-            const maxSpeed = 30;
-
-            let scrollDelta = 0;
-
-            // Cursor near bottom = scroll down
-            if (currentY > gridRect.bottom - edgeSize) {
-                const distance = currentY - (gridRect.bottom - edgeSize);
-                scrollDelta = Math.min(maxSpeed, Math.max(8, distance / 2));
-            }
-
-            // Cursor near top = scroll up
-            if (currentY < gridRect.top + edgeSize) {
-                const distance = (gridRect.top + edgeSize) - currentY;
-                scrollDelta = -Math.min(maxSpeed, Math.max(8, distance / 2));
-            }
-
-            if (scrollDelta !== 0) {
-                scrollContactGrid(scrollDelta);
-            }
-        }, 25);
-    }
-
-    function stopAutoScroll() {
-        if (autoScrollTimer) {
-            clearInterval(autoScrollTimer);
-            autoScrollTimer = null;
-        }
-    }
-
-    if (contactGrid) {
-        contactGrid.addEventListener("mousedown", function(event) {
-            if (event.button !== 0) return;
-
-            const card = event.target.closest(".contact-card");
-            if (!card || !contactGrid.contains(card)) return;
-
-            event.preventDefault();
-
-            isSelecting = true;
-            dragMoved = false;
-            clickedCard = card;
-
-            startX = event.clientX;
-            startY = event.clientY;
-            currentX = event.clientX;
-            currentY = event.clientY;
-
-            document.body.classList.add("selecting-active");
-
-            hideSelectionBox();
-            startAutoScroll();
-        });
-
-        contactGrid.addEventListener("scroll", function() {
-            if (!isSelecting) return;
-
-            requestAnimationFrame(function() {
-                updateSelectionBox();
-                applyRectangleSelection();
-            });
-        });
-    }
-
-    document.addEventListener("mousemove", function(event) {
-        if (!isSelecting) return;
-
-        currentX = event.clientX;
-        currentY = event.clientY;
-
-        const distanceX = Math.abs(currentX - startX);
-        const distanceY = Math.abs(currentY - startY);
-
-        if (distanceX > 5 || distanceY > 5) {
-            dragMoved = true;
-            updateSelectionBox();
-            applyRectangleSelection();
-        }
+      items.push(phone);
     });
 
-    // IMPORTANT: document-level wheel capture.
-    // This catches wheel even when mouse is above selection box/card.
-    document.addEventListener("wheel", function(event) {
-        if (!isSelecting || !contactGrid) return;
+    return items.filter(Boolean);
+  }
 
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
+  function extractFileNumbers(text) {
+    const lines = String(text || "").split(/\r?\n/).map(function (line) {
+      return line.trim();
+    }).filter(Boolean);
 
-        currentX = event.clientX;
-        currentY = event.clientY;
-        dragMoved = true;
+    if (!lines.length) {
+      return [];
+    }
 
-        wheelPauseAutoScrollUntil = Date.now() + 700;
+    const firstColumns = lines[0].split(",").map(function (item) {
+      return item.trim().toLowerCase();
+    });
+    const phoneIndex = firstColumns.indexOf("phone");
+    const startIndex = phoneIndex >= 0 ? 1 : 0;
 
-        // Force wheel to scroll DOWN while selecting.
-        // This avoids mouse/trackpad direction conflicts.
-        scrollContactGrid(220);
-    }, { passive: false, capture: true });
+    const values = lines.slice(startIndex).map(function (line) {
+      const columns = line.split(",");
+      return phoneIndex >= 0 ? columns[phoneIndex] : columns[0];
+    }).filter(Boolean);
 
-    document.addEventListener("mouseup", function() {
-        if (!isSelecting) return;
+    return values.reduce(function (items, value) {
+      return items.concat(splitNumbers(value));
+    }, []);
+  }
 
-        if (!dragMoved && clickedCard) {
-            toggleCard(clickedCard);
+  function collectPreview() {
+    const seen = new Set();
+    const unique = [];
+    const invalid = [];
+    const duplicatePhones = new Set();
+    let duplicateCount = 0;
+
+    function addRaw(value) {
+      const original = String(value || "").trim();
+      const phone = normalizePhone(original);
+
+      if (!phone) {
+        if (original) {
+          invalid.push(original);
         }
+        return;
+      }
 
-        isSelecting = false;
-        dragMoved = false;
-        clickedCard = null;
+      if (phone.length !== 8) {
+        invalid.push(phone);
+        return;
+      }
 
-        document.body.classList.remove("selecting-active");
+      if (seen.has(phone)) {
+        duplicateCount += 1;
+        duplicatePhones.add(phone);
+        return;
+      }
 
-        hideSelectionBox();
-        stopAutoScroll();
+      seen.add(phone);
+      unique.push(phone);
+    }
+
+    document.querySelectorAll(".choice-card input[name='group_ids']:checked").forEach(function (checkbox) {
+      const card = checkbox.closest(".choice-card");
+      const groupId = checkbox.value;
+      const groupPhones = groupPhoneData[String(groupId)] || [];
+      const fallbackPhones = card ? splitNumbers(card.dataset.memberPhones || "") : [];
+      (groupPhones.length ? groupPhones : fallbackPhones).forEach(addRaw);
     });
 
-    document.querySelectorAll(".contact-card").forEach(function(card) {
-        card.addEventListener("dragstart", function(event) {
-            event.preventDefault();
+    document.querySelectorAll(".contact-card input:checked").forEach(function (checkbox) {
+      const card = checkbox.closest(".contact-card");
+      addRaw(card ? card.dataset.phone : "");
+    });
+
+    if (singlePhoneInput) {
+      addRaw(singlePhoneInput.value);
+    }
+
+    if (bulkNumbersInput) {
+      splitNumbers(bulkNumbersInput.value).forEach(addRaw);
+    }
+
+    extractFileNumbers(importedFileText).forEach(addRaw);
+
+    return {
+      unique: unique,
+      invalid: invalid,
+      duplicatePhones: Array.from(duplicatePhones),
+      duplicateCount: duplicateCount
+    };
+  }
+
+  function renderPreview() {
+    const selected = document.querySelectorAll(".contact-card input:checked").length;
+    const selectedGroups = Array.from(document.querySelectorAll(".choice-card input[name='group_ids']:checked")).map(function (checkbox) {
+      const card = checkbox.closest(".choice-card");
+      return card ? card.dataset.groupName : "Group";
+    });
+    const preview = collectPreview();
+
+    if (selectedCount) {
+      selectedCount.textContent = selected + " selected";
+    }
+
+    if (selectedPreviewCount) {
+      selectedPreviewCount.textContent = preview.unique.length;
+    }
+
+    if (selectedExistingCount) {
+      selectedExistingCount.textContent = selected;
+    }
+
+    if (selectedGroupCount) {
+      selectedGroupCount.textContent = selectedGroups.length;
+    }
+
+    if (duplicateMessage) {
+      duplicateMessage.hidden = preview.duplicateCount === 0;
+      duplicateMessage.textContent = preview.duplicateCount + " duplicate numbers removed from preview" +
+        (preview.duplicatePhones.length ? ": " + preview.duplicatePhones.slice(0, 10).join(", ") : "") + ".";
+    }
+
+    if (invalidMessage) {
+      invalidMessage.hidden = preview.invalid.length === 0;
+      invalidMessage.textContent = preview.invalid.length + " invalid numbers found: " + preview.invalid.slice(0, 10).join(", ");
+    }
+
+    if (previewGroups) {
+      previewGroups.innerHTML = "";
+
+      if (!selectedGroups.length) {
+        previewGroups.textContent = "No groups selected.";
+      } else {
+        selectedGroups.slice(0, 12).forEach(function (name) {
+          const item = document.createElement("span");
+          item.className = "preview-chip";
+          item.textContent = name;
+          previewGroups.appendChild(item);
         });
-    });
+      }
+    }
+
+    if (previewLimitMessage) {
+      if (!preview.unique.length) {
+        previewLimitMessage.textContent = "No numbers selected yet.";
+      } else {
+        previewLimitMessage.textContent = "Showing first " + Math.min(50, preview.unique.length) + " of " + preview.unique.length + " unique targets.";
+      }
+    }
+
+    if (previewNumbers) {
+      previewNumbers.innerHTML = "";
+      preview.unique.slice(0, 50).forEach(function (phone) {
+        const item = document.createElement("div");
+        item.className = "preview-number";
+        item.textContent = phone;
+        previewNumbers.appendChild(item);
+      });
+    }
+  }
+
+  function updateSelectedCount() {
+    renderPreview();
+  }
+
+  function setCardSelected(card, selected) {
+    if (!card) {
+      return;
+    }
+
+    const checkbox = card.querySelector("input[type='checkbox']");
+
+    if (!checkbox) {
+      return;
+    }
+
+    checkbox.checked = selected;
+    card.classList.toggle("selected", selected);
 
     updateSelectedCount();
+  }
+
+  function toggleCard(card) {
+    const checkbox = card.querySelector("input[type='checkbox']");
+
+    if (!checkbox) {
+      return;
+    }
+
+    setCardSelected(card, !checkbox.checked);
+  }
+
+  function clearSelectedContacts() {
+    document.querySelectorAll(".contact-card").forEach(function (card) {
+      setCardSelected(card, false);
+    });
+  }
+
+  function getSelectionRect() {
+    const left = Math.min(startX, currentX);
+    const top = Math.min(startY, currentY);
+    const right = Math.max(startX, currentX);
+    const bottom = Math.max(startY, currentY);
+
+    return {
+      left: left,
+      top: top,
+      right: right,
+      bottom: bottom,
+      width: right - left,
+      height: bottom - top
+    };
+  }
+
+  function updateSelectionBox() {
+    if (!dragMoved) {
+      selectionBox.style.display = "none";
+      return;
+    }
+
+    const rect = getSelectionRect();
+
+    selectionBox.style.left = rect.left + "px";
+    selectionBox.style.top = rect.top + "px";
+    selectionBox.style.width = rect.width + "px";
+    selectionBox.style.height = rect.height + "px";
+    selectionBox.style.display = "block";
+  }
+
+  function hideSelectionBox() {
+    selectionBox.style.display = "none";
+  }
+
+  function rectanglesIntersect(a, b) {
+    return !(
+      a.right < b.left ||
+      a.left > b.right ||
+      a.bottom < b.top ||
+      a.top > b.bottom
+    );
+  }
+
+  function applyRectangleSelection() {
+    if (!isSelecting || !dragMoved) {
+      return;
+    }
+
+    const selectionRect = getSelectionRect();
+
+    document.querySelectorAll(".contact-card").forEach(function (card) {
+      const cardRect = card.getBoundingClientRect();
+
+      if (rectanglesIntersect(selectionRect, cardRect)) {
+        setCardSelected(card, true);
+      }
+    });
+  }
+
+  function scrollContactGrid(delta) {
+    if (!contactGrid) {
+      return;
+    }
+
+    const maxScroll = contactGrid.scrollHeight - contactGrid.clientHeight;
+    const nextScroll = Math.max(0, Math.min(maxScroll, contactGrid.scrollTop + delta));
+
+    contactGrid.scrollTop = nextScroll;
+
+    requestAnimationFrame(function () {
+      updateSelectionBox();
+      applyRectangleSelection();
+    });
+  }
+
+  function startAutoScroll() {
+    if (autoScrollTimer) {
+      return;
+    }
+
+    autoScrollTimer = setInterval(function () {
+      if (!isSelecting || !contactGrid) {
+        return;
+      }
+
+      if (Date.now() < wheelPauseAutoScrollUntil) {
+        return;
+      }
+
+      const gridRect = contactGrid.getBoundingClientRect();
+      const edgeSize = 90;
+      const maxSpeed = 30;
+
+      let scrollDelta = 0;
+
+      if (currentY > gridRect.bottom - edgeSize) {
+        const distance = currentY - (gridRect.bottom - edgeSize);
+        scrollDelta = Math.min(maxSpeed, Math.max(8, distance / 2));
+      }
+
+      if (currentY < gridRect.top + edgeSize) {
+        const distance = (gridRect.top + edgeSize) - currentY;
+        scrollDelta = -Math.min(maxSpeed, Math.max(8, distance / 2));
+      }
+
+      if (scrollDelta !== 0) {
+        scrollContactGrid(scrollDelta);
+      }
+    }, 25);
+  }
+
+  function stopAutoScroll() {
+    if (autoScrollTimer) {
+      clearInterval(autoScrollTimer);
+      autoScrollTimer = null;
+    }
+  }
+
+  if (contactGrid) {
+    contactGrid.addEventListener("mousedown", function (event) {
+      if (event.button !== 0) {
+        return;
+      }
+
+      const card = event.target.closest(".contact-card");
+
+      if (!card || !contactGrid.contains(card)) {
+        return;
+      }
+
+      event.preventDefault();
+
+      isSelecting = true;
+      dragMoved = false;
+      clickedCard = card;
+
+      startX = event.clientX;
+      startY = event.clientY;
+      currentX = event.clientX;
+      currentY = event.clientY;
+
+      document.body.classList.add("selecting-active");
+
+      hideSelectionBox();
+      startAutoScroll();
+    });
+
+    contactGrid.addEventListener("scroll", function () {
+      if (!isSelecting) {
+        return;
+      }
+
+      requestAnimationFrame(function () {
+        updateSelectionBox();
+        applyRectangleSelection();
+      });
+    });
+  }
+
+  document.addEventListener("mousemove", function (event) {
+    if (!isSelecting) {
+      return;
+    }
+
+    currentX = event.clientX;
+    currentY = event.clientY;
+
+    const distanceX = Math.abs(currentX - startX);
+    const distanceY = Math.abs(currentY - startY);
+
+    if (distanceX > 5 || distanceY > 5) {
+      dragMoved = true;
+      updateSelectionBox();
+      applyRectangleSelection();
+    }
+  });
+
+  document.addEventListener("wheel", function (event) {
+    if (!isSelecting || !contactGrid) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+
+    currentX = event.clientX;
+    currentY = event.clientY;
+    dragMoved = true;
+
+    wheelPauseAutoScrollUntil = Date.now() + 700;
+
+    scrollContactGrid(event.deltaY > 0 ? 220 : -220);
+  }, {
+    passive: false,
+    capture: true
+  });
+
+  document.addEventListener("mouseup", function () {
+    if (!isSelecting) {
+      return;
+    }
+
+    if (!dragMoved && clickedCard) {
+      toggleCard(clickedCard);
+    }
+
+    isSelecting = false;
+    dragMoved = false;
+    clickedCard = null;
+
+    document.body.classList.remove("selecting-active");
+
+    hideSelectionBox();
+    stopAutoScroll();
+  });
+
+  document.querySelectorAll(".contact-card").forEach(function (card) {
+    card.addEventListener("dragstart", function (event) {
+      event.preventDefault();
+    });
+  });
+
+  if (clearButton) {
+    clearButton.addEventListener("click", clearSelectedContacts);
+  }
+
+  document.querySelectorAll(".choice-card input[name='group_ids']").forEach(function (checkbox) {
+    checkbox.addEventListener("change", renderPreview);
+  });
+
+  if (singlePhoneInput) {
+    singlePhoneInput.addEventListener("input", renderPreview);
+  }
+
+  if (bulkNumbersInput) {
+    bulkNumbersInput.addEventListener("input", renderPreview);
+  }
+
+  if (contactFileInput) {
+    contactFileInput.addEventListener("change", function () {
+      const file = contactFileInput.files && contactFileInput.files[0];
+      importedFileText = "";
+      importedFileName = "";
+
+      if (!file) {
+        renderPreview();
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function () {
+        importedFileName = file.name || "selected file";
+        importedFileText = String(reader.result || "");
+        renderPreview();
+      };
+      reader.onerror = function () {
+        importedFileText = "";
+        renderPreview();
+      };
+      reader.readAsText(file);
+    });
+  }
+
+  updateSelectedCount();
+})();
 </script>
+
 </body>
 </html>

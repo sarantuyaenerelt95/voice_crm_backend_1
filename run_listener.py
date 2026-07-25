@@ -1,17 +1,25 @@
+# run_listener.py
+
+from __future__ import annotations
+
+import re
 import socket
 import time
 from datetime import datetime, timezone
+
+from sqlalchemy import func, case
 
 from app.config import settings
 from app.database import SessionLocal
 from app.models.call_log import CallLog, CallStatus
 from app.models.campaign import Campaign, CampaignStatus
-from app.services.call_signal import signal_call_done
-from sqlalchemy import func, case
 from app.models.campaign_target import CampaignTarget
+from app.services.call_signal import signal_call_done
+
 
 RTP_TIMEOUT_CAUSE = 44
 RTP_TIMEOUT_DELAY_SEC = 6.0
+
 FINAL_STATUSES = {
     CallStatus.completed,
     CallStatus.failed,
@@ -21,6 +29,10 @@ FINAL_STATUSES = {
 }
 
 
+def utc_now():
+    return datetime.now(timezone.utc)
+
+
 def safe_int(value, default: int = 0) -> int:
     try:
         return int(value or default)
@@ -28,33 +40,44 @@ def safe_int(value, default: int = 0) -> int:
         return default
 
 
+def normalize_phone(phone) -> str:
+    return "".join(
+        ch for ch in str(phone or "").strip()
+        if ch.isdigit()
+    )
+
+
+def status_value(status) -> str:
+    if hasattr(status, "value"):
+        return str(status.value)
+
+    value = str(status or "").lower().strip()
+
+    if "." in value:
+        value = value.split(".")[-1]
+
+    return value
+
+
 def classify_status(cause_code: int, answered: bool) -> CallStatus:
-    # Completed / answered cases
     if cause_code == 16:
         return CallStatus.completed if answered else CallStatus.failed
 
-    # Unknown cause
     if cause_code == 0:
         return CallStatus.completed if answered else CallStatus.failed
 
-    # RTP timeout after answer.
-    # Mobinet answered + cause 44 means audio played, then RTP timeout closed the call.
-    if cause_code == 44:
+    if cause_code == RTP_TIMEOUT_CAUSE:
         return CallStatus.completed if answered else CallStatus.congestion
 
-    # Busy / rejected / barred / bearer unavailable
     if cause_code in [17, 21, 22, 55, 57, 58]:
         return CallStatus.busy
 
-    # No answer / absent / destination out of order
     if cause_code in [18, 19, 20, 27]:
         return CallStatus.no_answer
 
-    # Network / congestion
     if cause_code in [34, 38, 41, 42, 50]:
         return CallStatus.congestion
 
-    # Invalid number / incompatible destination
     if cause_code in [28, 88]:
         return CallStatus.failed
 
@@ -91,11 +114,57 @@ def calculate_duration_sec(answered_at, ended_at, cause_code: int, audio_duratio
     return round(estimated_duration, 2)
 
 
+def extract_call_log_id_from_event(event: dict):
+    direct_keys = [
+        "CALL_LOG_ID",
+        "CallLogID",
+        "call_log_id",
+    ]
+
+    for key in direct_keys:
+        value = event.get(key)
+        if value:
+            call_id = safe_int(value, 0)
+            if call_id > 0:
+                return call_id
+
+    variable = event.get("Variable", "")
+    if "CALL_LOG_ID=" in variable:
+        match = re.search(r"CALL_LOG_ID=([0-9]+)", variable)
+        if match:
+            return safe_int(match.group(1), 0)
+
+    value = event.get("Value", "")
+    variable_name = event.get("Variable", "")
+
+    if variable_name == "CALL_LOG_ID":
+        call_id = safe_int(value, 0)
+        if call_id > 0:
+            return call_id
+
+    channel_fields = [
+        event.get("Channel", ""),
+        event.get("DestChannel", ""),
+        event.get("Uniqueid", ""),
+        event.get("DestUniqueid", ""),
+        event.get("Linkedid", ""),
+    ]
+
+    for field in channel_fields:
+        match = re.search(r"vc-([0-9]+)-", str(field or ""))
+        if match:
+            call_id = safe_int(match.group(1), 0)
+            if call_id > 0:
+                return call_id
+
+    return None
+
+
 def update_campaign_target_from_call(db, call):
     if not call:
         return
 
-    phone = "".join(ch for ch in str(call.phone or "").strip() if ch.isdigit())
+    phone = normalize_phone(call.phone)
 
     target = None
 
@@ -115,11 +184,17 @@ def update_campaign_target_from_call(db, call):
 
     if target.status == "cancelled" and not target.call_log_id:
         return
+
     target.call_log_id = call.id
-    target.status = call.status.value if hasattr(call.status, "value") else str(call.status)
+    target.status = status_value(call.status)
+    target.updated_at = utc_now()
+
 
 def refresh_campaign_stats(db, campaign_id: int):
-    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    campaign = db.query(Campaign).filter(
+        Campaign.id == campaign_id,
+    ).first()
+
     if not campaign:
         return
 
@@ -131,7 +206,7 @@ def refresh_campaign_stats(db, campaign_id: int):
         func.sum(case((CallLog.status == CallStatus.failed, 1), else_=0)).label("failed_only_calls"),
         func.sum(case((CallLog.status == CallStatus.congestion, 1), else_=0)).label("congestion_calls"),
     ).filter(
-        CallLog.campaign_id == campaign_id
+        CallLog.campaign_id == campaign_id,
     ).first()
 
     total_calls = int(stats.total_calls or 0)
@@ -166,35 +241,59 @@ def refresh_campaign_stats(db, campaign_id: int):
         and finished_calls >= total_contacts
     ):
         campaign.status = CampaignStatus.completed
+
         if not campaign.completed_at:
-            campaign.completed_at = datetime.now(timezone.utc)
+            campaign.completed_at = utc_now()
 
 
 def parse_ami_block(block: str) -> dict:
     event = {}
+
     for line in block.strip().splitlines():
         if ":" in line:
             key, val = line.split(":", 1)
             event[key.strip()] = val.strip()
+
     return event
 
 
 def find_call_by_event(db, event: dict):
+    call_log_id = extract_call_log_id_from_event(event)
+
+    if call_log_id:
+        call = db.query(CallLog).filter(
+            CallLog.id == call_log_id,
+        ).first()
+
+        if call:
+            return call
+
     action_id = event.get("ActionID", "")
+
+    if action_id.startswith("act_"):
+        call = db.query(CallLog).filter(
+            CallLog.ami_action_id == action_id,
+        ).first()
+
+        if call:
+            return call
+
     unique_ids = [
         event.get("Uniqueid", ""),
         event.get("DestUniqueid", ""),
         event.get("Linkedid", ""),
     ]
-    unique_ids = [uid for uid in unique_ids if uid and uid != "<unknown>"]
 
-    if action_id.startswith("act_"):
-        call = db.query(CallLog).filter(CallLog.ami_action_id == action_id).first()
-        if call:
-            return call
+    unique_ids = [
+        uid for uid in unique_ids
+        if uid and uid != "<unknown>"
+    ]
 
     for unique_id in unique_ids:
-        call = db.query(CallLog).filter(CallLog.ami_unique_id == unique_id).first()
+        call = db.query(CallLog).filter(
+            CallLog.ami_unique_id == unique_id,
+        ).first()
+
         if call:
             return call
 
@@ -207,11 +306,13 @@ def get_audio_duration(call: CallLog):
             return call.campaign.audio_file.duration_sec
     except Exception:
         return None
+
     return None
 
 
 def handle_originate_response(db, event: dict):
     call = find_call_by_event(db, event)
+
     if not call:
         return
 
@@ -220,23 +321,33 @@ def handle_originate_response(db, event: dict):
 
     if response == "Success" and unique_id and unique_id != "<unknown>":
         call.ami_unique_id = unique_id
+
         if not call.answered_at:
-            call.answered_at = datetime.now(timezone.utc)
+            call.answered_at = utc_now()
+
         db.commit()
+
         print(f"AMI ANSWER: Call {call.phone} answered. uniqueid={unique_id}")
         return
 
     if response == "Failure" and not call.ended_at:
-        call.ended_at = datetime.now(timezone.utc)
+        call.ended_at = utc_now()
+
         reason = safe_int(event.get("Reason"))
+
         call.hangup_cause = reason
         call.status = classify_originate_failure(reason)
         call.duration_sec = 0
+
         update_campaign_target_from_call(db, call)
         refresh_campaign_stats(db, call.campaign_id)
+
         db.commit()
-        signal_call_done(call.id, call.status.value)
+
+        signal_call_done(call.id, status_value(call.status))
+
         print(f"AMI FAILED: Call {call.phone} failed before answer. reason={reason}")
+
 
 def handle_dial_end(db, event: dict):
     call = find_call_by_event(db, event)
@@ -248,12 +359,12 @@ def handle_dial_end(db, event: dict):
 
     if dial_status == "ANSWER":
         if not call.answered_at:
-            call.answered_at = datetime.now(timezone.utc)
+            call.answered_at = utc_now()
             db.commit()
+
         print(f"AMI DIALEND ANSWER: {call.phone}")
         return
 
-    # If already finished, do not overwrite final status.
     if call.ended_at:
         return
 
@@ -268,26 +379,56 @@ def handle_dial_end(db, event: dict):
     else:
         return
 
-    call.ended_at = datetime.now(timezone.utc)
+    call.ended_at = utc_now()
     call.duration_sec = 0
+
     update_campaign_target_from_call(db, call)
     refresh_campaign_stats(db, call.campaign_id)
+
     db.commit()
 
-    signal_call_done(call.id, call.status.value)
+    signal_call_done(call.id, status_value(call.status))
 
     print(
         f"AMI DIALEND: {call.phone} "
         f"status={call.status} dial_status={dial_status}"
     )
 
-def handle_hangup(db, event: dict):
+
+def handle_bridge_enter(db, event: dict):
     call = find_call_by_event(db, event)
-    if not call or call.ended_at:
+
+    if call and not call.answered_at:
+        call.answered_at = utc_now()
+        db.commit()
+        print(f"AMI BRIDGE ANSWER: {call.phone}")
+
+
+def handle_newstate(db, event: dict):
+    if event.get("ChannelStateDesc") != "Up":
         return
 
-    call.ended_at = datetime.now(timezone.utc)
+    call = find_call_by_event(db, event)
+
+    if call and not call.answered_at:
+        call.answered_at = utc_now()
+        db.commit()
+        print(f"AMI UP ANSWER: {call.phone}")
+
+
+def handle_hangup(db, event: dict):
+    call = find_call_by_event(db, event)
+
+    if not call:
+        return
+
+    if call.ended_at:
+        return
+
+    call.ended_at = utc_now()
+
     cause_code = safe_int(event.get("Cause"))
+
     call.hangup_cause = cause_code
 
     answered = call.answered_at is not None
@@ -295,20 +436,29 @@ def handle_hangup(db, event: dict):
 
     if call.status == CallStatus.completed:
         audio_duration = get_audio_duration(call)
+
         call.duration_sec = calculate_duration_sec(
             answered_at=call.answered_at,
             ended_at=call.ended_at,
             cause_code=cause_code,
             audio_duration=audio_duration,
         )
-        raw_duration = (call.ended_at - call.answered_at).total_seconds() if call.answered_at else 0
+
+        raw_duration = (
+            (call.ended_at - call.answered_at).total_seconds()
+            if call.answered_at
+            else 0
+        )
+
         print(
             f"AMI HANGUP: {call.phone} completed. "
             f"raw={raw_duration:.2f}s audio={audio_duration} "
             f"saved={call.duration_sec:.2f}s cause={cause_code}"
         )
+
     else:
         call.duration_sec = 0
+
         print(
             f"AMI HANGUP: {call.phone} status={call.status} "
             f"cause={cause_code} answered={answered}"
@@ -316,12 +466,15 @@ def handle_hangup(db, event: dict):
 
     update_campaign_target_from_call(db, call)
     refresh_campaign_stats(db, call.campaign_id)
+
     db.commit()
-    signal_call_done(call.id, call.status.value)
+
+    signal_call_done(call.id, status_value(call.status))
 
 
 def handle_ami_event(event: dict):
     event_type = event.get("Event")
+
     if not event_type:
         return
 
@@ -329,6 +482,7 @@ def handle_ami_event(event: dict):
         print("AMI DEBUG:", event)
 
     db = SessionLocal()
+
     try:
         if event_type == "OriginateResponse":
             handle_originate_response(db, event)
@@ -337,26 +491,36 @@ def handle_ami_event(event: dict):
             handle_dial_end(db, event)
 
         elif event_type == "BridgeEnter":
-            call = find_call_by_event(db, event)
-            if call and not call.answered_at:
-                call.answered_at = datetime.now(timezone.utc)
-                db.commit()
-                print(f"AMI BRIDGE ANSWER: {call.phone}")
+            handle_bridge_enter(db, event)
 
-        elif event_type == "Newstate" and event.get("ChannelStateDesc") == "Up":
-            call = find_call_by_event(db, event)
-            if call and not call.answered_at:
-                call.answered_at = datetime.now(timezone.utc)
-                db.commit()
-                print(f"AMI UP ANSWER: {call.phone}")
+        elif event_type == "Newstate":
+            handle_newstate(db, event)
 
         elif event_type == "Hangup":
             handle_hangup(db, event)
+
     except Exception as e:
         db.rollback()
         print(f"Error handling event: {e}")
+
     finally:
         db.close()
+
+
+def read_ami_block(sock: socket.socket, timeout: float = 10.0) -> str:
+    sock.settimeout(timeout)
+
+    buffer = ""
+
+    while "\r\n\r\n" not in buffer and "\n\n" not in buffer:
+        chunk = sock.recv(4096)
+
+        if not chunk:
+            break
+
+        buffer += chunk.decode("utf-8", errors="ignore")
+
+    return buffer
 
 
 def start_ami_listener():
@@ -366,42 +530,75 @@ def start_ami_listener():
     )
 
     while True:
+        sock = None
+
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(10.0)
             sock.connect((settings.ASTERISK_AMI_HOST, settings.ASTERISK_AMI_PORT))
-            sock.recv(1024)
+
+            try:
+                banner = read_ami_block(sock, timeout=5.0)
+                print("AMI BANNER:", banner.strip())
+            except socket.timeout:
+                print("AMI BANNER: timeout, continuing login")
 
             login_cmd = (
-                f"Action: Login\r\n"
+                "Action: Login\r\n"
                 f"Username: {settings.ASTERISK_AMI_USER}\r\n"
                 f"Secret: {settings.ASTERISK_AMI_PASS}\r\n"
-                f"Events: on\r\n\r\n"
+                "Events: on\r\n\r\n"
             )
-            sock.sendall(login_cmd.encode("utf-8"))
-            response = sock.recv(1024).decode("utf-8", errors="ignore")
 
-            if "Success" not in response:
+            sock.sendall(login_cmd.encode("utf-8"))
+
+            response = read_ami_block(sock, timeout=10.0)
+
+            if "Response: Success" not in response:
                 print("AMI Login Failed. Retrying in 5 seconds...")
-                sock.close()
+                print(response.strip())
+
+                try:
+                    sock.close()
+                except Exception:
+                    pass
+
                 time.sleep(5)
                 continue
 
             print("AMI Login Successful. Listening to events...")
 
+            sock.settimeout(None)
+
             buffer = ""
+
             while True:
-                data = sock.recv(4096).decode("utf-8", errors="ignore")
+                data = sock.recv(4096)
+
                 if not data:
                     print("AMI connection closed by Asterisk.")
                     break
 
-                buffer += data
+                buffer += data.decode("utf-8", errors="ignore")
+
                 while "\r\n\r\n" in buffer:
                     block, buffer = buffer.split("\r\n\r\n", 1)
-                    handle_ami_event(parse_ami_block(block))
+
+                    event = parse_ami_block(block)
+
+                    if event:
+                        handle_ami_event(event)
 
         except Exception as e:
             print(f"Socket connection lost: {e}. Reconnecting in 5 seconds...")
+
+        finally:
+            if sock:
+                try:
+                    sock.close()
+                except Exception:
+                    pass
+
             time.sleep(5)
 
 

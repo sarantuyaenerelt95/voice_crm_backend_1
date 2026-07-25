@@ -1,3 +1,7 @@
+# app/services/asterisk_status.py
+
+from __future__ import annotations
+
 import subprocess
 
 
@@ -11,6 +15,11 @@ def get_pjsip_registration_status() -> dict:
         )
 
         output = result.stdout or result.stderr or ""
+
+        if result.returncode != 0:
+            return {
+                "_error": output.strip() or f"asterisk command failed with code {result.returncode}",
+            }
 
     except Exception as exc:
         return {"_error": str(exc)}

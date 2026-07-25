@@ -1,3 +1,7 @@
+# app/models/campaign_target.py
+
+from __future__ import annotations
+
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship

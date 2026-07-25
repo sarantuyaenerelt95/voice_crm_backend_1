@@ -1,3 +1,8 @@
+# app/routes/campaign_routes.py
+
+from __future__ import annotations
+
+from typing import List
 import os
 import time
 import shutil
@@ -13,8 +18,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-from app.services.campaign_target_service import sync_campaign_targets_from_contact_ids
-
+from app.config import settings
 from app.database import get_db
 from app.models.user import User
 from app.models.contact import Contact
@@ -26,8 +30,9 @@ from app.models.campaign_target import CampaignTarget
 
 from app.routes.auth_routes import get_current_user
 from app.services.audio_converter import AudioConverter
-from app.tasks.campaign_tasks import run_campaign_task
+from app.services.campaign_target_service import sync_campaign_targets_from_contact_ids
 from app.services.sip_availability import get_available_sip_rows
+from app.tasks.campaign_tasks import run_campaign_task
 
 from app.schemas.campaign import (
     SIPTrunkCreate,
@@ -43,7 +48,6 @@ from app.schemas.campaign import (
     AudioFileResponse,
     CampaignSimulateResponse,
     CampaignSummaryResponse,
-    CampaignRecentCallResponse,
 )
 
 from app.services.audio_capacity import (
@@ -51,6 +55,7 @@ from app.services.audio_capacity import (
     check_audio_storage_capacity,
     safe_remove_file,
 )
+
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 
@@ -64,7 +69,6 @@ def safe_audio_name(filename: str) -> str:
     return base.strip("_") or "audio"
 
 
-
 def get_campaign_target_count(db: Session, campaign: Campaign) -> int:
     target_count = db.query(func.count(CampaignTarget.id)).filter(
         CampaignTarget.campaign_id == campaign.id,
@@ -75,11 +79,12 @@ def get_campaign_target_count(db: Session, campaign: Campaign) -> int:
 
     return len(campaign.target_contact_ids or [])
 
+
 def get_campaign_contacts(
     request: CampaignCreate,
     company_id: int,
     db: Session,
-) -> list[Contact]:
+) -> List[Contact]:
     if request.contact_limit is not None and request.contact_limit <= 0:
         raise HTTPException(status_code=400, detail="contact_limit must be greater than 0")
 
@@ -91,9 +96,11 @@ def get_campaign_contacts(
     if request.contact_ids:
         seen_ids = set()
         requested_ids = []
+
         for contact_id in request.contact_ids:
             if contact_id <= 0:
                 raise HTTPException(status_code=400, detail="contact_ids must be positive integers")
+
             if contact_id not in seen_ids:
                 seen_ids.add(contact_id)
                 requested_ids.append(contact_id)
@@ -109,8 +116,10 @@ def get_campaign_contacts(
             )
 
         ordered_contacts = [contacts_by_id[contact_id] for contact_id in requested_ids]
+
         if request.contact_limit is not None:
             ordered_contacts = ordered_contacts[:request.contact_limit]
+
         return ordered_contacts
 
     query = base_query.order_by(Contact.created_at.asc(), Contact.id.asc())
@@ -120,7 +129,8 @@ def get_campaign_contacts(
 
     return query.all()
 
-def get_campaign_target_contacts(campaign: Campaign, db: Session) -> list[Contact]:
+
+def get_campaign_target_contacts(campaign: Campaign, db: Session) -> List[Contact]:
     target_contact_ids = campaign.target_contact_ids or []
 
     if not target_contact_ids:
@@ -178,6 +188,7 @@ def build_campaign_status(campaign: Campaign, db: Session) -> dict:
     busy = counts.get(CallStatus.busy, 0)
     no_answer = counts.get(CallStatus.no_answer, 0)
     congestion = counts.get(CallStatus.congestion, 0)
+
     finished = completed + failed + busy + no_answer + congestion
     total = campaign.total_contacts or finished or 0
     progress_percent = min(round((finished / total) * 100, 2), 100.0) if total else 0.0
@@ -197,11 +208,6 @@ def build_campaign_status(campaign: Campaign, db: Session) -> dict:
     }
 
 
-
-# =========================
-# SIP TRUNKS
-# =========================
-
 @router.post("/trunks", response_model=SIPTrunkResponse)
 def create_trunk(
     request: SIPTrunkCreate,
@@ -217,25 +223,28 @@ def create_trunk(
         asterisk_endpoint=request.asterisk_endpoint,
         max_concurrent=request.max_concurrent or 3,
         is_active=True,
+        managed_by_crm=True,
+        current_active_calls=0,
+        is_applied=False,
     )
 
-    db.add(trunk)
-    db.commit()
-    db.refresh(trunk)
-    return trunk
+    try:
+        db.add(trunk)
+        db.commit()
+        db.refresh(trunk)
+        return trunk
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="SIP trunk already exists")
 
 
-@router.get("/trunks", response_model=list[SIPTrunkResponse])
+@router.get("/trunks", response_model=List[SIPTrunkResponse])
 def list_trunks(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     return db.query(SIPTrunk).filter(SIPTrunk.is_active == True).all()
 
-
-# =========================
-# CONTACTS
-# =========================
 
 @router.post("/contacts", response_model=ContactResponse)
 def create_contact(
@@ -261,7 +270,7 @@ def create_contact(
         raise HTTPException(status_code=400, detail="Phone already exists for this company")
 
 
-@router.get("/contacts", response_model=list[ContactResponse])
+@router.get("/contacts", response_model=List[ContactResponse])
 def list_contacts(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -271,10 +280,6 @@ def list_contacts(
         Contact.is_active == True,
     ).all()
 
-
-# =========================
-# AUDIO UPLOAD
-# =========================
 
 @router.post("/audio-files/upload")
 def upload_audio_file(
@@ -311,30 +316,19 @@ def upload_audio_file(
         os.chmod(output_path, 0o644)
 
         duration_sec = AudioConverter.get_duration_sec(output_path)
-
-        try:
-            check_audio_duration(duration_sec)
-        except HTTPException:
-            safe_remove_file(temp_input_path)
-            safe_remove_file(output_path)
-            raise
+        check_audio_duration(duration_sec)
 
         file_size_bytes = os.path.getsize(output_path)
 
-        try:
-            check_audio_storage_capacity(
-                db,
-                current_user.company_id,
-                file_size_bytes,
-            )
-        except HTTPException:
-            safe_remove_file(temp_input_path)
-            safe_remove_file(output_path)
-            raise
+        check_audio_storage_capacity(
+            db,
+            current_user.company_id,
+            file_size_bytes,
+        )
 
         audio = AudioFile(
             company_id=current_user.company_id,
-            filename=unique_name,          # no .wav, because Playback uses no extension
+            filename=unique_name,
             file_path=output_path,
             source=AudioSource.upload,
             duration_sec=duration_sec,
@@ -354,28 +348,29 @@ def upload_audio_file(
             "playback_name": f"custom/{audio.filename}",
         }
 
+    except HTTPException:
+        db.rollback()
+        safe_remove_file(output_path)
+        raise
+
     except Exception as e:
         db.rollback()
+        safe_remove_file(output_path)
         raise HTTPException(status_code=500, detail=str(e))
 
     finally:
-        if os.path.exists(temp_input_path):
-            os.remove(temp_input_path)
+        safe_remove_file(temp_input_path)
 
 
-@router.get("/audio-files", response_model=list[AudioFileResponse])
+@router.get("/audio-files", response_model=List[AudioFileResponse])
 def list_audio_files(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     return db.query(AudioFile).filter(
-        AudioFile.company_id == current_user.company_id
+        AudioFile.company_id == current_user.company_id,
     ).order_by(AudioFile.created_at.desc()).all()
 
-
-# =========================
-# CAMPAIGNS
-# =========================
 
 @router.post("", response_model=CampaignResponse)
 def create_campaign(
@@ -415,6 +410,7 @@ def create_campaign(
     db.add(campaign)
     db.commit()
     db.refresh(campaign)
+
     target_count = sync_campaign_targets_from_contact_ids(
         db=db,
         campaign=campaign,
@@ -434,16 +430,10 @@ def import_contacts(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    import csv
-    import io
-
     filename = (file.filename or "").lower()
 
     if not (filename.endswith(".csv") or filename.endswith(".txt")):
-        raise HTTPException(
-            status_code=400,
-            detail="Only CSV or TXT file allowed"
-        )
+        raise HTTPException(status_code=400, detail="Only CSV or TXT file allowed")
 
     try:
         content = file.file.read().decode("utf-8-sig")
@@ -452,8 +442,6 @@ def import_contacts(
 
     rows = []
 
-    # CSV supports either header format: phone,full_name,notes
-    # or old demo format where the first column is the phone number.
     if filename.endswith(".csv"):
         stream = io.StringIO(content)
         dict_reader = csv.DictReader(stream)
@@ -473,6 +461,7 @@ def import_contacts(
         else:
             stream.seek(0)
             reader = csv.reader(stream)
+
             for row in reader:
                 if not row:
                     continue
@@ -483,7 +472,6 @@ def import_contacts(
                     "notes": row[2].strip() if len(row) > 2 and row[2].strip() else None,
                 })
 
-    # TXT format: one phone number per line
     elif filename.endswith(".txt"):
         for line in content.splitlines():
             phone = line.strip()
@@ -501,6 +489,7 @@ def import_contacts(
             Contact.company_id == current_user.company_id,
         ).all()
     }
+
     seen_phones = set()
     created = 0
     skipped = 0
@@ -508,7 +497,6 @@ def import_contacts(
     for row in rows:
         phone = re.sub(r"\D", "", row.get("phone") or "")
 
-        # Mongolia phone number usually 8 digits
         if len(phone) != 8 or phone in existing_phones or phone in seen_phones:
             skipped += 1
             continue
@@ -539,19 +527,17 @@ def import_contacts(
     }
 
 
-@router.get("", response_model=list[CampaignResponse])
+@router.get("", response_model=List[CampaignResponse])
 def list_campaigns(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     return db.query(Campaign).filter(
-        Campaign.company_id == current_user.company_id
+        Campaign.company_id == current_user.company_id,
     ).order_by(Campaign.created_at.desc()).all()
 
 
-
-
-@router.get("/{campaign_id}/calls", response_model=list[CallLogResponse])
+@router.get("/{campaign_id}/calls", response_model=List[CallLogResponse])
 def list_campaign_calls(
     campaign_id: int,
     db: Session = Depends(get_db),
@@ -566,11 +552,8 @@ def list_campaign_calls(
         raise HTTPException(status_code=404, detail="Campaign not found")
 
     return db.query(CallLog).filter(
-        CallLog.campaign_id == campaign.id
+        CallLog.campaign_id == campaign.id,
     ).order_by(CallLog.started_at.desc()).all()
-
-
-
 
 
 @router.post("/{campaign_id}/dry-run", response_model=CampaignDryRunResponse)
@@ -578,7 +561,7 @@ def dry_run_campaign(
     campaign_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):  
+):
     if not settings.ENABLE_SIMULATION:
         raise HTTPException(
             status_code=403,
@@ -618,7 +601,7 @@ def export_campaign_report(
         raise HTTPException(status_code=404, detail="Campaign not found")
 
     calls = db.query(CallLog).filter(
-        CallLog.campaign_id == campaign.id
+        CallLog.campaign_id == campaign.id,
     ).order_by(CallLog.started_at.asc(), CallLog.id.asc()).all()
 
     output = io.StringIO()
@@ -661,6 +644,7 @@ def get_campaign_status(
 
     return build_campaign_status(campaign, db)
 
+
 @router.get("/{campaign_id}/summary", response_model=CampaignSummaryResponse)
 def get_campaign_summary(
     campaign_id: int,
@@ -678,7 +662,7 @@ def get_campaign_summary(
     status_data = build_campaign_status(campaign, db)
 
     recent_calls = db.query(CallLog).filter(
-        CallLog.campaign_id == campaign.id
+        CallLog.campaign_id == campaign.id,
     ).order_by(CallLog.started_at.desc(), CallLog.id.desc()).limit(10).all()
 
     return {
@@ -704,6 +688,7 @@ def get_campaign_summary(
             for call in recent_calls
         ],
     }
+
 
 @router.get("/{campaign_id}", response_model=CampaignResponse)
 def get_campaign(
@@ -746,8 +731,6 @@ def start_campaign(
             detail="Only draft campaigns can be started.",
         )
 
-    target_contact_ids = campaign.target_contact_ids or []
-
     target_count = get_campaign_target_count(db, campaign)
 
     if target_count <= 0:
@@ -783,6 +766,7 @@ def start_campaign(
 
     campaign.selected_sip_trunk_id = int(selected_sip_row["id"])
     campaign.total_contacts = len(target_contacts)
+    campaign.status = CampaignStatus.queued
 
     db.commit()
     db.refresh(campaign)
@@ -801,8 +785,6 @@ def start_campaign(
         "total_contacts": campaign.total_contacts,
         "selected_sip_trunk_id": campaign.selected_sip_trunk_id,
     }
-
-
 
 
 @router.post("/{campaign_id}/cancel")
@@ -824,7 +806,6 @@ def cancel_campaign(
 
     db.commit()
     db.refresh(campaign)
-    
 
     return {
         "message": "Campaign cancelled",
@@ -832,17 +813,19 @@ def cancel_campaign(
         "status": campaign.status,
     }
 
+
 @router.post("/{campaign_id}/simulate", response_model=CampaignSimulateResponse)
 def simulate_campaign(
     campaign_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):  
+):
     if not settings.ENABLE_SIMULATION:
         raise HTTPException(
             status_code=403,
             detail="Simulation is disabled in this environment.",
         )
+
     print("SIMULATION ONLY - NO ASTERISK CALL")
 
     campaign = db.query(Campaign).filter(
@@ -858,7 +841,7 @@ def simulate_campaign(
     if not target_ids:
         raise HTTPException(
             status_code=400,
-            detail="Campaign has no frozen target_contact_ids"
+            detail="Campaign has no frozen target_contact_ids",
         )
 
     contacts = db.query(Contact).filter(
@@ -877,30 +860,25 @@ def simulate_campaign(
     if not ordered_contacts:
         raise HTTPException(
             status_code=400,
-            detail="No valid active contacts found for this campaign"
+            detail="No valid active contacts found for this campaign",
         )
 
-    # Optional trunk id only for DB foreign key compatibility.
-    # This does NOT originate calls.
     trunk = db.query(SIPTrunk).filter(
-        SIPTrunk.is_active == True
+        SIPTrunk.is_active == True,
     ).first()
 
     if not trunk:
         raise HTTPException(
             status_code=400,
-            detail="No active SIP trunk found for simulation CallLog trunk_id"
+            detail="No active SIP trunk found for simulation CallLog trunk_id",
         )
-
-    trunk_id = trunk.id
 
     now = datetime.now(timezone.utc)
 
     audio_duration = 0
     if campaign.audio_file and campaign.audio_file.duration_sec:
         audio_duration = campaign.audio_file.duration_sec
-    
-    
+
     completed_count = 0
 
     for contact in ordered_contacts:
@@ -915,7 +893,7 @@ def simulate_campaign(
             call = CallLog(
                 campaign_id=campaign.id,
                 contact_id=contact.id,
-                trunk_id=trunk_id,
+                trunk_id=trunk.id,
                 phone=contact.phone,
             )
             db.add(call)
@@ -935,9 +913,7 @@ def simulate_campaign(
     campaign.busy_calls = 0
     campaign.no_answer_calls = 0
     campaign.status = CampaignStatus.completed
-
-    if hasattr(campaign, "completed_at"):
-        campaign.completed_at = now
+    campaign.completed_at = now
 
     db.commit()
 
@@ -947,6 +923,3 @@ def simulate_campaign(
         "target_count": len(ordered_contacts),
         "completed_calls": completed_count,
     }
-
-
-

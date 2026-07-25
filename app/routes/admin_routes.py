@@ -1,17 +1,20 @@
+# app/routes/admin_routes.py
+
+from __future__ import annotations
+
 from datetime import datetime
 import re
 
-from fastapi import APIRouter, Request, Depends, HTTPException, Form
+from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
-from app.services.asterisk_trunk_generator import generate_pjsip_config, apply_pjsip_config
-from app.services.asterisk_status import get_pjsip_registration_status
-
 from app.database import get_db
 from app.models.user import User
 from app.models.sip_trunk import SIPTrunk
+from app.services.asterisk_trunk_generator import generate_pjsip_config, apply_pjsip_config
+from app.services.asterisk_status import get_pjsip_registration_status
 
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -51,13 +54,33 @@ def get_current_super_admin(request: Request, db: Session) -> User:
     return user
 
 
-def get_value(obj, names, default=""):
-    for name in names:
-        if hasattr(obj, name):
-            value = getattr(obj, name)
-            if value is not None:
-                return value
-    return default
+def get_active_managed_trunks(db: Session):
+    return (
+        db.query(SIPTrunk)
+        .filter(
+            SIPTrunk.is_active == True,
+            SIPTrunk.managed_by_crm == True,
+        )
+        .order_by(SIPTrunk.id.asc())
+        .all()
+    )
+
+
+def make_voicecrm_endpoint(provider: str, sip_number: str) -> str:
+    provider = str(provider or "sip").lower().strip()
+    sip_number = str(sip_number or "").strip()
+
+    endpoint = f"vc_{provider}_{sip_number}"
+
+    # Keep only letters, numbers, underscore for Asterisk section name
+    endpoint = re.sub(r"[^A-Za-z0-9_]", "_", endpoint)
+    endpoint = re.sub(r"_+", "_", endpoint)
+    endpoint = endpoint.strip("_")
+
+    if not endpoint.startswith("vc_"):
+        endpoint = f"vc_{endpoint}"
+
+    return endpoint[:80]
 
 
 @router.get("/dashboard")
@@ -65,12 +88,13 @@ def admin_dashboard(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    admin = get_current_super_admin(request, db)
+    get_current_super_admin(request, db)
 
     return RedirectResponse(
         url="/admin/sip-numbers",
         status_code=303,
     )
+
 
 @router.get("/sip-numbers", response_class=HTMLResponse)
 def admin_sip_numbers(
@@ -79,13 +103,14 @@ def admin_sip_numbers(
 ):
     admin = get_current_super_admin(request, db)
 
-    # Show both active and inactive SIP numbers
-    trunks = db.query(SIPTrunk).order_by(
-        SIPTrunk.is_active.desc(),
-        SIPTrunk.id.asc()
-    ).all()
-
-    print("SIP DEBUG trunks:", len(trunks))
+    trunks = (
+        db.query(SIPTrunk)
+        .order_by(
+            SIPTrunk.is_active.desc(),
+            SIPTrunk.id.asc(),
+        )
+        .all()
+    )
 
     registration_statuses = get_pjsip_registration_status()
 
@@ -101,14 +126,13 @@ def admin_sip_numbers(
     )
 
 
-
 @router.post("/sip-numbers/add")
 @router.post("/sip-numbers/add-apply")
 async def admin_add_apply_sip_number(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    admin = get_current_super_admin(request, db)
+    get_current_super_admin(request, db)
 
     form = await request.form()
 
@@ -147,8 +171,6 @@ async def admin_add_apply_sip_number(
         or ""
     )
 
-    # Owner writes only SIP number.
-    # Asterisk endpoint is forced automatically from provider + number.
     asterisk_endpoint = make_voicecrm_endpoint(provider, sip_number)
 
     try:
@@ -168,14 +190,16 @@ async def admin_add_apply_sip_number(
     if not sip_password:
         raise HTTPException(status_code=400, detail="SIP password is required")
 
-    existing_trunk = db.query(SIPTrunk).filter(
-        SIPTrunk.number == sip_number,
-    ).first()
+    existing_trunk = (
+        db.query(SIPTrunk)
+        .filter(SIPTrunk.number == sip_number)
+        .first()
+    )
 
     if existing_trunk and existing_trunk.is_active:
         raise HTTPException(
             status_code=400,
-            detail="This SIP number is already active in CRM. Remove it first before adding again."
+            detail="This SIP number is already active in CRM. Remove it first before adding again.",
         )
 
     cols = model_columns(SIPTrunk)
@@ -209,11 +233,16 @@ async def admin_add_apply_sip_number(
     if "is_active" in cols:
         data["is_active"] = True
 
+    if "managed_by_crm" in cols:
+        data["managed_by_crm"] = True
+
+    if "current_active_calls" in cols:
+        data["current_active_calls"] = 0
+
     if "is_applied" in cols:
         data["is_applied"] = False
 
     if existing_trunk:
-        # Reuse inactive row instead of inserting duplicate number
         for key, value in data.items():
             setattr(existing_trunk, key, value)
 
@@ -236,10 +265,7 @@ async def admin_add_apply_sip_number(
     db.commit()
     db.refresh(trunk)
 
-    trunks = db.query(SIPTrunk).order_by(
-        SIPTrunk.is_active.desc(),
-        SIPTrunk.id.asc()
-    ).all()
+    trunks = get_active_managed_trunks(db)
 
     generate_result = generate_pjsip_config(trunks)
     apply_result = apply_pjsip_config()
@@ -282,21 +308,6 @@ async def admin_add_apply_sip_number(
         },
     )
 
-def make_voicecrm_endpoint(provider: str, sip_number: str) -> str:
-    provider = str(provider or "sip").lower().strip()
-    sip_number = str(sip_number or "").strip()
-
-    endpoint = f"vc_{provider}_{sip_number}"
-
-    # Keep only letters, numbers, underscore for Asterisk section name
-    endpoint = re.sub(r"[^A-Za-z0-9_]", "_", endpoint)
-    endpoint = re.sub(r"_+", "_", endpoint)
-    endpoint = endpoint.strip("_")
-
-    if not endpoint.startswith("vc_"):
-        endpoint = f"vc_{endpoint}"
-
-    return endpoint[:80]
 
 @router.post("/sip-numbers/{trunk_id}/enable")
 def admin_enable_sip_number(
@@ -304,11 +315,13 @@ def admin_enable_sip_number(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    admin = get_current_super_admin(request, db)
+    get_current_super_admin(request, db)
 
-    trunk = db.query(SIPTrunk).filter(
-        SIPTrunk.id == trunk_id,
-    ).first()
+    trunk = (
+        db.query(SIPTrunk)
+        .filter(SIPTrunk.id == trunk_id)
+        .first()
+    )
 
     if not trunk:
         raise HTTPException(status_code=404, detail="SIP trunk not found")
@@ -316,6 +329,9 @@ def admin_enable_sip_number(
     cols = model_columns(SIPTrunk)
 
     trunk.is_active = True
+
+    if "managed_by_crm" in cols:
+        trunk.managed_by_crm = True
 
     if "is_applied" in cols:
         trunk.is_applied = False
@@ -328,13 +344,7 @@ def admin_enable_sip_number(
 
     db.commit()
 
-    # Regenerate Asterisk config with enabled trunk
-    trunks = db.query(SIPTrunk).filter(
-        SIPTrunk.is_active == True, 
-        SIPTrunk.managed_by_crm == True,
-    ).order_by(
-        SIPTrunk.id.asc()
-    ).all()
+    trunks = get_active_managed_trunks(db)
 
     generate_result = generate_pjsip_config(trunks)
     apply_result = apply_pjsip_config()
@@ -377,80 +387,35 @@ def admin_enable_sip_number(
         },
     )
 
-@router.post("/sip-numbers/{trunk_id}/enable")
-def admin_enable_sip_number(
-    trunk_id: int,
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    admin = get_current_super_admin(request, db)
+@router.post("/sip-numbers/{trunk_id}/disable")
+def admin_disable_sip_number(trunk_id: int, request: Request, db: Session = Depends(get_db)):
+    get_current_super_admin(request, db)
 
-    trunk = db.query(SIPTrunk).filter(
-        SIPTrunk.id == trunk_id,
-    ).first()
+    trunk = db.query(SIPTrunk).filter(SIPTrunk.id == trunk_id).first()
 
     if not trunk:
         raise HTTPException(status_code=404, detail="SIP trunk not found")
 
     cols = model_columns(SIPTrunk)
 
-    trunk.is_active = True
+    trunk.is_active = False
 
     if "is_applied" in cols:
         trunk.is_applied = False
 
-    if "removed_at" in cols:
-        trunk.removed_at = None
-
-    if "last_apply_error" in cols:
-        trunk.last_apply_error = None
-
     db.commit()
 
-    # Regenerate Asterisk config with enabled trunk
-    trunks = db.query(SIPTrunk).filter(
-        SIPTrunk.is_active == True,
-        SIPTrunk.managed_by_crm == True,
-    ).order_by(
-        SIPTrunk.id.asc()
-    ).all()
-
+    trunks = get_active_managed_trunks(db)
     generate_result = generate_pjsip_config(trunks)
     apply_result = apply_pjsip_config()
 
     if apply_result["ok"]:
-        if "is_applied" in cols:
-            trunk.is_applied = True
-
-        if "applied_at" in cols:
-            trunk.applied_at = datetime.utcnow()
-
-        if "last_apply_error" in cols:
-            trunk.last_apply_error = None
-
-        db.commit()
-
-        return RedirectResponse(
-            url="/admin/sip-numbers",
-            status_code=303,
-        )
-
-    if "is_applied" in cols:
-        trunk.is_applied = False
-
-    if "last_apply_error" in cols:
-        trunk.last_apply_error = (
-            apply_result.get("stderr")
-            or apply_result.get("stdout")
-            or "Unknown enable apply error"
-        )
-
-    db.commit()
+        return RedirectResponse(url="/admin/sip-numbers", status_code=303)
 
     raise HTTPException(
         status_code=500,
         detail={
-            "message": "SIP enabled in DB, but failed to apply to Asterisk",
+            "message": "SIP disabled in DB, but failed to apply to Asterisk",
             "generate_result": generate_result,
             "apply_result": apply_result,
         },
@@ -461,7 +426,7 @@ def admin_sip_trunks_alias(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    admin = get_current_super_admin(request, db)
+    get_current_super_admin(request, db)
 
     return RedirectResponse(
         url="/admin/sip-numbers",

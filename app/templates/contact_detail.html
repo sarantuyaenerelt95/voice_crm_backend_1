@@ -1,87 +1,158 @@
+<!-- app/templates/contact_detail.html -->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
+  <title>Contact {{ contact.phone }} | Voice CRM</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Contact {{ contact.phone }} - Voice CRM</title>
   <link rel="stylesheet" href="/static/voicecrm.css">
 </head>
+
 <body>
-  {% include "_web_nav.html" %}
-  <main class="page-shell">
-    <div class="page-header">
-      <div>
-        <p class="eyebrow">Contact detail</p>
-        <h1>{{ contact.phone }}</h1>
-        <p class="muted">{{ contact.full_name or 'No name saved' }}</p>
-      </div>
-      <div class="action-row">
-        <a class="btn secondary" href="/web/contacts">Back to contacts</a>
-      </div>
+
+{% include "_web_nav.html" %}
+
+<main class="page-shell">
+
+  <div class="page-header">
+    <div>
+      <p class="page-eyebrow">Contact detail</p>
+      <h1>{{ contact.phone }}</h1>
+      <p class="muted">
+        {{ contact.full_name or 'No name saved' }}
+      </p>
     </div>
 
-    <div class="two-column">
-      <section class="card">
-        <h2>Contact</h2>
-        <dl class="detail-list">
-          <dt>Status</dt>
-          <dd>{% if contact.is_active %}<span class="badge completed">active</span>{% else %}<span class="badge failed">inactive</span>{% endif %}</dd>
-          <dt>Name</dt>
-          <dd>{{ contact.full_name or '-' }}</dd>
-          <dt>Notes</dt>
-          <dd>{{ contact.notes or '-' }}</dd>
-          <dt>Created</dt>
-          <dd>{{ contact.created_at }}</dd>
-        </dl>
-      </section>
-
-      <section class="card">
-        <h2>Groups</h2>
-        {% if groups %}
-        <div class="tag-list">
-          {% for group in groups %}
-          <a class="pill" href="/web/contact-groups/{{ group.id }}">{{ group.name }}</a>
-          {% endfor %}
-        </div>
-        {% else %}
-        <p class="empty-state">This contact is not in any active group.</p>
-        {% endif %}
-      </section>
+    <div class="actions">
+      <a class="btn btn-secondary" href="/web/contacts">
+        ← Back to contacts
+      </a>
     </div>
+  </div>
 
+  <div class="profile-grid">
     <section class="card">
-      <h2>Call history</h2>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Campaign</th>
-              <th>Audio</th>
-              <th>Status</th>
-              <th>Duration</th>
-              <th>Cause</th>
-              <th>Ended</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for item in history %}
-            {% set call = item.call %}
-            {% set status = call.status.value if call.status else '' %}
-            <tr>
-              <td><a href="/web/campaigns/{{ item.campaign.id }}">#{{ item.campaign_no }} {{ item.campaign.name }}</a></td>
-              <td>{{ item.audio.filename if item.audio else '-' }}</td>
-              <td><span class="badge {{ status }}">{{ status }}</span></td>
-              <td>{{ call.duration_sec or 0 }}</td>
-              <td>{{ call.hangup_cause if call.hangup_cause is not none else '-' }}</td>
-              <td>{{ call.ended_at or '-' }}</td>
-            </tr>
-            {% else %}
-            <tr><td colspan="6" class="empty-state">No call history yet.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+      <h2>Contact</h2>
+
+      <div class="metadata-row">
+        <div>
+          <strong>Status</strong><br>
+          {% if contact.is_active %}
+            <span class="badge badge-active">active</span>
+          {% else %}
+            <span class="badge badge-failed">inactive</span>
+          {% endif %}
+        </div>
+
+        <div>
+          <strong>Name</strong><br>
+          <span class="muted">{{ contact.full_name or '-' }}</span>
+        </div>
+
+        <div>
+          <strong>Created</strong><br>
+          <span class="muted">{{ contact.created_at }}</span>
+        </div>
+      </div>
+
+      <div style="margin-top:14px;">
+        <strong>Notes</strong>
+        <p class="muted">{{ contact.notes or '-' }}</p>
       </div>
     </section>
-  </main>
+
+    <section class="card">
+      <h2>Groups</h2>
+
+      {% if groups %}
+        <div class="actions">
+          {% for group in groups %}
+            <a class="badge badge-active" href="/web/contact-groups/{{ group.id }}">
+              {{ group.name }}
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">
+          This contact is not in any active group.
+        </div>
+      {% endif %}
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="section-title-row">
+      <div>
+        <h2>Call History</h2>
+        <p class="muted small-text">
+          Previous call attempts and results for this contact.
+        </p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Campaign</th>
+            <th>Audio</th>
+            <th>Status</th>
+            <th>Duration</th>
+            <th>Cause</th>
+            <th>Ended</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for item in history %}
+            {% set call = item.call %}
+            {% set status = call.status.value if call.status.value is defined else call.status|string %}
+
+            <tr>
+              <td>
+                <a href="/web/campaigns/{{ item.campaign.id }}">
+                  #{{ item.campaign_no }} {{ item.campaign.name }}
+                </a>
+              </td>
+
+              <td>
+                {{ item.audio.filename if item.audio else '-' }}
+              </td>
+
+              <td>
+                <span class="badge badge-{{ status }}">
+                  {{ status }}
+                </span>
+              </td>
+
+              <td>
+                {{ call.duration_sec if call.duration_sec is not none else 0 }}
+              </td>
+
+              <td>
+                {{ call.hangup_cause if call.hangup_cause is not none else '-' }}
+              </td>
+
+              <td>
+                {{ call.ended_at or '-' }}
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="6">
+                <div class="empty-state">
+                  No call history yet.
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
 </body>
 </html>

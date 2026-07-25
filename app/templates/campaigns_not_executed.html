@@ -1,134 +1,135 @@
+<!-- app/templates/campaigns_not_executed.html -->
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Not Executed Campaigns</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f4f6f8;
-            padding: 30px;
-        }
-
-        .card {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-
-        a {
-            color: #0066cc;
-            text-decoration: none;
-            font-weight: bold;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-            margin-top: 15px;
-        }
-
-        th, td {
-            padding: 10px;
-            border-bottom: 1px solid #ddd;
-            text-align: left;
-        }
-
-        th {
-            background: #f0f0f0;
-        }
-
-        .badge {
-            background: #fff7ed;
-            color: #c2410c;
-            padding: 4px 8px;
-            border-radius: 999px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-
-        .btn {
-            padding: 7px 10px;
-            background: #0066cc;
-            color: white;
-            border-radius: 6px;
-            text-decoration: none;
-            display: inline-block;
-            margin-right: 6px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Not Executed Campaigns | Voice CRM</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/voicecrm.css">
 </head>
+
 <body>
 
-<div class="card">
-    <a href="/web/dashboard">← Back to dashboard</a>
+{% include "_web_nav.html" %}
 
-    <h1>Not Executed Campaigns</h1>
+<div class="page-shell">
 
-    <p>
-        These campaigns are still editable. You can manage/remove numbers before execution.
-    </p>
-</div>
+  <div class="page-header">
+    <div>
+      <a class="back-link" href="/web/dashboard">← Back to dashboard</a>
+      <p class="page-eyebrow">Draft campaigns</p>
+      <h1>Not Executed Campaigns</h1>
+      <p class="muted">
+        These campaigns are still editable. You can manage or remove numbers before execution.
+      </p>
+    </div>
 
-<div class="card">
-    <table>
+    <div class="actions">
+      <a class="btn" href="/web/campaigns/new">
+        Create Campaign
+      </a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title-row">
+      <div>
+        <h2>Editable Campaigns</h2>
+        <p class="muted small-text">
+          Contacts and audio files will not be deleted when deleting a not-executed campaign.
+        </p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
         <thead>
-            <tr>
-                <th>No.</th>
-                <th>Campaign Name</th>
-                <th>Status</th>
-                <th>Total Numbers</th>
-                <th>Created</th>
-                <th>Open</th>
-                <th>Manage Numbers</th>
-                <th>Delete</th>
-            </tr>
+          <tr>
+            <th>No.</th>
+            <th>Campaign Name</th>
+            <th>Status</th>
+            <th>Total Numbers</th>
+            <th>Created</th>
+            <th>Open</th>
+            <th>Manage Numbers</th>
+            <th>Delete</th>
+          </tr>
         </thead>
+
         <tbody>
-            {% for row in rows %}
+          {% for row in rows %}
             <tr>
-                <td>{{ loop.index0 }}</td>
-                <td>{{ row.campaign.name }}</td>
-                <td>
-                    <span class="badge">
-                        Not Executed
-                    </span>
-                </td>
-                <td>{{ row.campaign.total_contacts or 0 }}</td>
-                <td>{{ row.campaign.created_at }}</td>
-                <td>
-                    <a class="btn" href="/web/campaigns/{{ row.campaign.id }}">
-                        Open
-                    </a>
-                </td>
-                <td>
-                    <a class="btn" href="/web/campaigns/{{ row.campaign.id }}/contacts">
-                        Manage Numbers
-                    </a>
-                </td>
-                <td>
-                    <form method="post"
-                        action="/web/campaigns/{{ row.campaign.id }}/delete-not-executed"
-                        onsubmit="return confirm('Delete this not-executed campaign? Contacts and audio will NOT be deleted.');">
-                        <button type="submit"
-                                style="padding:7px 10px; background:#b80c0c; color:white; border:none; border-radius:6px; cursor:pointer;">
-                            Delete
-                        </button>
-                    </form>
-                </td>
+              <td>{{ loop.index }}</td>
+
+              <td>
+                <strong>{{ row.campaign.name }}</strong>
+              </td>
+
+              <td>
+                <span class="badge badge-draft">
+                  Not Executed
+                </span>
+              </td>
+
+              <td>
+                {{ row.campaign.total_contacts or 0 }}
+              </td>
+
+              <td>
+                {{ row.campaign.created_at }}
+              </td>
+
+              <td>
+                <a class="btn btn-secondary" href="/web/campaigns/{{ row.campaign.id }}">
+                  Open
+                </a>
+              </td>
+
+              <td>
+                <a class="btn btn-secondary" href="/web/campaigns/{{ row.campaign.id }}/contacts">
+                  Manage Numbers
+                </a>
+              </td>
+
+              <td>
+                <form class="inline-form"
+                      method="post"
+                      action="/web/campaigns/{{ row.campaign.id }}/delete-not-executed">
+                  <button type="submit"
+                          class="btn btn-danger delete-not-executed-btn">
+                    Delete
+                  </button>
+                </form>
+              </td>
             </tr>
-            {% else %}
+          {% else %}
             <tr>
-                <td colspan="8" style="text-align:center; padding:20px;">
-                    No not-executed campaigns.
-                </td>
+              <td colspan="8">
+                <div class="empty-state">
+                  No not-executed campaigns.
+                </div>
+              </td>
             </tr>
-            {% endfor %}
+          {% endfor %}
         </tbody>
-    </table>
+      </table>
+    </div>
+  </div>
+
 </div>
+
+<script>
+(function () {
+  document.querySelectorAll(".delete-not-executed-btn").forEach(function (button) {
+    button.addEventListener("click", function (event) {
+      if (!confirm("Delete this not-executed campaign? Contacts and audio will NOT be deleted.")) {
+        event.preventDefault();
+      }
+    });
+  });
+})();
+</script>
 
 </body>
 </html>

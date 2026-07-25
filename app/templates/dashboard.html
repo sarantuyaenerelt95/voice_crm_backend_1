@@ -1,122 +1,87 @@
+<!-- app/templates/dashboard.html -->
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Voice CRM Dashboard</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f4f6f8;
-            padding: 30px;
-        }
-
-        .card {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-        
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-        }
-
-        th, td {
-            padding: 10px;
-            border-bottom: 1px solid #ddd;
-            text-align: left;
-        }
-
-        th {
-            background: #f0f0f0;
-        }
-
-        a {
-            color: #0066cc;
-            text-decoration: none;
-            font-weight: bold;
-        }
-
-        .status {
-            padding: 4px 8px;
-            border-radius: 5px;
-            background: #eee;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Voice CRM Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/voicecrm.css">
 </head>
+
 <body>
 
-<div class="card">
-    <form method="post" action="/web/logout" style="float:right;">
-        <button type="submit" style="padding:8px 12px; background:#3a06ab; color:white; border:none; border-radius:6px; cursor:pointer;">
-            Logout
-        </button>
-    </form>
+{% include "_web_nav.html" %}
 
-    <h1>Voice CRM Dashboard</h1>
-    <p>Campaign list</p>
+<main class="page-shell">
+  <div class="page-header dashboard-hero">
+    <div>
+      <p class="page-eyebrow">{{ company_name }}</p>
+      <h1>Broadcast workspace</h1>
+      <p class="muted">Create safe draft campaigns, manage contacts, upload audio, and review results from one clean control room.</p>
+    </div>
 
-    <a href="/web/campaigns/new">+ Create New Campaign</a>
-    &nbsp; | &nbsp;
-    <a href="/web/audio/upload">Upload Audio</a>
-    &nbsp; | &nbsp;
-    <a href="/web/contact-groups">Contact Groups</a>
-    &nbsp; | &nbsp;
-    <a href="/web/contacts">Contacts</a>
-    &nbsp; | &nbsp;
-    <a href="/web/campaigns/not-executed">Not Executed Campaigns</a>
-</div>
+    <div class="actions">
+      <a class="btn" href="/web/campaigns/new">Create campaign</a>
+      <a class="btn btn-secondary" href="/web/campaigns">View campaigns</a>
+    </div>
+  </div>
 
-<div class="card">
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Campaign Name</th>
-                <th>Status</th>
-                <th>Total</th>
-                <th>Completed</th>
-                <th>Busy</th>
-                <th>No Answer</th>
-                <th>Failed</th>
-                <th>Created</th>
-                <th>Open</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for c in campaigns %}
-            <tr>
-                <td>{{ loop.index0 }}</td>
-                <td>{{ c.name }}</td>
-                <td>
-                    <span class="status">
-                        {{ c.status.value if c.status else "" }}
-                    </span>
-                </td>
-                <td>{{ c.total_contacts or 0 }}</td>
-                <td>{{ c.completed_calls or 0 }}</td>
-                <td>{{ c.busy_calls or 0 }}</td>
-                <td>{{ c.no_answer_calls or 0 }}</td>
-                <td>{{ c.failed_calls or 0 }}</td>
-                <td>{{ c.created_at }}</td>
-                <td>
-                    <a href="/web/campaigns/{{ c.id }}">View</a>
-                </td>
-                <td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="10" style="text-align:center; padding:20px;">
-                    No campaigns yet for this company.
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+  <section class="grid grid-4 dashboard-metrics">
+    <div class="stat">
+      <div class="stat-label">Campaigns</div>
+      <div class="stat-value">{{ total_campaigns or 0 }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Draft</div>
+      <div class="stat-value">{{ draft_campaigns or 0 }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Queued / Running</div>
+      <div class="stat-value">{{ running_campaigns or 0 }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Active contacts</div>
+      <div class="stat-value">{{ contact_count or 0 }}</div>
+    </div>
+  </section>
+
+  <section class="grid grid-4 dashboard-actions-grid">
+    <a class="feature-card action-card" href="/web/campaigns/new">
+      <div class="feature-icon">01</div>
+      <h3>New campaign</h3>
+      <p>Build a frozen target list and preview it before any real start.</p>
+    </a>
+    <a class="feature-card action-card" href="/web/contacts/import">
+      <div class="feature-icon">02</div>
+      <h3>Import contacts</h3>
+      <p>Upload CSV/TXT numbers and reuse existing company contacts.</p>
+    </a>
+    <a class="feature-card action-card" href="/web/audio/upload">
+      <div class="feature-icon">03</div>
+      <h3>Audio library</h3>
+      <p>Manage reusable broadcast audio files. Current files: {{ audio_count or 0 }}.</p>
+    </a>
+    <a class="feature-card action-card" href="/web/campaigns/not-executed">
+      <div class="feature-icon">04</div>
+      <h3>Cleanup</h3>
+      <p>Find campaigns that were created but never executed.</p>
+    </a>
+  </section>
+
+  <section class="card">
+    <div class="section-title-row">
+      <div>
+        <h2>Quick status</h2>
+        <p class="muted small-text">Use the readiness endpoint when something feels off.</p>
+      </div>
+      <div class="actions">
+        <a class="btn btn-secondary" href="/health/ready" target="_blank">System readiness JSON</a>
+        <a class="btn btn-secondary" href="/docs" target="_blank">API docs</a>
+      </div>
+    </div>
+  </section>
+</main>
 
 </body>
 </html>

@@ -1,232 +1,219 @@
+<!-- app/templates/admin_sip_numbers.html -->
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>SIP Numbers</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f4f6f8;
-            padding: 30px;
-        }
-
-        .card {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-
-        input {
-            padding: 10px;
-            width: 100%;
-            box-sizing: border-box;
-            margin-top: 6px;
-            margin-bottom: 12px;
-        }
-
-        button {
-            padding: 8px 12px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-
-        .btn {
-            background: #0066cc;
-            color: white;
-        }
-
-        .disable-btn {
-            background: #f59e0b;
-            color: white;
-        }
-
-        .enable-btn {
-            background: #16a34a;
-            color: white;
-        }
-
-        a {
-            color: #0066cc;
-            text-decoration: none;
-            font-weight: bold;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-            margin-top: 15px;
-        }
-
-        th, td {
-            padding: 10px;
-            border-bottom: 1px solid #ddd;
-            text-align: left;
-            font-size: 14px;
-        }
-
-        th {
-            background: #f0f0f0;
-        }
-
-        .active {
-            color: #16a34a;
-            font-weight: bold;
-        }
-
-        .disabled {
-            color: #6b7280;
-            font-weight: bold;
-        }
-
-        .registered {
-            color: #16a34a;
-            font-weight: bold;
-        }
-
-        .rejected {
-            color: #dc2626;
-            font-weight: bold;
-        }
-
-        .unregistered {
-            color: #f59e0b;
-            font-weight: bold;
-        }
-
-        .unknown {
-            color: #6b7280;
-            font-weight: bold;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>SIP Numbers | Voice CRM</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/voicecrm.css">
 </head>
+
 <body>
 
-<div class="card">
-    <a href="/web/logout">Logout</a>
+<nav class="top-nav">
+  <div class="top-nav-inner">
+    <a class="brand" href="/admin/sip-numbers">
+      <span class="brand-mark">VC</span>
+      <span class="brand-text">Voice CRM Admin</span>
+    </a>
 
-    <h1>SIP Trunks / SIP Numbers</h1>
-</div>
+    <div class="nav-links">
+      <a href="/admin/sip-numbers" class="active">SIP Numbers</a>
 
-<div class="card">
+      <form class="nav-logout" method="post" action="/web/logout">
+        <button type="submit">Logout</button>
+      </form>
+    </div>
+  </div>
+</nav>
+
+<div class="page-shell">
+
+  <div class="page-header">
+    <div>
+      <p class="page-eyebrow">Platform Admin</p>
+      <h1>SIP Trunks / SIP Numbers</h1>
+      <p class="muted">
+        Add, enable, disable, and check Asterisk registration status for outbound SIP trunks.
+      </p>
+    </div>
+  </div>
+
+  {% if registration_statuses.get("_error") %}
+    <div class="alert alert-error">
+      Asterisk registration status error:
+      {{ registration_statuses.get("_error") }}
+    </div>
+  {% endif %}
+
+  <div class="card">
     <h2>Add SIP Number</h2>
 
-    <form method="post" action="/admin/sip-numbers/add-apply">
-        <label>Provider</label>
-        <input type="text" name="provider" placeholder="Example: cally or mobinet" required>
+    <form class="form-grid" method="post" action="/admin/sip-numbers/add-apply">
+      <div class="grid grid-2">
+        <div>
+          <label>Provider</label>
+          <input type="text" name="provider" placeholder="Example: cally or mobinet" required>
+        </div>
 
-        <label>SIP Number</label>
-        <input type="text" name="number" placeholder="Example: 77090909" required>
+        <div>
+          <label>SIP Number</label>
+          <input type="text" name="number" placeholder="Example: 77090909" required>
+        </div>
+      </div>
 
-        <label>SIP Host / Server IP</label>
-        <input type="text" name="sip_host" placeholder="Example: 202.55.178.100 or portal.cally.mn" required>
+      <div class="grid grid-2">
+        <div>
+          <label>SIP Host / Server IP</label>
+          <input type="text" name="sip_host" placeholder="Example: 202.55.178.100 or portal.cally.mn" required>
+        </div>
 
-        <label>SIP Domain / Realm</label>
-        <input type="text" name="sip_domain" placeholder="Example: portal.cally.mn">
+        <div>
+          <label>SIP Domain / Realm</label>
+          <input type="text" name="sip_domain" placeholder="Example: portal.cally.mn">
+        </div>
+      </div>
 
-        <label>SIP Username</label>
-        <input type="text" name="sip_username" placeholder="SIP username" required>
+      <div class="grid grid-2">
+        <div>
+          <label>SIP Username</label>
+          <input type="text" name="sip_username" placeholder="SIP username" required>
+        </div>
 
-        <label>SIP Password</label>
-        <input type="password" name="sip_password" placeholder="SIP password" required>
+        <div>
+          <label>SIP Password</label>
+          <input type="password" name="sip_password" placeholder="SIP password" required>
+        </div>
+      </div>
 
-        <p style="font-size:13px; color:#666; margin-top:10px;">
-            Asterisk endpoint is generated automatically from provider and SIP number.
-            Example: <b>vc_cally_77090909</b>
-        </p>
-
+      <div>
         <label>Max Concurrent Calls</label>
         <input type="number" name="max_concurrent" value="3" min="1">
+      </div>
 
+      <div class="alert alert-info">
+        Asterisk endpoint is generated automatically from provider and SIP number.
+        Example: <b>vc_cally_77090909</b>
+      </div>
+
+      <div class="actions">
         <button class="btn" type="submit">Add & Apply to Asterisk</button>
+      </div>
     </form>
-</div>
+  </div>
 
-<div class="card">
-    <h2>Current SIP Numbers</h2>
+  <div class="card">
+    <div class="section-title-row">
+      <div>
+        <h2>Current SIP Numbers</h2>
+        <p class="muted small-text">
+          Registered means Asterisk currently has successful SIP registration.
+        </p>
+      </div>
+    </div>
 
-    <table>
+    <div class="table-wrap">
+      <table>
         <thead>
-            <tr>
-                <th>No.</th>
-                <th>Provider</th>
-                <th>SIP Number</th>
-                <th>Host</th>
-                <th>Domain</th>
-                <th>Username</th>
-                <th>Endpoint</th>
-                <th>DB Status</th>
-                <th>Register Status</th>
-                <th>Action</th>
-            </tr>
+          <tr>
+            <th>No.</th>
+            <th>Provider</th>
+            <th>SIP Number</th>
+            <th>Host</th>
+            <th>Domain</th>
+            <th>Username</th>
+            <th>Endpoint</th>
+            <th>DB Status</th>
+            <th>Applied</th>
+            <th>Register Status</th>
+            <th>Max</th>
+            <th>Action</th>
+          </tr>
         </thead>
 
         <tbody>
-            {% for trunk in trunks %}
+          {% for trunk in trunks %}
+            {% set reg_status = registration_statuses.get(trunk.asterisk_endpoint, "Unknown") %}
+            {% set domain_value = trunk.sip_domain|default(trunk.sip_host, true) %}
+
             <tr>
-                <td>{{ loop.index0 }}</td>
+              <td>{{ loop.index }}</td>
 
-                <td>
-                    {{ (trunk.provider|string).replace('TrunkProvider.', '') }}
-                </td>
+              <td>
+                {{ (trunk.provider|string).replace('TrunkProvider.', '') }}
+              </td>
 
-                <td>{{ trunk.number }}</td>
-                <td>{{ trunk.sip_host }}</td>
-                <td>{{ trunk.sip_domain or trunk.sip_host }}</td>
-                <td>{{ trunk.sip_username }}</td>
-                <td>{{ trunk.asterisk_endpoint }}</td>
+              <td>{{ trunk.number }}</td>
+              <td>{{ trunk.sip_host }}</td>
+              <td>{{ domain_value }}</td>
+              <td>{{ trunk.sip_username }}</td>
+              <td><code>{{ trunk.asterisk_endpoint }}</code></td>
 
-                <td>
-                    {% if trunk.is_active %}
-                        <span class="active">Active</span>
-                    {% else %}
-                        <span class="disabled">Disabled</span>
-                    {% endif %}
-                </td>
+              <td>
+                {% if trunk.is_active %}
+                  <span class="badge badge-active">Active</span>
+                {% else %}
+                  <span class="badge badge-disabled">Disabled</span>
+                {% endif %}
+              </td>
 
-                <td>
-                    {% if not trunk.is_active %}
-                        <span class="unknown">Not Applied</span>
-                    {% else %}
-                        {% set reg_status = registration_statuses.get(trunk.asterisk_endpoint, "Unknown") %}
+              <td>
+                {% if trunk.is_applied is defined and trunk.is_applied %}
+                  <span class="badge badge-active">Applied</span>
+                {% elif trunk.is_applied is defined %}
+                  <span class="badge badge-disabled">Not Applied</span>
+                {% else %}
+                  <span class="badge badge-unknown">Manual</span>
+                {% endif %}
+              </td>
 
-                        {% if reg_status == "Registered" %}
-                            <span class="registered">Registered</span>
-                        {% elif reg_status == "Rejected" %}
-                            <span class="rejected">Rejected</span>
-                        {% elif reg_status == "Unregistered" %}
-                            <span class="unregistered">Unregistered</span>
-                        {% else %}
-                            <span class="unknown">{{ reg_status }}</span>
-                        {% endif %}
-                    {% endif %}
-                </td>
+              <td>
+                {% if not trunk.is_active %}
+                  <span class="badge badge-unknown">Not Active</span>
+                {% elif reg_status == "Registered" %}
+                  <span class="badge badge-registered">Registered</span>
+                {% elif reg_status == "Rejected" %}
+                  <span class="badge badge-rejected">Rejected</span>
+                {% elif reg_status == "Unregistered" %}
+                  <span class="badge badge-unregistered">Unregistered</span>
+                {% else %}
+                  <span class="badge badge-unknown">{{ reg_status }}</span>
+                {% endif %}
+              </td>
 
-                <td>
-                    {% if trunk.is_active %}
-                        <form method="post"
-                              action="/admin/sip-numbers/{{ trunk.id }}/disable"
-                              onsubmit="return confirm('Disable this SIP number from Asterisk? Active calls must be finished first.');">
-                            <button type="submit" class="disable-btn">
-                                Disable
-                            </button>
-                        </form>
-                    {% else %}
-                        <form method="post"
-                              action="/admin/sip-numbers/{{ trunk.id }}/enable"
-                              onsubmit="return confirm('Enable and apply this SIP number to Asterisk?');">
-                            <button type="submit" class="enable-btn">
-                                Enable & Apply
-                            </button>
-                        </form>
-                    {% endif %}
-                </td>
+              <td>{{ trunk.max_concurrent or 1 }}</td>
+
+              <td>
+                {% if trunk.is_active %}
+                  <form class="inline-form" method="post" action="/admin/sip-numbers/{{ trunk.id }}/disable">
+                    <button type="submit" class="btn btn-warning">
+                      Disable
+                    </button>
+                  </form>
+                {% else %}
+                  <form class="inline-form" method="post" action="/admin/sip-numbers/{{ trunk.id }}/enable">
+                    <button type="submit" class="btn btn-success">
+                      Enable & Apply
+                    </button>
+                  </form>
+                {% endif %}
+              </td>
             </tr>
-            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="12">
+                <div class="empty-state">
+                  No SIP numbers configured yet.
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
         </tbody>
-    </table>
+      </table>
+    </div>
+  </div>
+
 </div>
 
 </body>

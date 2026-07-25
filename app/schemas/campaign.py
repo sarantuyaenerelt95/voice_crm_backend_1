@@ -1,13 +1,21 @@
 # app/schemas/campaign.py
-from pydantic import BaseModel
-from typing import List, Optional
+
+from __future__ import annotations
+
 from datetime import datetime
+from typing import List, Optional
+
+from pydantic import BaseModel
+
 from app.models.sip_trunk import TrunkProvider
 from app.models.campaign import CampaignStatus
 from app.models.call_log import CallStatus
 
 
-# SIP Trunk Schemas
+# =========================
+# SIP TRUNK SCHEMAS
+# =========================
+
 class SIPTrunkCreate(BaseModel):
     number: str
     provider: TrunkProvider
@@ -16,6 +24,7 @@ class SIPTrunkCreate(BaseModel):
     sip_password: str
     asterisk_endpoint: str
     max_concurrent: Optional[int] = 3
+
 
 class SIPTrunkResponse(BaseModel):
     id: int
@@ -27,11 +36,16 @@ class SIPTrunkResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# Contact Schemas
+
+# =========================
+# CONTACT SCHEMAS
+# =========================
+
 class ContactCreate(BaseModel):
     phone: str
     full_name: Optional[str] = None
     notes: Optional[str] = None
+
 
 class ContactResponse(BaseModel):
     id: int
@@ -41,17 +55,23 @@ class ContactResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
 class ContactImportResponse(BaseModel):
     filename: str
     created: int
     skipped: int
     total_rows: int
 
-# Audio File Schemas (New)
+
+# =========================
+# AUDIO FILE SCHEMAS
+# =========================
+
 class AudioFileCreate(BaseModel):
     filename: str
     file_path: str
     duration_sec: Optional[float] = 10.0
+
 
 class AudioFileResponse(BaseModel):
     id: int
@@ -62,12 +82,17 @@ class AudioFileResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# Campaign Schemas
+
+# =========================
+# CAMPAIGN SCHEMAS
+# =========================
+
 class CampaignCreate(BaseModel):
     name: str
     audio_file_id: int
     contact_ids: Optional[List[int]] = None
     contact_limit: Optional[int] = None
+
 
 class CampaignResponse(BaseModel):
     id: int
@@ -134,8 +159,8 @@ class CampaignSimulateResponse(BaseModel):
 class CampaignRecentCallResponse(BaseModel):
     phone: str
     status: str
-    duration_sec: float | None = None
-    hangup_cause: int | None = None
+    duration_sec: Optional[float] = None
+    hangup_cause: Optional[int] = None
 
 
 class CampaignSummaryResponse(BaseModel):
@@ -151,4 +176,4 @@ class CampaignSummaryResponse(BaseModel):
     congestion: int
     finished: int
     progress_percent: float
-    recent_calls: list[CampaignRecentCallResponse]
+    recent_calls: List[CampaignRecentCallResponse]

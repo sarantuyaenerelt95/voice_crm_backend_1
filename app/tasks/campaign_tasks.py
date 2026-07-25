@@ -1,6 +1,10 @@
 # app/tasks/campaign_tasks.py
+
+from __future__ import annotations
+
 import time
 from datetime import datetime, timezone
+from typing import Optional, List
 
 from sqlalchemy import or_, func, case
 
@@ -10,11 +14,16 @@ from app.models.campaign import Campaign, CampaignStatus
 from app.models.contact import Contact
 from app.models.sip_trunk import SIPTrunk
 from app.models.call_log import CallLog, CallStatus
+from app.models.campaign_target import CampaignTarget
 from app.services.asterisk import AsteriskService
 from app.services.asterisk_status import get_pjsip_registration_status
 from app.services.call_signal import wait_call_done_signal
 
-from app.models.campaign_target import CampaignTarget   
+
+SLOT_WAIT_SEC = 1.0
+DEFAULT_STUCK_CALL_TIMEOUT_SEC = 120.0
+STUCK_CALL_EXTRA_SEC = 30.0
+MIN_STUCK_CALL_TIMEOUT_SEC = 45.0
 
 FINAL_CALL_STATUSES = {
     CallStatus.completed,
@@ -24,103 +33,7 @@ FINAL_CALL_STATUSES = {
     CallStatus.congestion,
 }
 
-
-def wait_until_call_finished(db, call_log_id: int, max_wait_sec: int = 120):
-    # First fresh DB check. Maybe listener already completed before we started waiting.
-    db.expire_all()
-
-    call = (
-        db.query(CallLog)
-        .filter(CallLog.id == call_log_id)
-        .populate_existing()
-        .first()
-    )
-
-    if not call:
-        return None
-
-    if call.status in FINAL_CALL_STATUSES:
-        return call
-
-    # Wait for listener signal from Redis.
-    got_signal = wait_call_done_signal(
-        call_log_id=call_log_id,
-        timeout_sec=int(max_wait_sec),
-    )
-
-    # Fresh DB read after signal or timeout.
-    db.expire_all()
-
-    call = (
-        db.query(CallLog)
-        .filter(CallLog.id == call_log_id)
-        .populate_existing()
-        .first()
-    )
-
-    if not call:
-        return None
-
-    if call.status in FINAL_CALL_STATUSES:
-        return call
-
-    # Safety fallback only if Redis signal was missed and DB still says calling.
-    if not got_signal and call.status == CallStatus.calling:
-        call.status = CallStatus.congestion
-        call.ended_at = datetime.now(timezone.utc)
-        call.duration_sec = 0
-        db.commit()
-        db.refresh(call)
-
-    return call
-
-
-
-
-def old_system_cooldown(call):
-    if not call:
-        time.sleep(5)
-        return
-
-    if call.status == CallStatus.completed:
-        # Hangup already confirmed call is 100% done
-        # just a small carrier teardown buffer
-        sleep_sec = 10.0
-
-    elif call.status == CallStatus.congestion:
-        # trunk is overloaded — give it a real rest
-        sleep_sec = 45.0
-
-    elif call.status == CallStatus.no_answer:
-        # subscriber didn't answer — short wait
-        sleep_sec = 10.0
-
-    elif call.status == CallStatus.busy:
-        # line was busy — short wait
-        sleep_sec = 10.0
-
-    else:
-        # failed, unknown
-        sleep_sec = 10.0
-
-    print(
-        f"Celery: cooldown. "
-        f"phone={call.phone} status={call.status} sleep={sleep_sec:.1f}s"
-    )
-    time.sleep(sleep_sec)
-
-SLOT_WAIT_SEC = 1.0
-DEFAULT_STUCK_CALL_TIMEOUT_SEC = 120.0
-STUCK_CALL_EXTRA_SEC = 30.0
-MIN_STUCK_CALL_TIMEOUT_SEC = 45.0
-
-FINAL_STATUSES = {
-    CallStatus.completed,
-    CallStatus.failed,
-    CallStatus.busy,
-    CallStatus.no_answer,
-    CallStatus.congestion,
-}
+FINAL_STATUSES = FINAL_CALL_STATUSES
 
 
 def utc_now():
@@ -130,9 +43,133 @@ def utc_now():
 def as_utc(value):
     if value is None:
         return None
+
     if value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
+
     return value
+
+
+def normalize_phone(phone: Optional[str]) -> str:
+    return "".join(
+        ch for ch in str(phone or "").strip()
+        if ch.isdigit()
+    )
+
+
+def call_status_value(status) -> str:
+    if hasattr(status, "value"):
+        return str(status.value)
+
+    value = str(status or "").lower().strip()
+
+    if "." in value:
+        value = value.split(".")[-1]
+
+    return value
+
+
+def update_campaign_target_from_call(db, call: Optional[CallLog]) -> None:
+    if not call:
+        return
+
+    status_value = call_status_value(call.status)
+
+    if not status_value:
+        return
+
+    target = db.query(CampaignTarget).filter(
+        CampaignTarget.campaign_id == call.campaign_id,
+        CampaignTarget.call_log_id == call.id,
+    ).first()
+
+    if not target:
+        target = db.query(CampaignTarget).filter(
+            CampaignTarget.campaign_id == call.campaign_id,
+            CampaignTarget.phone == normalize_phone(call.phone),
+        ).first()
+
+    if not target:
+        return
+
+    target.status = status_value
+    target.call_log_id = call.id
+    target.updated_at = utc_now()
+
+
+def wait_until_call_finished(db, call_log_id: int, max_wait_sec: int = 120):
+    db.expire_all()
+
+    call = (
+        db.query(CallLog)
+        .filter(CallLog.id == call_log_id)
+        .populate_existing()
+        .first()
+    )
+
+    if not call:
+        return None
+
+    if call.status in FINAL_CALL_STATUSES:
+        update_campaign_target_from_call(db, call)
+        db.commit()
+        return call
+
+    got_signal = wait_call_done_signal(
+        call_log_id=call_log_id,
+        timeout_sec=int(max_wait_sec),
+    )
+
+    db.expire_all()
+
+    call = (
+        db.query(CallLog)
+        .filter(CallLog.id == call_log_id)
+        .populate_existing()
+        .first()
+    )
+
+    if not call:
+        return None
+
+    if call.status in FINAL_CALL_STATUSES:
+        update_campaign_target_from_call(db, call)
+        db.commit()
+        return call
+
+    if not got_signal and call.status == CallStatus.calling:
+        call.status = CallStatus.congestion
+        call.ended_at = utc_now()
+        call.duration_sec = 0
+        update_campaign_target_from_call(db, call)
+        db.commit()
+        db.refresh(call)
+
+    return call
+
+
+def old_system_cooldown(call):
+    if not call:
+        time.sleep(5)
+        return
+
+    if call.status == CallStatus.completed:
+        sleep_sec = 10.0
+    elif call.status == CallStatus.congestion:
+        sleep_sec = 45.0
+    elif call.status == CallStatus.no_answer:
+        sleep_sec = 10.0
+    elif call.status == CallStatus.busy:
+        sleep_sec = 10.0
+    else:
+        sleep_sec = 10.0
+
+    print(
+        f"Celery: cooldown. "
+        f"phone={call.phone} status={call.status} sleep={sleep_sec:.1f}s"
+    )
+
+    time.sleep(sleep_sec)
 
 
 def refresh_campaign_stats(db, campaign: Campaign):
@@ -144,7 +181,7 @@ def refresh_campaign_stats(db, campaign: Campaign):
         func.sum(case((CallLog.status == CallStatus.failed, 1), else_=0)).label("failed_only_calls"),
         func.sum(case((CallLog.status == CallStatus.congestion, 1), else_=0)).label("congestion_calls"),
     ).filter(
-        CallLog.campaign_id == campaign.id
+        CallLog.campaign_id == campaign.id,
     ).first()
 
     total_calls = int(stats.total_calls or 0)
@@ -179,6 +216,7 @@ def refresh_campaign_stats(db, campaign: Campaign):
         and finished_calls >= total_contacts
     ):
         campaign.status = CampaignStatus.completed
+
         if not campaign.completed_at:
             campaign.completed_at = utc_now()
 
@@ -212,16 +250,7 @@ def get_trunk_active_call_count(db, trunk_id: int) -> int:
     ).count()
 
 
-def get_registered_allowed_trunks(db, company_id: int) -> list[SIPTrunk]:
-    """
-    Return SIP trunks this company can use.
-
-    Rules:
-        - active
-        - applied
-        - Registered in Asterisk
-        - assigned_company_id is NULL or same company
-    """
+def get_registered_allowed_trunks(db, company_id: int) -> List[SIPTrunk]:
     registration_statuses = get_pjsip_registration_status()
 
     query = db.query(SIPTrunk).filter(
@@ -229,7 +258,9 @@ def get_registered_allowed_trunks(db, company_id: int) -> list[SIPTrunk]:
     )
 
     if hasattr(SIPTrunk, "is_applied"):
-        query = query.filter(SIPTrunk.is_applied == True)
+        query = query.filter(
+            SIPTrunk.is_applied == True,
+        )
 
     if hasattr(SIPTrunk, "assigned_company_id"):
         query = query.filter(
@@ -239,7 +270,9 @@ def get_registered_allowed_trunks(db, company_id: int) -> list[SIPTrunk]:
             )
         )
 
-    trunks = query.order_by(SIPTrunk.id.asc()).all()
+    trunks = query.order_by(
+        SIPTrunk.id.asc(),
+    ).all()
 
     registered_trunks = []
 
@@ -263,20 +296,18 @@ def get_registered_allowed_trunks(db, company_id: int) -> list[SIPTrunk]:
     return registered_trunks
 
 
-def get_available_sip_trunk(db, company_id: int, selected_sip_trunk_id: int | None = None):
-    """
-    Select one available SIP trunk without conflict.
-
-    Available means:
-        active + applied + registered + not full
-    """
+def get_available_sip_trunk(
+    db,
+    company_id: int,
+    selected_sip_trunk_id: Optional[int] = None,
+):
     trunks = get_registered_allowed_trunks(db, company_id)
 
     if selected_sip_trunk_id:
         trunks = [
             trunk for trunk in trunks
-            if trunk.id == selected_sip_trunk_id
-        ]   
+            if int(trunk.id) == int(selected_sip_trunk_id)
+        ]
 
         if not trunks:
             print(
@@ -307,8 +338,8 @@ def get_available_sip_trunk(db, company_id: int, selected_sip_trunk_id: int | No
 
 
 def mark_stuck_calling(db, campaign: Campaign, timeout_sec: float) -> int:
-
     db.expire_all()
+
     now = utc_now()
     stuck_count = 0
 
@@ -332,10 +363,12 @@ def mark_stuck_calling(db, campaign: Campaign, timeout_sec: float) -> int:
         if call.duration_sec is None:
             call.duration_sec = 0
 
+        update_campaign_target_from_call(db, call)
         stuck_count += 1
 
     if stuck_count:
         db.flush()
+
         print(
             f"Celery: Marked {stuck_count} stuck calling call(s) as congestion "
             f"for campaign {campaign.id}."
@@ -344,7 +377,7 @@ def mark_stuck_calling(db, campaign: Campaign, timeout_sec: float) -> int:
     return stuck_count
 
 
-def get_campaign_target_contacts(db, campaign: Campaign) -> list[Contact]:
+def get_campaign_target_contacts(db, campaign: Campaign) -> List[Contact]:
     target_rows = db.query(CampaignTarget).filter(
         CampaignTarget.campaign_id == campaign.id,
         CampaignTarget.status.in_(["pending", "calling"]),
@@ -381,7 +414,6 @@ def get_campaign_target_contacts(db, campaign: Campaign) -> list[Contact]:
 
         return ordered_contacts
 
-    # Fallback for older campaigns without campaign_targets
     target_contact_ids = campaign.target_contact_ids or []
 
     if not target_contact_ids:
@@ -393,7 +425,10 @@ def get_campaign_target_contacts(db, campaign: Campaign) -> list[Contact]:
         Contact.id.in_(target_contact_ids),
     ).all()
 
-    contacts_by_id = {contact.id: contact for contact in contacts}
+    contacts_by_id = {
+        contact.id: contact
+        for contact in contacts
+    }
 
     deduped_contacts = []
     seen_phones = set()
@@ -404,10 +439,7 @@ def get_campaign_target_contacts(db, campaign: Campaign) -> list[Contact]:
         if not contact:
             continue
 
-        normalized_phone = "".join(
-            ch for ch in str(contact.phone or "").strip()
-            if ch.isdigit()
-        )
+        normalized_phone = normalize_phone(contact.phone)
 
         if not normalized_phone:
             continue
@@ -434,12 +466,8 @@ def wait_for_available_sip_trunk(
     db,
     campaign: Campaign,
     stuck_timeout_sec: float,
-    selected_sip_trunk_id: int | None = None,
+    selected_sip_trunk_id: Optional[int] = None,
 ):
-    """
-    Wait until any allowed SIP trunk has free capacity.
-    This prevents companies/users from conflicting on the same SIP number.
-    """
     while True:
         if campaign_cancelled(db, campaign):
             return None
@@ -485,13 +513,18 @@ def wait_for_active_calls_to_finish(db, campaign: Campaign, stuck_timeout_sec: f
         time.sleep(SLOT_WAIT_SEC)
 
 
-def call_log_exists(db, campaign_id: int, contact_id: int) -> bool:
+def get_existing_call_log(db, campaign_id: int, contact_id: int):
     db.expire_all()
 
-    return db.query(CallLog.id).filter(
+    return db.query(CallLog).filter(
         CallLog.campaign_id == campaign_id,
         CallLog.contact_id == contact_id,
-    ).first() is not None
+    ).first()
+
+
+def call_log_exists(db, campaign_id: int, contact_id: int) -> bool:
+    return get_existing_call_log(db, campaign_id, contact_id) is not None
+
 
 def get_campaign_target_count(db, campaign: Campaign) -> int:
     target_count = db.query(func.count(CampaignTarget.id)).filter(
@@ -503,22 +536,39 @@ def get_campaign_target_count(db, campaign: Campaign) -> int:
 
     return len(campaign.target_contact_ids or [])
 
+
+def mark_pending_targets_cancelled(db, campaign: Campaign) -> int:
+    now = utc_now()
+
+    cancelled_targets = db.query(CampaignTarget).filter(
+        CampaignTarget.campaign_id == campaign.id,
+        CampaignTarget.status.in_(["pending", "calling"]),
+        CampaignTarget.call_log_id == None,
+    ).update(
+        {
+            CampaignTarget.status: "cancelled",
+            CampaignTarget.updated_at: now,
+        },
+        synchronize_session=False,
+    )
+
+    return int(cancelled_targets or 0)
+
+
 @celery_app.task(bind=True, name="run_campaign_task")
 def run_campaign_task(self, campaign_id: int):
     """Execute one campaign using registered, available SIP trunks."""
     db = SessionLocal()
 
     try:
-        campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+        campaign = db.query(Campaign).filter(
+            Campaign.id == campaign_id,
+        ).first()
 
         if not campaign:
             print(f"Celery: Campaign {campaign_id} not found.")
             return
 
-        # Production safety:
-        # Atomically claim this campaign.
-        # Only one worker can change draft -> running.
-        # Duplicate Celery tasks will exit here.
         claimed = db.query(Campaign).filter(
             Campaign.id == campaign_id,
             Campaign.status.in_([
@@ -540,7 +590,7 @@ def run_campaign_task(self, campaign_id: int):
             db.expire_all()
 
             campaign = db.query(Campaign).filter(
-                Campaign.id == campaign_id
+                Campaign.id == campaign_id,
             ).first()
 
             print(
@@ -548,12 +598,13 @@ def run_campaign_task(self, campaign_id: int):
                 f"Current status={campaign.status if campaign else None}. "
                 f"Another worker may already be running it."
             )
+
             return
 
         db.expire_all()
 
         campaign = db.query(Campaign).filter(
-            Campaign.id == campaign_id
+            Campaign.id == campaign_id,
         ).first()
 
         if not campaign:
@@ -569,6 +620,7 @@ def run_campaign_task(self, campaign_id: int):
                 f"Refusing to run."
             )
             campaign.status = CampaignStatus.failed
+            campaign.completed_at = utc_now()
             db.commit()
             return
 
@@ -583,14 +635,23 @@ def run_campaign_task(self, campaign_id: int):
 
         registered_trunks = get_registered_allowed_trunks(db, campaign.company_id)
 
+        if selected_sip_trunk_id:
+            registered_trunks = [
+                trunk for trunk in registered_trunks
+                if int(trunk.id) == int(selected_sip_trunk_id)
+            ]
+
         if not registered_trunks:
             campaign.status = CampaignStatus.failed
             campaign.completed_at = utc_now()
             db.commit()
+
             print(
                 f"Celery: Campaign {campaign_id} failed. "
-                f"No Registered SIP trunk available for company_id={campaign.company_id}."
+                f"No Registered SIP trunk available for company_id={campaign.company_id}, "
+                f"selected_sip_trunk_id={selected_sip_trunk_id}."
             )
+
             return
 
         total_capacity = sum(
@@ -616,13 +677,18 @@ def run_campaign_task(self, campaign_id: int):
             if campaign_cancelled(db, campaign):
                 print(f"Celery: Campaign {campaign.id} cancelled. Stopping before next call.")
                 break
+
             db.refresh(campaign)
 
             if campaign.status == CampaignStatus.cancelled:
                 print(f"Celery: Campaign {campaign_id} cancelled before next originate.")
                 break
 
-            if call_log_exists(db, campaign.id, contact.id):
+            existing_call = get_existing_call_log(db, campaign.id, contact.id)
+
+            if existing_call:
+                update_campaign_target_from_call(db, existing_call)
+                db.commit()
                 skipped_duplicates += 1
                 continue
 
@@ -643,7 +709,11 @@ def run_campaign_task(self, campaign_id: int):
                 print(f"Celery: Campaign {campaign_id} cancelled before originate.")
                 break
 
-            if call_log_exists(db, campaign.id, contact.id):
+            existing_call = get_existing_call_log(db, campaign.id, contact.id)
+
+            if existing_call:
+                update_campaign_target_from_call(db, existing_call)
+                db.commit()
                 skipped_duplicates += 1
                 continue
 
@@ -667,10 +737,12 @@ def run_campaign_task(self, campaign_id: int):
                 finished_call = wait_until_call_finished(
                     db=db,
                     call_log_id=call_log.id,
-                    max_wait_sec=stuck_timeout_sec,
+                    max_wait_sec=int(stuck_timeout_sec),
                 )
 
                 if finished_call:
+                    update_campaign_target_from_call(db, finished_call)
+
                     print(
                         f"Celery: Call finished. phone={finished_call.phone}, "
                         f"status={finished_call.status}, "
@@ -694,7 +766,9 @@ def run_campaign_task(self, campaign_id: int):
             except Exception as e:
                 db.rollback()
 
-                campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+                campaign = db.query(Campaign).filter(
+                    Campaign.id == campaign_id,
+                ).first()
 
                 if not campaign or campaign.status == CampaignStatus.cancelled:
                     break
@@ -715,8 +789,13 @@ def run_campaign_task(self, campaign_id: int):
             campaign.completed_at = utc_now()
             db.commit()
         else:
+            cancelled_targets = mark_pending_targets_cancelled(db, campaign)
             db.commit()
-            print(f"Celery: Campaign {campaign.id} remained cancelled.")
+
+            print(
+                f"Celery: Campaign {campaign.id} remained cancelled. "
+                f"cancelled_targets={cancelled_targets}"
+            )
 
         print(
             f"Celery: Campaign {campaign_id} finished. "
@@ -725,9 +804,12 @@ def run_campaign_task(self, campaign_id: int):
 
     except Exception as e:
         db.rollback()
+
         print(f"Celery: Critical error during campaign task: {e}")
 
-        campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+        campaign = db.query(Campaign).filter(
+            Campaign.id == campaign_id,
+        ).first()
 
         if campaign and campaign.status != CampaignStatus.cancelled:
             campaign.status = CampaignStatus.failed
@@ -735,4 +817,4 @@ def run_campaign_task(self, campaign_id: int):
             db.commit()
 
     finally:
-        db.close()  
+        db.close()

@@ -1,3 +1,8 @@
+# app/routes/web_routes.py
+
+from __future__ import annotations
+
+from typing import Optional
 import csv
 import io
 import re
@@ -8,14 +13,11 @@ import shutil
 from pathlib import Path
 from datetime import datetime, timezone
 
-from app.services.campaign_target_service import sync_campaign_targets_from_contact_ids
-
 from fastapi import APIRouter, Request, Depends, HTTPException, Form, UploadFile, File, Query
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
-from app.models.campaign_target import CampaignTarget
 
 from app.database import get_db
 from app.models.campaign import Campaign, CampaignStatus
@@ -25,19 +27,25 @@ from app.models.contact import Contact
 from app.models.user import User
 from app.models.company import Company
 from app.models.sip_trunk import SIPTrunk
+from app.models.campaign_target import CampaignTarget
 from app.models.contact_group import ContactGroup, ContactGroupMember, CampaignContactGroup
+
 from app.services.audio_converter import AudioConverter
 from app.services.sip_availability import get_available_sip_rows
-
-from app.tasks.campaign_tasks import run_campaign_task
-from app.routes.web_auth_routes import hash_password, normalized_role, user_password_column, verify_password
-
+from app.services.campaign_target_service import sync_campaign_targets_from_contact_ids
 from app.services.audio_capacity import (
     check_audio_duration,
     check_audio_storage_capacity,
     safe_remove_file,
 )
 
+from app.tasks.campaign_tasks import run_campaign_task
+from app.routes.web_auth_routes import (
+    hash_password,
+    normalized_role,
+    user_password_column,
+    verify_password,
+)
 
 
 router = APIRouter(prefix="/web", tags=["web"])
@@ -53,6 +61,10 @@ def safe_audio_name(filename: str) -> str:
     return base.strip("_") or "audio"
 
 
+def has_model_column(model, column_name: str) -> bool:
+    return column_name in {column.name for column in model.__table__.columns}
+
+
 def get_current_web_user(request: Request, db: Session) -> User:
     user_id = request.session.get("user_id")
 
@@ -65,20 +77,7 @@ def get_current_web_user(request: Request, db: Session) -> User:
         request.session.clear()
         raise HTTPException(status_code=401, detail="Invalid session")
 
-    role_raw = getattr(user, "role", None)
-
-    if hasattr(role_raw, "value"):
-        role_value = role_raw.value
-    elif role_raw is not None:
-        role_value = str(role_raw)
-    else:
-        role_value = ""
-
-    role_value = str(role_value).lower().strip()
-
-    # Handles enum style like UserRole.owner
-    if "." in role_value:
-        role_value = role_value.split(".")[-1]
+    role_value = normalized_role(user)
 
     if role_value == "owner":
         raise HTTPException(
@@ -90,13 +89,12 @@ def get_current_web_user(request: Request, db: Session) -> User:
     return user
 
 
-
 def profile_context(
     request: Request,
     user: User,
     db: Session,
-    message: str | None = None,
-    error: str | None = None,
+    message: Optional[str] = None,
+    error: Optional[str] = None,
 ):
     company = db.query(Company).filter(
         Company.id == user.company_id,
@@ -121,7 +119,10 @@ def profile_context(
         "message": message,
         "error": error,
         "contact_count": db.query(Contact).filter(Contact.company_id == user.company_id).count(),
-        "active_contact_count": db.query(Contact).filter(Contact.company_id == user.company_id, Contact.is_active == True).count(),
+        "active_contact_count": db.query(Contact).filter(
+            Contact.company_id == user.company_id,
+            Contact.is_active == True,
+        ).count(),
         "campaign_count": db.query(Campaign).filter(Campaign.company_id == user.company_id).count(),
         "audio_count": db.query(AudioFile).filter(AudioFile.company_id == user.company_id).count(),
     }
@@ -131,8 +132,8 @@ def render_profile(
     request: Request,
     user: User,
     db: Session,
-    message: str | None = None,
-    error: str | None = None,
+    message: Optional[str] = None,
+    error: Optional[str] = None,
     status_code: int = 200,
 ):
     return templates.TemplateResponse(
@@ -167,6 +168,7 @@ def campaign_status_value(campaign: Campaign) -> str:
 
     return value
 
+
 def get_campaign_target_count(db: Session, campaign: Campaign) -> int:
     target_count = db.query(func.count(CampaignTarget.id)).filter(
         CampaignTarget.campaign_id == campaign.id,
@@ -177,7 +179,8 @@ def get_campaign_target_count(db: Session, campaign: Campaign) -> int:
 
     return len(campaign.target_contact_ids or [])
 
-def campaign_start_disabled_reason(campaign: Campaign, sip_rows, db: Session) -> str | None:
+
+def campaign_start_disabled_reason(campaign: Campaign, sip_rows, db: Session) -> Optional[str]:
     if campaign_status_value(campaign) != "draft":
         return "Only draft campaigns can be started."
 
@@ -191,10 +194,6 @@ def campaign_start_disabled_reason(campaign: Campaign, sip_rows, db: Session) ->
         return "No registered SIP number with free call slots is available."
 
     return None
-
-
-def has_model_column(model, column_name: str) -> bool:
-    return column_name in {column.name for column in model.__table__.columns}
 
 
 def without_archived_campaigns(query):
@@ -236,6 +235,7 @@ def get_company_campaign_display_id(campaign: Campaign, db: Session) -> int:
     company_campaigns_query = db.query(Campaign.id).filter(
         Campaign.company_id == campaign.company_id,
     )
+
     company_campaigns = without_archived_campaigns(company_campaigns_query).order_by(
         Campaign.created_at.asc(),
         Campaign.id.asc(),
@@ -255,7 +255,10 @@ def web_dashboard(
     db: Session = Depends(get_db),
 ):
     user = get_current_web_user(request, db)
-    campaign_query = db.query(Campaign).filter(Campaign.company_id == user.company_id)
+
+    campaign_query = without_archived_campaigns(
+        db.query(Campaign).filter(Campaign.company_id == user.company_id)
+    )
 
     return templates.TemplateResponse(
         "dashboard.html",
@@ -268,8 +271,14 @@ def web_dashboard(
             "running_campaigns": campaign_query.filter(
                 Campaign.status.in_([CampaignStatus.queued, CampaignStatus.running])
             ).count(),
-            "contact_count": db.query(Contact).filter(Contact.company_id == user.company_id, Contact.is_active == True).count(),
-            "audio_count": db.query(AudioFile).filter(AudioFile.company_id == user.company_id, AudioFile.is_active == True).count(),
+            "contact_count": db.query(Contact).filter(
+                Contact.company_id == user.company_id,
+                Contact.is_active == True,
+            ).count(),
+            "audio_count": db.query(AudioFile).filter(
+                AudioFile.company_id == user.company_id,
+                AudioFile.is_active == True,
+            ).count(),
         },
     )
 
@@ -281,9 +290,11 @@ def web_campaigns(
 ):
     user = get_current_web_user(request, db)
 
-    campaigns = db.query(Campaign).filter(
+    campaign_query = db.query(Campaign).filter(
         Campaign.company_id == user.company_id,
-    ).order_by(
+    )
+
+    campaigns = without_archived_campaigns(campaign_query).order_by(
         Campaign.created_at.asc(),
         Campaign.id.asc(),
     ).all()
@@ -297,7 +308,6 @@ def web_campaigns(
             "campaigns": campaigns,
         },
     )
-
 
 
 @router.get("/profile", response_class=HTMLResponse)
@@ -407,7 +417,17 @@ async def web_update_profile_password(
             status_code=400,
         )
 
-    setattr(user, password_col, hash_password(new_password))
+    try:
+        setattr(user, password_col, hash_password(new_password))
+    except ValueError as exc:
+        return render_profile(
+            request,
+            user,
+            db,
+            error=str(exc),
+            status_code=400,
+        )
+
     db.commit()
 
     return render_profile(
@@ -487,6 +507,7 @@ async def web_update_company_profile(
     company.name = company_name
     company.email = company_email
     company.phone = company_phone or None
+
     db.commit()
     db.refresh(company)
 
@@ -598,7 +619,6 @@ async def web_create_campaign(
     db: Session = Depends(get_db),
 ):
     form = await request.form()
-
     user = get_current_web_user(request, db)
 
     name = (form.get("name") or "").strip()
@@ -643,10 +663,10 @@ async def web_create_campaign(
     seen_target_ids = set()
     seen_target_phones = set()
 
-    def normalize_campaign_phone(value: str | None) -> str:
+    def normalize_campaign_phone(value: Optional[str]) -> str:
         return re.sub(r"\D", "", value or "")
 
-    def add_target(contact: Contact):
+    def add_target(contact: Optional[Contact]):
         if not contact:
             return
 
@@ -662,7 +682,7 @@ async def web_create_campaign(
         seen_target_ids.add(contact.id)
         seen_target_phones.add(phone)
 
-    def get_or_create_contact(phone_value: str, full_name: str | None = None):
+    def get_or_create_contact(phone_value: str, full_name: Optional[str] = None):
         phone = normalize_campaign_phone(phone_value)
 
         if len(phone) != 8:
@@ -833,9 +853,9 @@ async def web_create_campaign(
             group_id=group_id,
         )
         db.add(campaign_group)
+
     db.commit()
     db.refresh(campaign)
-    
 
     target_count = sync_campaign_targets_from_contact_ids(
         db=db,
@@ -846,7 +866,6 @@ async def web_create_campaign(
     campaign.total_contacts = target_count
     db.commit()
     db.refresh(campaign)
-
 
     return RedirectResponse(
         url=f"/web/campaigns/{campaign.id}",
@@ -995,6 +1014,7 @@ def web_import_contacts(
             },
         },
     )
+
 
 @router.get("/contacts", response_class=HTMLResponse)
 def web_contacts(
@@ -1306,7 +1326,7 @@ def web_create_contact_group(
     group_name: str = Form(...),
     description: str = Form(""),
     bulk_numbers: str = Form(""),
-    contact_file: UploadFile | None = File(None),
+    contact_file: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
 ):
     user = get_current_web_user(request, db)
@@ -1688,7 +1708,7 @@ def web_upload_audio(
 
     os.makedirs(ASTERISK_SOUNDS_DIR, exist_ok=True)
 
-    safe_name = safe_audio_name(file.filename)
+    safe_name = safe_audio_name(file.filename or "audio")
     unique_name = f"{safe_name}_{int(time.time())}"
 
     temp_input_path = f"/tmp/{unique_name}{ext}"
@@ -1709,22 +1729,10 @@ def web_upload_audio(
         os.chmod(output_path, 0o644)
 
         duration_sec = AudioConverter.get_duration_sec(output_path)
-
-        try:
-            check_audio_duration(duration_sec)
-        except HTTPException:
-            safe_remove_file(temp_input_path)
-            safe_remove_file(output_path)
-            raise
+        check_audio_duration(duration_sec)
 
         file_size_bytes = os.path.getsize(output_path)
-
-        try:
-            check_audio_storage_capacity(db, user.company_id, file_size_bytes)
-        except HTTPException:
-            safe_remove_file(temp_input_path)
-            safe_remove_file(output_path)
-            raise
+        check_audio_storage_capacity(db, user.company_id, file_size_bytes)
 
         audio = AudioFile(
             company_id=user.company_id,
@@ -1761,9 +1769,18 @@ def web_upload_audio(
             "playback_name": f"custom/{audio.filename}",
         }
 
+    except HTTPException:
+        db.rollback()
+        safe_remove_file(output_path)
+        raise
+
+    except Exception:
+        db.rollback()
+        safe_remove_file(output_path)
+        raise
+
     finally:
-        if os.path.exists(temp_input_path):
-            os.remove(temp_input_path)
+        safe_remove_file(temp_input_path)
 
     audio_files = db.query(AudioFile).filter(
         AudioFile.company_id == user.company_id,
@@ -1810,7 +1827,6 @@ def web_delete_audio(
     )
 
 
-
 @router.get("/campaigns/{campaign_id}/contacts", response_class=HTMLResponse)
 def web_campaign_contacts(
     campaign_id: int,
@@ -1848,8 +1864,8 @@ def web_campaign_contacts(
 
     total_campaign_contacts = target_query.count()
 
-    # Fallback for older campaigns without campaign_targets
     use_old_target_ids = False
+
     if total_campaign_contacts == 0:
         use_old_target_ids = True
         target_ids = campaign.target_contact_ids or []
@@ -1988,7 +2004,7 @@ async def web_remove_campaign_contacts(
         CampaignTarget.campaign_id == campaign.id,
         CampaignTarget.contact_id.in_(list(remove_ids)),
     ).delete(
-        synchronize_session=False
+        synchronize_session=False,
     )
 
     remaining_target_count = db.query(CampaignTarget).filter(
@@ -2004,11 +2020,6 @@ async def web_remove_campaign_contacts(
         f"removed_contact_ids={sorted(remove_ids)}, "
         f"deleted_campaign_targets={deleted_targets}, "
         f"remaining_total={campaign.total_contacts}"
-    )
-
-    return RedirectResponse(
-        url=f"/web/campaigns/{campaign.id}/contacts",
-        status_code=303,
     )
 
     return RedirectResponse(
@@ -2081,12 +2092,10 @@ def web_delete_not_executed_campaign(
             detail="Only not-executed draft campaigns can be deleted.",
         )
 
-    # Remove campaign-group links first
     db.query(CampaignContactGroup).filter(
         CampaignContactGroup.campaign_id == campaign.id,
     ).delete(synchronize_session=False)
 
-    # Delete campaign itself
     db.delete(campaign)
     db.commit()
 
@@ -2094,6 +2103,7 @@ def web_delete_not_executed_campaign(
         url="/web/campaigns/not-executed",
         status_code=303,
     )
+
 
 @router.get("/campaigns/{campaign_id}", response_class=HTMLResponse)
 def web_campaign_detail(
@@ -2115,6 +2125,7 @@ def web_campaign_detail(
     campaign_display_id = get_company_campaign_display_id(campaign, db)
 
     per_page = 100
+
     total_call_logs = db.query(func.count(CallLog.id)).filter(
         CallLog.campaign_id == campaign.id,
     ).scalar() or 0
@@ -2202,14 +2213,16 @@ def web_campaign_detail(
             "finished": finished,
             "progress_percent": progress_percent,
         })
-    
+
     sip_rows = usable_sip_rows_for_company(db, user.company_id)
     has_available_sip = bool(sip_rows)
+
     start_disabled_reason = campaign_start_disabled_reason(
         campaign,
         sip_rows,
         db,
     )
+
     target_status_rows = db.query(CampaignTarget).filter(
         CampaignTarget.campaign_id == campaign.id,
     ).order_by(
@@ -2231,6 +2244,7 @@ def web_campaign_detail(
     ).all()
 
     cancelled_result_total = len(cancelled_result_rows)
+
     return templates.TemplateResponse(
         "campaign_detail.html",
         {
@@ -2254,7 +2268,6 @@ def web_campaign_detail(
     )
 
 
-
 @router.get("/campaigns/{campaign_id}/dry-run", response_class=HTMLResponse)
 def web_campaign_dry_run(
     campaign_id: int,
@@ -2263,21 +2276,6 @@ def web_campaign_dry_run(
 ):
     return RedirectResponse(
         url=f"/web/campaigns/{campaign_id}",
-        status_code=303,
-    )
-    user = get_current_web_user(request, db)
-
-    campaign_query = db.query(Campaign).filter(
-        Campaign.id == campaign_id,
-        Campaign.company_id == user.company_id,
-    )
-    campaign = without_archived_campaigns(campaign_query).first()
-
-    if not campaign:
-        raise HTTPException(status_code=404, detail="Campaign not found")
-
-    return RedirectResponse(
-        url=f"/web/campaigns/{campaign.id}",
         status_code=303,
     )
 
@@ -2349,7 +2347,6 @@ def web_export_campaign_report(
     )
 
 
-
 @router.post("/campaigns/{campaign_id}/simulate")
 def web_campaign_simulate(
     campaign_id: int,
@@ -2358,21 +2355,6 @@ def web_campaign_simulate(
 ):
     return RedirectResponse(
         url=f"/web/campaigns/{campaign_id}",
-        status_code=303,
-    )
-    user = get_current_web_user(request, db)
-
-    campaign_query = db.query(Campaign).filter(
-        Campaign.id == campaign_id,
-        Campaign.company_id == user.company_id,
-    )
-    campaign = without_archived_campaigns(campaign_query).first()
-
-    if not campaign:
-        raise HTTPException(status_code=404, detail="Campaign not found")
-
-    return RedirectResponse(
-        url=f"/web/campaigns/{campaign.id}",
         status_code=303,
     )
 
@@ -2434,7 +2416,7 @@ def web_cancel_campaign(
 def web_real_start_campaign(
     campaign_id: int,
     request: Request,
-    sip_trunk_id: int | None = Form(None),
+    sip_trunk_id: Optional[int] = Form(None),
     db: Session = Depends(get_db),
 ):
     user = get_current_web_user(request, db)
@@ -2491,6 +2473,8 @@ def web_real_start_campaign(
         )
 
     campaign.selected_sip_trunk_id = int(selected_sip_row["id"])
+    campaign.status = CampaignStatus.queued
+
     db.commit()
     db.refresh(campaign)
 
@@ -2499,7 +2483,10 @@ def web_real_start_campaign(
         f"selected_sip_trunk_id={campaign.selected_sip_trunk_id}"
     )
 
-    run_campaign_task.delay(campaign.id)
+    task = run_campaign_task.delay(campaign.id)
+
+    campaign.celery_task_id = task.id
+    db.commit()
 
     return RedirectResponse(
         url=f"/web/campaigns/{campaign.id}",

@@ -1,72 +1,162 @@
+<!-- app/templates/home.html -->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8">
   <title>Voice CRM</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="/static/voicecrm.css">
 </head>
+
 <body>
-  <nav class="public-nav">
-    <div class="top-nav-inner">
-      <a class="brand" href="/">
-        <span class="brand-mark">VC</span>
-        <span class="brand-text">Voice CRM</span>
-      </a>
-      <div class="nav-links">
-        <a href="/web/login">Login</a>
-        <a class="active" href="/web/register">Create account</a>
+
+<nav class="public-nav">
+  <div class="top-nav-inner">
+    <a class="brand" href="/">
+      <span class="brand-mark">VC</span>
+      <span class="brand-text">Voice CRM</span>
+    </a>
+
+    <div class="nav-links">
+      <a href="/web/login">Login</a>
+      <a class="active" href="/web/register">Create account</a>
+    </div>
+  </div>
+</nav>
+
+<section class="hero-public">
+  <div class="page-shell hero-layout">
+    <div class="hero-copy">
+      <span class="badge badge-active">
+        Enterprise voice broadcast workspace
+      </span>
+
+      <h1>
+        One calm command center for campaigns, contacts, audio, and reports.
+      </h1>
+
+      <p>
+        Build targeted voice campaigns, preview unique numbers before launch,
+        monitor outcomes, and keep company data separated in one practical
+        communication platform.
+      </p>
+
+      <div class="actions">
+        <a class="btn" href="/web/login">
+          Login
+        </a>
+
+        <a class="btn btn-secondary" href="/web/register">
+          Create account
+        </a>
       </div>
     </div>
-  </nav>
 
-  <section class="hero-public">
-    <div class="page-shell hero-layout">
-      <div class="hero-copy">
-        <span class="pill success">Enterprise voice broadcast workspace</span>
-        <h1>One calm command center for campaigns, contacts, audio, and reports.</h1>
-        <p>Build targeted voice campaigns, preview unique numbers before launch, monitor outcomes, and keep company data separated in one practical communication platform.</p>
-        <div class="action-row">
-          <a class="btn primary" href="/web/login">Login</a>
-          <a class="btn secondary" href="/web/register">Create account</a>
+    <div class="hero-console">
+      <div class="console-topline">
+        <span class="console-title">Example report</span>
+        <span class="badge badge-active">Live-ready</span>
+      </div>
+
+      <div class="example-report">
+        <div>
+          <span class="example-label">Targets</span>
+          <strong>781</strong>
+        </div>
+
+        <div>
+          <span class="example-label">Completed</span>
+          <strong>642</strong>
+        </div>
+
+        <div>
+          <span class="example-label">Audio</span>
+          <strong>5.3s</strong>
         </div>
       </div>
 
-      <div class="hero-console">
-        <div class="console-topline">
-          <span class="console-title">Example report</span>
-          <span class="pill success">Live-ready</span>
+      <div class="report-preview-grid">
+        <div>
+          <span>Frozen target list</span>
+          <strong>Duplicates removed</strong>
         </div>
-        <div class="example-report">
-          <div>
-            <span class="muted">Targets</span>
-            <strong>781</strong>
-          </div>
-          <div>
-            <span class="muted">Completed</span>
-            <strong>642</strong>
-          </div>
-          <div>
-            <span class="muted">Audio</span>
-            <strong>5.3s</strong>
-          </div>
+
+        <div>
+          <span>SIP availability</span>
+          <strong>3 free slots</strong>
         </div>
-        <div class="console-list">
-          <div><b>Frozen target list</b><span>Duplicates removed</span></div>
-          <div><b>SIP availability</b><span>3 free slots</span></div>
-          <div><b>Report export</b><span>CSV ready</span></div>
+
+        <div>
+          <span>Report export</span>
+          <strong>CSV ready</strong>
         </div>
       </div>
-    </div>
-  </section>
 
-  <main class="page-shell">
-    <div class="feature-grid">
-      <section class="card"><h3>Campaign Control</h3><p>Create campaigns from frozen contact lists and review targets before real start.</p></section>
-      <section class="card"><h3>Contact Workspace</h3><p>Import CSV or TXT files, organize groups, and keep duplicate numbers clean.</p></section>
-      <section class="card"><h3>Audio Library</h3><p>Upload reusable broadcast audio and track duration for reporting.</p></section>
-      <section class="card"><h3>Reports</h3><p>See call status, duration, and export campaign result CSV files.</p></section>
+      <div class="console-grid">
+        <div class="console-metric">
+          <span>Completed</span>
+          <strong>82%</strong>
+        </div>
+
+        <div class="console-metric">
+          <span>Busy</span>
+          <strong>9%</strong>
+        </div>
+
+        <div class="console-metric">
+          <span>No answer</span>
+          <strong>7%</strong>
+        </div>
+      </div>
+
+      <div class="console-row">
+        <div>
+          <strong>Campaign monitor</strong><br>
+          <span>Live status and duration tracking</span>
+        </div>
+
+        <span class="badge badge-running">Ready</span>
+      </div>
     </div>
-  </main>
+  </div>
+</section>
+
+<main class="page-shell">
+  <div class="grid grid-4">
+    <section class="feature-card">
+      <div class="feature-icon">01</div>
+      <h3>Campaign Control</h3>
+      <p>
+        Create campaigns from frozen contact lists and review targets before real start.
+      </p>
+    </section>
+
+    <section class="feature-card">
+      <div class="feature-icon">02</div>
+      <h3>Contact Workspace</h3>
+      <p>
+        Import CSV or TXT files, organize groups, and keep duplicate numbers clean.
+      </p>
+    </section>
+
+    <section class="feature-card">
+      <div class="feature-icon">03</div>
+      <h3>Audio Library</h3>
+      <p>
+        Upload reusable broadcast audio and track duration for reporting.
+      </p>
+    </section>
+
+    <section class="feature-card">
+      <div class="feature-icon">04</div>
+      <h3>Reports</h3>
+      <p>
+        See call status, duration, and export campaign result CSV files.
+      </p>
+    </section>
+  </div>
+</main>
+
 </body>
 </html>

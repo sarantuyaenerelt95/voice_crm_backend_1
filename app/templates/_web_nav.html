@@ -1,15 +1,33 @@
+<!-- app/templates/_web_nav.html -->
+
 <nav class="top-nav">
   <div class="top-nav-inner">
     <a class="brand" href="/web/dashboard">
       <span class="brand-mark">VC</span>
       <span class="brand-text">Voice CRM</span>
     </a>
+
     <div class="nav-links">
-      <a href="/web/dashboard">Dashboard</a>
-      <a href="/web/campaigns">Campaigns</a>
-      <a href="/web/contacts">Contacts</a>
-      <a href="/web/audio/upload">Audio</a>
-      <a href="/web/profile">Profile</a>
+      <a href="/web/dashboard" class="{% if request.url.path == '/web/dashboard' %}active{% endif %}">
+        Dashboard
+      </a>
+
+      <a href="/web/campaigns" class="{% if request.url.path.startswith('/web/campaigns') %}active{% endif %}">
+        Campaigns
+      </a>
+
+      <a href="/web/contacts" class="{% if request.url.path.startswith('/web/contacts') %}active{% endif %}">
+        Contacts
+      </a>
+
+      <a href="/web/audio/upload" class="{% if request.url.path.startswith('/web/audio') %}active{% endif %}">
+        Audio
+      </a>
+
+      <a href="/web/profile" class="{% if request.url.path == '/web/profile' %}active{% endif %}">
+        Profile
+      </a>
+
       <form class="nav-logout" method="post" action="/web/logout">
         <button type="submit">Logout</button>
       </form>

@@ -1,3 +1,4 @@
+
 * {
   box-sizing: border-box;
 }
@@ -15,7 +16,7 @@
   --primary-dark: #163f9e;
   --primary-soft: #e8f0ff;
   --accent: #12a88a;
-  --accent-soft: #e5fbf5;
+  --accent-soft: #0a1512ff;
   --violet: #6958d7;
   --warning: #b7791f;
   --warning-soft: #fff7e6;
@@ -1131,6 +1132,7 @@ body.selecting-active {
   }
 
   .badge-pending {
-  background: #fef3c7;
-  color: #92400e;
+    background: #fef3c7;
+    color: #92400e;
   }
+}

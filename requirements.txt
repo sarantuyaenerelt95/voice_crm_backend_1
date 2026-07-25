@@ -9,7 +9,9 @@ jinja2
 PyJWT
 passlib[bcrypt]
 celery
-redis
+redis==4.6.0
 email-validator
 
 itsdangerous
+eval-type-backport
+bcrypt==4.0.1

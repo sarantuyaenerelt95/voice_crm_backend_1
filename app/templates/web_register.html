@@ -1,55 +1,93 @@
+<!-- app/templates/web_register.html -->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
+  <title>Create Account | Voice CRM</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Create Account - Voice CRM</title>
-  <link rel="stylesheet" href="/static/voicecrm.css">
+  <link rel="stylesheet  <meta name="viewport" content" href="/static/voicecrm.css">
 </head>
-<body>
-  <nav class="public-nav">
-    <div class="top-nav-inner">
-      <a class="brand" href="/">
-        <span class="brand-mark">VC</span>
-        <span class="brand-text">Voice CRM</span>
-      </a>
-      <div class="nav-links">
-        <a href="/web/login">Login</a>
-        <a class="active" href="/web/register">Create account</a>
-      </div>
-    </div>
-  </nav>
 
-  <main class="auth-page page-shell">
-    <section class="auth-panel">
-      <div>
-        <span class="pill success">Company workspace</span>
-        <h1>Create account</h1>
-        <p class="muted">Create one company workspace and your first admin account.</p>
-      </div>
+<body>
+
+<nav class="public-nav">
+  <div class="top-nav-inner">
+    <a class="brand" href="/">
+      <span class="brand-mark">VC</span>
+      <span class="brand-text">Voice CRM</span>
+    </a>
+
+    <div class="nav-links">
+      <a href="/web/login">Login</a>
+      <a class="active" href="/web/register">Create account</a>
+    </div>
+  </div>
+</nav>
+
+<main class="page-shell">
+
+  <div class="login-wrap">
+    <section class="login-panel">
+      <span class="badge badge-active">
+        Company workspace
+      </span>
+
+      <h1>Create Account</h1>
+
+      <p class="muted">
+        Create one company workspace and your first admin account.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>Register</h2>
 
       {% if error %}
-      <div class="alert danger">{{ error }}</div>
+        <div class="alert alert-error">
+          {{ error }}
+        </div>
       {% endif %}
 
-      <form method="post" action="/web/register" class="form-stack">
-        <label>Company name</label>
-        <input type="text" name="company_name" required>
+      <form method="post" action="/web/register" class="form-grid">
+        <div>
+          <label>Company name</label>
+          <input type="text" name="company_name" required>
+        </div>
 
-        <label>Your name</label>
-        <input type="text" name="full_name" required>
+        <div>
+          <label>Your name</label>
+          <input type="text" name="full_name" required>
+        </div>
 
-        <label>Email</label>
-        <input type="email" name="email" autocomplete="email" required>
+        <div>
+          <label>Email</label>
+          <input type="email" name="email" autocomplete="email" required>
+        </div>
 
-        <label>Password</label>
-        <input type="password" name="password" autocomplete="new-password" minlength="6" required>
+        <div>
+          <label>Password</label>
+          <input type="password" name="password" autocomplete="new-password" minlength="6" required>
+          <p class="muted small-text">
+            Minimum 6 characters. Maximum 72 bytes.
+          </p>
+        </div>
 
-        <button class="btn primary" type="submit">Create account</button>
+        <div class="actions">
+          <button class="btn" type="submit">
+            Create Account
+          </button>
+        </div>
       </form>
 
-      <p class="muted">Already have an account? <a href="/web/login">Login</a>.</p>
+      <p class="muted">
+        Already have an account?
+        <a href="/web/login">Login</a>.
+      </p>
     </section>
-  </main>
+  </div>
+
+</main>
+
 </body>
 </html>

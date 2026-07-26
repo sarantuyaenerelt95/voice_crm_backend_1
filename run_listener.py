@@ -59,33 +59,40 @@ def status_value(status) -> str:
     return value
 
 
-def classify_status(cause_code: int, answered: bool) -> CallStatus:
-    if cause_code == 16:
-        return CallStatus.completed if answered else CallStatus.failed
+def classify_status(cause_code, answered=False):
+    cause_code = safe_int(cause_code)
 
-    if cause_code == 0:
-        return CallStatus.completed if answered else CallStatus.failed
-
-    if cause_code == RTP_TIMEOUT_CAUSE:
-        return CallStatus.completed if answered else CallStatus.congestion
-
-    if cause_code in [17, 21, 22, 55, 57, 58]:
-        return CallStatus.busy
-
-    if cause_code in [18, 19, 20, 27]:
-        return CallStatus.no_answer
-
-    if cause_code in [34, 38, 41, 42, 50]:
-        return CallStatus.congestion
-
-    if cause_code in [28, 88]:
-        return CallStatus.failed
-
+    # If receiver picked up, status is completed.
+    # Duration/RTP correction is handled separately by calculate_duration_sec().
     if answered:
         return CallStatus.completed
 
-    return CallStatus.failed
+    # Normal clearing without answer evidence should not be completed.
+    if cause_code == 16:
+        return CallStatus.no_answer
 
+    # Busy / rejected
+    if cause_code in (17, 21, 22, 55, 57, 58):
+        return CallStatus.busy
+
+    # No answer / no user response
+    if cause_code in (18, 19, 20, 27):
+        return CallStatus.no_answer
+
+    # RTP timeout without answer evidence.
+    # If answered=True, the function already returned completed above.
+    if cause_code == RTP_TIMEOUT_CAUSE:
+        return CallStatus.no_answer
+
+    # Provider/network congestion
+    if cause_code in (34, 38, 41, 42, 50):
+        return CallStatus.congestion
+
+    # Bad number / incompatible destination
+    if cause_code in (28, 88):
+        return CallStatus.failed
+
+    return CallStatus.failed
 
 def classify_originate_failure(reason_code: int) -> CallStatus:
     if reason_code == 5:
@@ -364,33 +371,11 @@ def handle_dial_end(db, event: dict):
         print(f"AMI DIALEND ANSWER: {call.phone}")
         return
 
-    if call.ended_at:
-        return
-
-    if dial_status == "BUSY":
-        call.status = CallStatus.busy
-    elif dial_status == "NOANSWER":
-        call.status = CallStatus.no_answer
-    elif dial_status in ["CONGESTION", "CHANUNAVAIL"]:
-        call.status = CallStatus.congestion
-    elif dial_status in ["CANCEL", "DONTCALL", "TORTURE", "INVALIDARGS"]:
-        call.status = CallStatus.failed
-    else:
-        return
-
-    call.ended_at = utc_now()
-    call.duration_sec = 0
-
-    update_campaign_target_from_call(db, call)
-    refresh_campaign_stats(db, call.campaign_id)
-
-    db.commit()
-
-    signal_call_done(call.id, status_value(call.status))
-
+    # Do not set failed/congestion/no_answer here.
+    # Hangup cause is final truth.
     print(
-        f"AMI DIALEND: {call.phone} "
-        f"status={call.status} dial_status={dial_status}"
+        f"AMI DIALEND PRELIMINARY: phone={call.phone}, "
+        f"dial_status={dial_status}. Waiting for Hangup."
     )
 
 
@@ -409,10 +394,27 @@ def handle_newstate(db, event: dict):
 
     call = find_call_by_event(db, event)
 
-    if call and not call.answered_at:
+    if not call:
+        return
+
+    if not call.answered_at:
         call.answered_at = utc_now()
-        db.commit()
-        print(f"AMI UP ANSWER: {call.phone}")
+
+    # If Celery already marked it congestion/stuck too early,
+    # clear ended_at so final Hangup can complete it correctly.
+    if call.ended_at and status_value(call.status) != "completed":
+        print(
+            f"AMI ANSWER RESCUE: {call.phone} answered after early final status. "
+            f"old_status={call.status}"
+        )
+        call.ended_at = None
+        call.duration_sec = 0
+        call.hangup_cause = None
+        call.status = CallStatus.calling
+
+    db.commit()
+
+    print(f"AMI UP ANSWER: {call.phone}")
 
 
 def handle_hangup(db, event: dict):
@@ -422,27 +424,25 @@ def handle_hangup(db, event: dict):
         return
 
     cause_code = safe_int(event.get("Cause"))
+    channel_state = str(event.get("ChannelStateDesc", "") or "").lower().strip()
 
-    if call.ended_at:
-        if cause_code and not call.hangup_cause:
-            call.hangup_cause = cause_code
-            db.commit()
-        return
+    answered = call.answered_at is not None or channel_state == "up"
 
-    call.ended_at = utc_now()
+    now = utc_now()
+
+    if answered and not call.answered_at:
+        call.answered_at = call.started_at or now
+
+    # IMPORTANT:
+    # Hangup is final truth. Even if DialEnd/OriginateResponse/Celery already
+    # marked this call as failed/congestion/no_answer, reclassify by final cause.
+    call.ended_at = now
     call.hangup_cause = cause_code
 
-    answered = call.answered_at is not None
+    call.status = classify_status(cause_code, answered)
 
-    if answered:
-        call.status = CallStatus.completed
+    if call.status == CallStatus.completed:
         audio_duration = get_audio_duration(call)
-
-        raw_duration = (
-            max(0, (call.ended_at - call.answered_at).total_seconds())
-            if call.answered_at and call.ended_at
-            else 0
-        )
 
         call.duration_sec = calculate_duration_sec(
             answered_at=call.answered_at,
@@ -452,20 +452,19 @@ def handle_hangup(db, event: dict):
         )
 
         print(
-            f"AMI HANGUP: {call.phone} completed. "
-            f"raw={raw_duration:.2f}s "
-            f"audio={audio_duration} "
-            f"saved={call.duration_sec:.2f}s "
-            f"cause={cause_code}"
+            f"AMI HANGUP FINAL: {call.phone} completed. "
+            f"duration={call.duration_sec:.2f}s "
+            f"cause={cause_code} "
+            f"answered={answered}"
         )
 
     else:
-        call.status = classify_status(cause_code, answered)
         call.duration_sec = 0
 
         print(
-            f"AMI HANGUP: {call.phone} status={call.status} "
-            f"cause={cause_code} answered={answered}"
+            f"AMI HANGUP FINAL: {call.phone} status={call.status} "
+            f"cause={cause_code} "
+            f"answered={answered}"
         )
 
     update_campaign_target_from_call(db, call)
@@ -474,6 +473,7 @@ def handle_hangup(db, event: dict):
     db.commit()
 
     signal_call_done(call.id, status_value(call.status))
+
 
 
 def handle_ami_event(event: dict):

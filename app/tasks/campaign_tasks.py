@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 from datetime import datetime, timezone
 from typing import Optional, List
+import subprocess
 
 from sqlalchemy import or_, func, case
 
@@ -22,8 +23,19 @@ from app.services.call_signal import wait_call_done_signal
 
 SLOT_WAIT_SEC = 1.0
 DEFAULT_STUCK_CALL_TIMEOUT_SEC = 120.0
-STUCK_CALL_EXTRA_SEC = 30.0
-MIN_STUCK_CALL_TIMEOUT_SEC = 45.0
+DIAL_TIMEOUT_SEC = 60.0
+MIN_STUCK_CALL_TIMEOUT_SEC = 180.0
+STUCK_CALL_EXTRA_SEC = 90.0
+
+SLOT_RELEASE_COMPLETED_SEC = 3.0
+SLOT_RELEASE_BUSY_SEC = 5.0
+SLOT_RELEASE_NO_ANSWER_SEC = 5.0
+SLOT_RELEASE_RTP_TIMEOUT_SEC = 8.0
+SLOT_RELEASE_CONGESTION_SEC = 45.0
+SLOT_RELEASE_FAILED_SEC = 20.0
+
+ORIGINATE_SPACING_SEC = 2.0
+CONGESTION_BACKOFF_SEC = 45.0
 
 FINAL_CALL_STATUSES = {
     CallStatus.completed,
@@ -230,10 +242,13 @@ def get_stuck_call_timeout(campaign: Campaign) -> float:
     except Exception:
         audio_duration = None
 
-    if audio_duration and audio_duration > 0:
-        return max(MIN_STUCK_CALL_TIMEOUT_SEC, audio_duration + STUCK_CALL_EXTRA_SEC)
+    audio_sec = audio_duration if audio_duration and audio_duration > 0 else 30.0
 
-    return DEFAULT_STUCK_CALL_TIMEOUT_SEC
+    # Ring time + audio playback + safety buffer.
+    # Some Mobinet calls answer after 50–60 seconds, so 45s is too short.
+    timeout_sec = DIAL_TIMEOUT_SEC + audio_sec + STUCK_CALL_EXTRA_SEC
+
+    return max(MIN_STUCK_CALL_TIMEOUT_SEC, timeout_sec)
 
 
 def get_active_call_count(db, campaign_id: int) -> int:
@@ -554,6 +569,137 @@ def mark_pending_targets_cancelled(db, campaign: Campaign) -> int:
 
     return int(cancelled_targets or 0)
 
+def get_live_endpoint_channel_count(endpoint: str) -> int:
+    if not endpoint:
+        return 0
+
+    try:
+        result = subprocess.run(
+            ["sudo", "asterisk", "-rx", "core show channels concise"],
+            text=True,
+            capture_output=True,
+            timeout=3,
+        )
+
+        output = (result.stdout or "") + (result.stderr or "")
+        endpoint_prefix = f"PJSIP/{endpoint}-"
+
+        return sum(
+            1
+            for line in output.splitlines()
+            if endpoint_prefix in line
+        )
+
+    except Exception as e:
+        print(f"Celery: live Asterisk channel count failed for {endpoint}: {e}")
+        return 0
+
+def to_call_log_id(value):
+    if value is None:
+        return None
+
+    if hasattr(value, "id"):
+        return int(value.id)
+
+    return int(value)
+
+def safe_int(value, default=0):
+    try:
+        if value is None:
+            return default
+        return int(value)
+    except Exception:
+        return default
+
+def is_provider_congestion_call(call) -> bool:
+    if not call:
+        return False
+
+    cause_code = safe_int(getattr(call, "hangup_cause", None))
+
+    return cause_code in (34, 38, 41, 42, 50)
+
+
+def cleanup_slot_cooldowns(slot_cooldowns):
+    now = time.monotonic()
+    return [
+        release_at
+        for release_at in slot_cooldowns
+        if release_at > now
+    ]
+
+
+def get_live_registered_channel_count(registered_trunks) -> int:
+    total = 0
+
+    for trunk in registered_trunks:
+        endpoint = str(trunk.asterisk_endpoint or "").strip()
+
+        if not endpoint:
+            continue
+
+        total += get_live_endpoint_channel_count(endpoint)
+
+    return total
+
+
+def get_slot_release_delay_sec(call) -> float:
+    if not call:
+        return SLOT_RELEASE_FAILED_SEC
+
+    status_text = call_status_value(call.status)
+    cause_code = safe_int(getattr(call, "hangup_cause", None))
+
+    # Normal completed broadcast call.
+    # Small delay lets Mobinet release channel cleanly.
+    if status_text == "completed":
+        return SLOT_RELEASE_COMPLETED_SEC
+
+    # RTP timeout.
+    # Keep same idea as your RTP logic.
+    if cause_code == 44:
+        return SLOT_RELEASE_RTP_TIMEOUT_SEC
+
+    # Provider/network congestion.
+    # Important: do not reuse this slot immediately.
+    if cause_code in (34, 38, 41, 42, 50):
+        return SLOT_RELEASE_CONGESTION_SEC
+
+    if status_text == "busy":
+        return SLOT_RELEASE_BUSY_SEC
+
+    if status_text == "no_answer":
+        return SLOT_RELEASE_NO_ANSWER_SEC
+
+    return SLOT_RELEASE_FAILED_SEC
+
+
+def call_is_final(call) -> bool:
+    if not call:
+        return True
+
+    status = call.status
+
+    if hasattr(status, "value"):
+        status_text = str(status.value).lower().strip()
+    else:
+        status_text = str(status or "").lower().strip()
+
+    if "." in status_text:
+        status_text = status_text.split(".")[-1]
+
+    final_statuses = {
+        "completed",
+        "busy",
+        "no_answer",
+        "failed",
+        "congestion",
+        "cancelled",
+    }
+
+    return call.ended_at is not None or status_text in final_statuses
+
+
 
 @celery_app.task(bind=True, name="run_campaign_task")
 def run_campaign_task(self, campaign_id: int):
@@ -673,107 +819,217 @@ def run_campaign_task(self, campaign_id: int):
             f"sip_capacity={total_capacity}, stuck_timeout={stuck_timeout_sec:.0f}s."
         )
 
-        for contact in contacts:
+        pending_contacts = list(contacts)
+        active_call_ids = set()
+        slot_cooldowns = []
+        last_originate_at = 0.0
+        congestion_backoff_until = 0.0
+
+        print(
+            f"Celery: 4-slot scheduler enabled. "
+            f"campaign_id={campaign_id}, total_contacts={len(pending_contacts)}, "
+            f"sip_capacity={total_capacity}"
+        )
+
+        while pending_contacts or active_call_ids:
             if campaign_cancelled(db, campaign):
-                print(f"Celery: Campaign {campaign.id} cancelled. Stopping before next call.")
+                print(f"Celery: Campaign {campaign.id} cancelled. Slot scheduler stopping.")
                 break
 
-            db.refresh(campaign)
+            db.expire_all()
+
+            campaign = db.query(Campaign).filter(
+                Campaign.id == campaign_id,
+            ).first()
+
+            if not campaign:
+                print(f"Celery: Campaign {campaign_id} disappeared.")
+                break
 
             if campaign.status == CampaignStatus.cancelled:
-                print(f"Celery: Campaign {campaign_id} cancelled before next originate.")
+                print(f"Celery: Campaign {campaign_id} cancelled.")
                 break
 
-            existing_call = get_existing_call_log(db, campaign.id, contact.id)
-
-            if existing_call:
-                update_campaign_target_from_call(db, existing_call)
-                db.commit()
-                skipped_duplicates += 1
-                continue
-
-            trunk = wait_for_available_sip_trunk(
-                db=db,
-                campaign=campaign,
-                stuck_timeout_sec=stuck_timeout_sec,
-                selected_sip_trunk_id=selected_sip_trunk_id,
-            )
-
-            if not trunk:
-                print(f"Celery: Campaign {campaign_id} stopped while waiting for SIP trunk.")
-                break
-
-            db.refresh(campaign)
-
-            if campaign.status == CampaignStatus.cancelled:
-                print(f"Celery: Campaign {campaign_id} cancelled before originate.")
-                break
-
-            existing_call = get_existing_call_log(db, campaign.id, contact.id)
-
-            if existing_call:
-                update_campaign_target_from_call(db, existing_call)
-                db.commit()
-                skipped_duplicates += 1
-                continue
-
-            try:
-                call_log = AsteriskService.initiate_call(
-                    db=db,
-                    campaign_id=campaign.id,
-                    contact_id=contact.id,
-                    phone_number=contact.phone,
-                    trunk_id=trunk.id,
-                    audio_filename=campaign.audio_file.filename,
-                )
-
-                triggered_calls += 1
-
-                print(
-                    f"Celery: Submitted call. phone={contact.phone}, "
-                    f"call_log_id={call_log.id}, status={call_log.status}"
-                )
-
-                finished_call = wait_until_call_finished(
-                    db=db,
-                    call_log_id=call_log.id,
-                    max_wait_sec=int(stuck_timeout_sec),
-                )
-
-                if finished_call:
-                    update_campaign_target_from_call(db, finished_call)
-
-                    print(
-                        f"Celery: Call finished. phone={finished_call.phone}, "
-                        f"status={finished_call.status}, "
-                        f"duration={finished_call.duration_sec}, "
-                        f"cause={finished_call.hangup_cause}"
-                    )
-
+            if mark_stuck_calling(db, campaign, stuck_timeout_sec):
                 refresh_campaign_stats(db, campaign)
                 db.commit()
+                db.expire_all()
 
-                old_system_cooldown(finished_call)
+            # 1) Remove finished calls from active slots.
+            # Finished calls do not free the physical provider slot immediately.
+            # We add a short cooldown slot to avoid Mobinet rapid-fire congestion.
+            slot_cooldowns = cleanup_slot_cooldowns(slot_cooldowns)
 
-                refresh_campaign_stats(db, campaign)
-                db.commit()
+            for active_item in list(active_call_ids):
+                call_id = to_call_log_id(active_item)
 
-                print(
-                    f"Celery: Originated {contact.phone} "
-                    f"via SIP {trunk.number}/{trunk.asterisk_endpoint}"
-                )
+                if call_id is None:
+                    active_call_ids.discard(active_item)
+                    continue
 
-            except Exception as e:
-                db.rollback()
-
-                campaign = db.query(Campaign).filter(
-                    Campaign.id == campaign_id,
+                finished_call = db.query(CallLog).filter(
+                    CallLog.id == call_id,
                 ).first()
 
-                if not campaign or campaign.status == CampaignStatus.cancelled:
+                if call_is_final(finished_call):
+                    active_call_ids.discard(active_item)
+
+                    if finished_call:
+                        update_campaign_target_from_call(db, finished_call)
+
+                        release_delay = get_slot_release_delay_sec(finished_call)
+
+                        if release_delay > 0:
+                            slot_cooldowns.append(
+                                time.monotonic() + release_delay
+                            )
+                        if is_provider_congestion_call(finished_call):
+                            congestion_backoff_until = max(
+                                congestion_backoff_until,
+                                time.monotonic() + CONGESTION_BACKOFF_SEC,
+                            )
+
+                            print(
+                                f"Celery: Provider congestion backoff activated. "
+                                f"phone={finished_call.phone}, "
+                                f"cause={finished_call.hangup_cause}, "
+                                f"backoff={CONGESTION_BACKOFF_SEC:.1f}s"
+                            )
+
+                        print(
+                            f"Celery: Slot freed with release delay. "
+                            f"phone={finished_call.phone}, "
+                            f"call_log_id={finished_call.id}, "
+                            f"status={finished_call.status}, "
+                            f"duration={finished_call.duration_sec}, "
+                            f"cause={finished_call.hangup_cause}, "
+                            f"release_delay={release_delay:.1f}s"
+                        )
+
+            refresh_campaign_stats(db, campaign)
+            db.commit()
+
+            # 2) Fill free slots up to total_capacity.
+            # Example: total_capacity=4
+            # It will submit call 1, 2, 3, 4 immediately.
+            # Then it waits until one active call finishes.
+            while pending_contacts:
+                slot_cooldowns = cleanup_slot_cooldowns(slot_cooldowns)
+
+                live_count = get_live_registered_channel_count(registered_trunks)
+                used_slots = min(
+                    total_capacity,
+                    max(len(active_call_ids), live_count) + len(slot_cooldowns)
+                )   
+
+                if used_slots >= total_capacity:
+                    print(
+                        f"Celery: Slots full. "
+                        f"db_active={len(active_call_ids)}, "
+                        f"live={live_count}, "
+                        f"cooldown={len(slot_cooldowns)}, "
+                        f"used={used_slots}/{total_capacity}. Waiting..."
+                    )
                     break
 
-                print(f"Celery error triggering call for {contact.phone}: {e}")
+                now_mono = time.monotonic()
+
+                if congestion_backoff_until > now_mono:
+                    remaining = congestion_backoff_until - now_mono
+
+                    print(
+                        f"Celery: Provider congestion backoff active. "
+                        f"remaining={remaining:.1f}s. Waiting..."
+                    )
+
+                    break
+
+                if last_originate_at > 0:
+                    since_last_originate = now_mono - last_originate_at
+
+                    if since_last_originate < ORIGINATE_SPACING_SEC:
+                        remaining = ORIGINATE_SPACING_SEC - since_last_originate
+
+                        print(
+                            f"Celery: Originate pacing active. "
+                            f"remaining={remaining:.1f}s. Waiting..."
+                        )
+
+                        break
+
+                contact = pending_contacts.pop(0)
+
+                existing_call = get_existing_call_log(db, campaign.id, contact.id)
+
+                if existing_call:
+                    update_campaign_target_from_call(db, existing_call)
+                    db.commit()
+                    skipped_duplicates += 1
+                    continue
+
+                trunk = get_available_sip_trunk(
+                    db=db,
+                    company_id=campaign.company_id,
+                    selected_sip_trunk_id=selected_sip_trunk_id,
+                )
+
+                if not trunk:
+                    pending_contacts.insert(0, contact)
+
+                    print(
+                        f"Celery: No SIP trunk slot available. "
+                        f"active_slots={len(active_call_ids)}/{total_capacity}. Waiting..."
+                    )
+
+                    break
+
+                try:
+                    call_log = AsteriskService.initiate_call(
+                        db=db,
+                        campaign_id=campaign.id,
+                        contact_id=contact.id,
+                        phone_number=contact.phone,
+                        trunk_id=trunk.id,
+                        audio_filename=campaign.audio_file.filename,
+                    )
+
+                    active_call_ids.add(int(call_log.id))
+                    triggered_calls += 1
+                    last_originate_at = time.monotonic()
+
+                    update_campaign_target_from_call(db, call_log)
+                    refresh_campaign_stats(db, campaign)
+                    db.commit()
+
+                    print(
+                        f"Celery: Slot call submitted. "
+                        f"phone={contact.phone}, "
+                        f"call_log_id={call_log.id}, "
+                        f"db_active={len(active_call_ids)}, "
+                        f"cooldown={len(slot_cooldowns)}, "
+                        f"capacity={total_capacity}, "
+                        f"sip={trunk.number}/{trunk.asterisk_endpoint}"
+                    )
+
+                except Exception as e:
+                    db.rollback()
+                    pending_contacts.insert(0, contact)
+
+                    campaign = db.query(Campaign).filter(
+                        Campaign.id == campaign_id,
+                    ).first()
+
+                    if not campaign or campaign.status == CampaignStatus.cancelled:
+                        break
+
+                    print(f"Celery error triggering slot call for {contact.phone}: {e}")
+                    time.sleep(SLOT_WAIT_SEC)
+                    break
+
+            refresh_campaign_stats(db, campaign)
+            db.commit()
+
+            if pending_contacts or active_call_ids:
                 time.sleep(SLOT_WAIT_SEC)
 
         db.refresh(campaign)

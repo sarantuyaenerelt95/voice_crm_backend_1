@@ -38,6 +38,10 @@ class SIPTrunk(Base):
     current_active_calls = Column(Integer, nullable=False, default=0)
     is_applied = Column(Boolean, nullable=False, default=False)
 
+    sms_enabled = Column(Boolean, nullable=False, default=False)
+    sms_mode = Column(String(30), nullable=False, default="simulation")
+    sms_sender_name = Column(String(30), nullable=True)
+
     # relationships
     call_logs = relationship("CallLog", back_populates="trunk")
 

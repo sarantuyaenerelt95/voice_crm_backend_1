@@ -1,0 +1,38 @@
+[broadcast]
+exten => s,1,NoOp(Broadcast call to ${TARGET_USER}, audio=${AUDIO_FILE}, uniqueid=${UNIQUEID})
+ same => n,Set(LOGFILE=/tmp/call_status.log)
+ same => n,Answer()
+ same => n,Set(CHANNEL(language)=mn)
+ same => n,System(echo "${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)} ANSWERED target=${TARGET_USER} audio=${AUDIO_FILE} language=${CHANNEL(language)} uniqueid=${UNIQUEID}" >> ${LOGFILE})
+ same => n,Playback(custom/${AUDIO_FILE})
+ same => n,System(echo "${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)} PLAYBACK_DONE target=${TARGET_USER} audio=${AUDIO_FILE} uniqueid=${UNIQUEID}" >> ${LOGFILE})
+ same => n,UserEvent(PlaybackDone,Uniqueid: ${UNIQUEID},Target: ${TARGET_USER},AudioFile: ${AUDIO_FILE})
+ same => n,Hangup()
+
+exten => h,1,NoOp(Broadcast hangup target=${TARGET_USER} uniqueid=${UNIQUEID} cause=${HANGUPCAUSE})
+ same => n,System(echo "${STRFTIME(${EPOCH},,%Y-%m-%d %H:%M:%S)} HANGUP target=${TARGET_USER} audio=${AUDIO_FILE} uniqueid=${UNIQUEID} cause=${HANGUPCAUSE}" >> /tmp/call_status.log)
+
+[voicecrm-audio-test]
+exten => s,1,Answer()
+ same => n,Set(CHANNEL(language)=mn)
+ same => n,System(echo "TEST_AUDIO_START language=${CHANNEL(language)}" >> /tmp/call_status.log)
+ same => n,Playback(custom/num_1784909782)
+ same => n,System(echo "TEST_AUDIO_DONE" >> /tmp/call_status.log)
+ same => n,Hangup()
+
+[voicecrm-cli-test]
+exten => s,1,Verbose(1,VOICECRM CLI TEST START)
+ same => n,Answer()
+ same => n,Set(CHANNEL(language)=mn)
+ same => n,Verbose(1,VOICECRM PLAYING custom/num_1784909782)
+ same => n,Playback(custom/num_1784909782)
+ same => n,Verbose(1,VOICECRM CLI TEST DONE)
+ same => n,Hangup()
+
+
+[sms-test]
+exten => 1,1,NoOp(===== SMS TEST =====)
+ same => n,Set(MESSAGE(body)=Hello from dialplan)
+ same => n,MessageSend(pjsip:90300226@mobinet_75004817)
+ same => n,NoOp(MessageSend status=${MESSAGE_SEND_STATUS})
+ same => n,Hangup()

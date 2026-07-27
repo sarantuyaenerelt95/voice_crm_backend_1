@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>New SMS Campaign</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f5f7fb; margin: 0; padding: 24px; color: #111827; }
+        .wrap { max-width: 1100px; margin: 0 auto; }
+        .card { background: white; border-radius: 12px; padding: 18px; box-shadow: 0 1px 5px rgba(0,0,0,.08); margin-bottom: 18px; }
+        label { display: block; font-weight: bold; margin: 14px 0 6px; }
+        input[type=text], textarea, select { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; }
+        textarea { min-height: 140px; }
+        .btn { display: inline-block; padding: 10px 14px; background: #2563eb; color: white; text-decoration: none; border-radius: 8px; border: 0; cursor: pointer; }
+        .btn.gray { background: #6b7280; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { text-align: left; padding: 9px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
+        th { background: #f9fafb; }
+        .muted { color: #6b7280; font-size: 13px; }
+        .actions { margin-top: 18px; display: flex; gap: 10px; }
+        .warning { background: #fff7ed; border: 1px solid #fed7aa; padding: 12px; border-radius: 10px; color: #9a3412; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <h1>New SMS Campaign</h1>
+    <p><a href="/web/sms-campaigns">← Back to SMS campaigns</a></p>
+
+    <form method="post" action="/web/sms-campaigns/create">
+        <div class="card">
+            <label>Campaign name</label>
+            <input type="text" name="name" placeholder="Example: Payment reminder SMS">
+
+            <label>Sender SIP number</label>
+            <select name="sip_trunk_id" required>
+                <option value="">-- Select SIP number --</option>
+                {% for trunk in sip_trunks %}
+                <option value="{{ trunk.id }}">
+                    {{ trunk.number }} / {{ trunk.asterisk_endpoint }} / max {{ trunk.max_concurrent }}
+                </option>
+                {% endfor %}
+            </select>
+
+            {% if not sip_trunks %}
+            <p class="warning">
+                No active SIP numbers available. Please add/apply SIP number first.
+            </p>
+            {% endif %}
+
+            <label>SMS message text</label>
+            <textarea name="message_text" maxlength="1000" placeholder="Write SMS message here..." required></textarea>
+            <p class="muted">
+                First version is simulation. Sender is selected from existing CRM SIP numbers.
+            </p>
+        </div>
+
+        <div class="card">
+            <h2>Select contacts</h2>
+            <p class="muted">Showing latest 500 active contacts.</p>
+
+            <table>
+                <thead>
+                <tr>
+                    <th><input type="checkbox" onclick="toggleAll(this)"></th>
+                    <th>Name</th>
+                    <th>Phone</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for contact in contacts %}
+                <tr>
+                    <td><input type="checkbox" name="contact_ids" value="{{ contact.id }}"></td>
+                    <td>{{ contact.name or contact.full_name or '-' }}</td>
+                    <td>{{ contact.phone }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="3">No active contacts found.</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+
+            <div class="actions">
+                <button class="btn" type="submit">Create SMS Campaign</button>
+                <a class="btn gray" href="/web/sms-campaigns">Cancel</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+function toggleAll(source) {
+    const boxes = document.querySelectorAll('input[name="contact_ids"]');
+    boxes.forEach(box => box.checked = source.checked);
+}
+</script>
+</body>
+</html>

@@ -1686,6 +1686,7 @@ def web_upload_audio_page(
             "user": user,
             "audio_files": audio_files,
             "result": None,
+            "error": None,
         },
     )
 
@@ -1698,13 +1699,30 @@ def web_upload_audio(
 ):
     user = get_current_web_user(request, db)
 
+    def render(error: str | None, result: dict | None = None):
+        audio_files = db.query(AudioFile).filter(
+            AudioFile.company_id == user.company_id,
+            AudioFile.is_active == True,
+        ).order_by(
+            AudioFile.created_at.asc(),
+            AudioFile.id.asc(),
+        ).all()
+
+        return templates.TemplateResponse(
+            "audio_upload.html",
+            {
+                "request": request,
+                "user": user,
+                "audio_files": audio_files,
+                "result": result,
+                "error": error,
+            },
+        )
+
     ext = Path(file.filename or "").suffix.lower()
 
     if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(
-            status_code=400,
-            detail="Only mp3, wav, m4a, ogg, flac, gsm files are allowed",
-        )
+        return render("Only mp3, wav, m4a, ogg, flac, gsm files are allowed.")
 
     os.makedirs(ASTERISK_SOUNDS_DIR, exist_ok=True)
 
@@ -1715,16 +1733,23 @@ def web_upload_audio(
     output_filename = f"{unique_name}.wav"
     output_path = os.path.join(ASTERISK_SOUNDS_DIR, output_filename)
 
-    result = None
-
     try:
         with open(temp_input_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        AudioConverter.convert_to_wav_8k_mono(
-            input_path=temp_input_path,
-            output_path=output_path,
-        )
+        try:
+            AudioConverter.convert_to_wav_8k_mono(
+                input_path=temp_input_path,
+                output_path=output_path,
+            )
+        except RuntimeError as exc:
+            if "Permission denied" in str(exc):
+                raise RuntimeError(
+                    "The server could not save the converted audio file because of a "
+                    "permissions problem on the Asterisk sounds directory. "
+                    "Please contact your administrator to fix folder permissions."
+                ) from exc
+            raise
 
         os.chmod(output_path, 0o644)
 
@@ -1769,36 +1794,20 @@ def web_upload_audio(
             "playback_name": f"custom/{audio.filename}",
         }
 
-    except HTTPException:
-        db.rollback()
-        safe_remove_file(output_path)
-        raise
+        return render(None, result)
 
-    except Exception:
+    except HTTPException as exc:
         db.rollback()
         safe_remove_file(output_path)
-        raise
+        return render(str(exc.detail))
+
+    except Exception as exc:
+        db.rollback()
+        safe_remove_file(output_path)
+        return render(f"Audio upload failed: {exc}")
 
     finally:
         safe_remove_file(temp_input_path)
-
-    audio_files = db.query(AudioFile).filter(
-        AudioFile.company_id == user.company_id,
-        AudioFile.is_active == True,
-    ).order_by(
-        AudioFile.created_at.asc(),
-        AudioFile.id.asc(),
-    ).all()
-
-    return templates.TemplateResponse(
-        "audio_upload.html",
-        {
-            "request": request,
-            "user": user,
-            "audio_files": audio_files,
-            "result": result,
-        },
-    )
 
 
 @router.post("/audio/{audio_id}/delete")

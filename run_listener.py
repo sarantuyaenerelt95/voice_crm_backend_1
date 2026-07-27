@@ -105,19 +105,50 @@ def classify_originate_failure(reason_code: int) -> CallStatus:
 
 
 def calculate_duration_sec(answered_at, ended_at, cause_code: int, audio_duration) -> float:
+    """How many seconds of the message the person actually heard.
+
+    Starts from time-on-call (answered -> ended), then removes the parts that
+    were not listening:
+
+      * cause 44 (RTP timeout): the callee's audio stopped RTP_TIMEOUT_DELAY_SEC
+        before Asterisk declared the timeout. That trailing window is detection
+        lag, not listening.
+      * Anything past the end of the audio file. The dialplan runs System() and
+        UserEvent() after Playback finishes and before Hangup, so a caller who
+        heard the whole message still shows slightly more than the audio length.
+        You cannot hear more of a message than it contains, so cap it.
+
+    Note: this is time-on-call based, not playback based, so it still includes
+    the few dialplan steps between Answer() and Playback() starting. Making it
+    exact would require tracking the UserEvent(PlaybackDone) the dialplan emits.
+    """
     if not answered_at or not ended_at:
         return 0
 
-    raw_duration = max(0, (ended_at - answered_at).total_seconds())
+    raw_duration = (ended_at - answered_at).total_seconds()
 
-    # Rule:
-    # cause 44 = RTP timeout / delayed hangup detection, subtract delay.
-    # cause 16 = normal clearing, keep raw real duration.
-    # Do NOT force duration to audio_duration.
+    # AMI events are timestamped when this listener processes them, so a late
+    # event can place answered_at after ended_at. Treat that as unmeasurable.
+    if raw_duration <= 0:
+        return 0
+
+    listened = raw_duration
+
     if cause_code == RTP_TIMEOUT_CAUSE:
-        return round(max(0, raw_duration - RTP_TIMEOUT_DELAY_SEC), 2)
+        listened -= RTP_TIMEOUT_DELAY_SEC
 
-    return round(raw_duration, 2)
+    if listened <= 0:
+        return 0
+
+    try:
+        audio_sec = float(audio_duration or 0)
+    except (TypeError, ValueError):
+        audio_sec = 0
+
+    if audio_sec > 0:
+        listened = min(listened, audio_sec)
+
+    return round(listened, 2)
 
 
 def extract_call_log_id_from_event(event: dict):

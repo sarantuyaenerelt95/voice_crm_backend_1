@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 import re
 
 from fastapi import APIRouter, Request, Depends, HTTPException
@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.models.sip_trunk import SIPTrunk
+from app.models.call_log import CallLog, CallStatus
 from app.services.asterisk_trunk_generator import generate_pjsip_config, apply_pjsip_config
 from app.services.asterisk_status import get_pjsip_registration_status
 
@@ -21,8 +22,29 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
 
 
+def utc_now():
+    return datetime.now(timezone.utc)
+
+
 def model_columns(model):
     return {column.name for column in model.__table__.columns}
+
+
+def get_trunk_active_call_count(db: Session, trunk_id: int) -> int:
+    return db.query(CallLog).filter(
+        CallLog.trunk_id == trunk_id,
+        CallLog.status == CallStatus.calling,
+    ).count()
+
+
+def regenerate_and_apply(db: Session):
+    """Write the CRM-managed PJSIP config and reload Asterisk."""
+    trunks = get_active_managed_trunks(db)
+
+    generate_result = generate_pjsip_config(trunks)
+    apply_result = apply_pjsip_config()
+
+    return generate_result, apply_result
 
 
 def get_current_super_admin(request: Request, db: Session) -> User:
@@ -265,17 +287,14 @@ async def admin_add_apply_sip_number(
     db.commit()
     db.refresh(trunk)
 
-    trunks = get_active_managed_trunks(db)
-
-    generate_result = generate_pjsip_config(trunks)
-    apply_result = apply_pjsip_config()
+    generate_result, apply_result = regenerate_and_apply(db)
 
     if apply_result["ok"]:
         if "is_applied" in cols:
             trunk.is_applied = True
 
         if "applied_at" in cols:
-            trunk.applied_at = datetime.utcnow()
+            trunk.applied_at = utc_now()
 
         if "last_apply_error" in cols:
             trunk.last_apply_error = None
@@ -328,6 +347,8 @@ def admin_enable_sip_number(
 
     cols = model_columns(SIPTrunk)
 
+    previous_is_active = trunk.is_active
+
     trunk.is_active = True
 
     if "managed_by_crm" in cols:
@@ -344,17 +365,14 @@ def admin_enable_sip_number(
 
     db.commit()
 
-    trunks = get_active_managed_trunks(db)
-
-    generate_result = generate_pjsip_config(trunks)
-    apply_result = apply_pjsip_config()
+    generate_result, apply_result = regenerate_and_apply(db)
 
     if apply_result["ok"]:
         if "is_applied" in cols:
             trunk.is_applied = True
 
         if "applied_at" in cols:
-            trunk.applied_at = datetime.utcnow()
+            trunk.applied_at = utc_now()
 
         if "last_apply_error" in cols:
             trunk.last_apply_error = None
@@ -365,6 +383,10 @@ def admin_enable_sip_number(
             url="/admin/sip-numbers",
             status_code=303,
         )
+
+    # Asterisk never reloaded, so this trunk is not really usable. Revert so the
+    # campaign scheduler does not pick a trunk that Asterisk cannot dial through.
+    trunk.is_active = previous_is_active
 
     if "is_applied" in cols:
         trunk.is_applied = False
@@ -378,10 +400,12 @@ def admin_enable_sip_number(
 
     db.commit()
 
+    generate_pjsip_config(get_active_managed_trunks(db))
+
     raise HTTPException(
         status_code=500,
         detail={
-            "message": "SIP enabled in DB, but failed to apply to Asterisk",
+            "message": "Failed to apply to Asterisk. SIP number was left disabled.",
             "generate_result": generate_result,
             "apply_result": apply_result,
         },
@@ -396,7 +420,21 @@ def admin_disable_sip_number(trunk_id: int, request: Request, db: Session = Depe
     if not trunk:
         raise HTTPException(status_code=404, detail="SIP trunk not found")
 
+    active_calls = get_trunk_active_call_count(db, trunk.id)
+
+    if active_calls > 0:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"SIP number {trunk.number} still has {active_calls} call(s) in progress. "
+                f"Wait for them to finish, or cancel the running campaign first."
+            ),
+        )
+
     cols = model_columns(SIPTrunk)
+
+    previous_is_active = trunk.is_active
+    previous_is_applied = getattr(trunk, "is_applied", None)
 
     trunk.is_active = False
 
@@ -405,17 +443,34 @@ def admin_disable_sip_number(trunk_id: int, request: Request, db: Session = Depe
 
     db.commit()
 
-    trunks = get_active_managed_trunks(db)
-    generate_result = generate_pjsip_config(trunks)
-    apply_result = apply_pjsip_config()
+    generate_result, apply_result = regenerate_and_apply(db)
 
     if apply_result["ok"]:
         return RedirectResponse(url="/admin/sip-numbers", status_code=303)
 
+    # Asterisk was never reloaded, so revert the DB to match what is actually
+    # live. Leaving it disabled here would silently desync CRM from Asterisk.
+    trunk.is_active = previous_is_active
+
+    if "is_applied" in cols:
+        trunk.is_applied = previous_is_applied
+
+    if "last_apply_error" in cols:
+        trunk.last_apply_error = (
+            apply_result.get("stderr")
+            or apply_result.get("stdout")
+            or "Unknown disable apply error"
+        )
+
+    db.commit()
+
+    # Put the generated file back in sync with the reverted DB state.
+    generate_pjsip_config(get_active_managed_trunks(db))
+
     raise HTTPException(
         status_code=500,
         detail={
-            "message": "SIP disabled in DB, but failed to apply to Asterisk",
+            "message": "Failed to apply to Asterisk. SIP number was left enabled.",
             "generate_result": generate_result,
             "apply_result": apply_result,
         },

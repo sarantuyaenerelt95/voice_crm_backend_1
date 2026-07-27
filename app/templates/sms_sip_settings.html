@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>SMS SIP Number Settings</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f5f7fb; margin: 0; padding: 24px; color: #111827; }
+        .wrap { max-width: 1100px; margin: 0 auto; }
+        .card { background: white; border-radius: 12px; padding: 18px; box-shadow: 0 1px 5px rgba(0,0,0,.08); margin-bottom: 18px; }
+        .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+        .btn { display: inline-block; padding: 9px 13px; background: #2563eb; color: white; text-decoration: none; border-radius: 8px; border: 0; cursor: pointer; }
+        .btn.gray { background: #6b7280; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 9px; border-bottom: 1px solid #e5e7eb; font-size: 14px; vertical-align: middle; }
+        th { background: #f9fafb; }
+        input, select { padding: 8px; border: 1px solid #d1d5db; border-radius: 7px; }
+        .badge { padding: 4px 8px; border-radius: 999px; background: #e5e7eb; font-size: 12px; }
+        .ok { background: #dcfce7; color: #166534; }
+        .off { background: #fee2e2; color: #991b1b; }
+        .muted { color: #6b7280; font-size: 13px; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="top">
+        <div>
+            <h1>SMS SIP Number Settings</h1>
+            <p class="muted">Enable SMS sending per existing CRM SIP number.</p>
+        </div>
+        <div>
+            <a class="btn gray" href="/web/sms-campaigns">SMS Campaigns</a>
+            <a class="btn gray" href="/web/dashboard">Dashboard</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>SIP Number</th>
+                <th>Endpoint</th>
+                <th>Voice active</th>
+                <th>SMS enabled</th>
+                <th>SMS mode</th>
+                <th>SMS sender name</th>
+                <th>Save</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for trunk in sip_trunks %}
+            <tr>
+                <form method="post" action="/web/sms-sip-settings/{{ trunk.id }}/update">
+                    <td>{{ trunk.id }}</td>
+                    <td>{{ trunk.number }}</td>
+                    <td>{{ trunk.asterisk_endpoint }}</td>
+                    <td>
+                        {% if trunk.is_active %}
+                            <span class="badge ok">active</span>
+                        {% else %}
+                            <span class="badge off">inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <input type="checkbox" name="sms_enabled" {% if trunk.sms_enabled %}checked{% endif %}>
+                    </td>
+                    <td>
+                        <select name="sms_mode">
+                            <option value="simulation" {% if trunk.sms_mode == "simulation" %}selected{% endif %}>simulation</option>
+                            <option value="sip_message" {% if trunk.sms_mode == "sip_message" %}selected{% endif %}>sip_message</option>
+                            <option value="http_api" {% if trunk.sms_mode == "http_api" %}selected{% endif %}>http_api</option>
+                            <option value="smpp" {% if trunk.sms_mode == "smpp" %}selected{% endif %}>smpp</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input name="sms_sender_name" value="{{ trunk.sms_sender_name or trunk.number or '' }}">
+                        <br><br>
+                        <input name="sms_api_url" placeholder="SMS API URL" value="{{ trunk.sms_api_url or '' }}">
+                        <br><br>
+                        <input name="sms_api_username" placeholder="SMS API username" value="{{ trunk.sms_api_username or '' }}">
+                        <br><br>
+                        <input name="sms_api_password" type="password" placeholder="New SMS API password only">
+                        <br><br>
+                        <input name="sms_api_token" type="password" placeholder="New SMS API token only">
+                    </td>
+                    <td>
+                        <button class="btn" type="submit">Save</button>
+                    </td>
+                </form>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8">No active SIP numbers found.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

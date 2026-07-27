@@ -46,19 +46,6 @@ def _server_with_port(host: str) -> str:
     return f"{host}:5060"
 
 
-def _host_without_port(host: str) -> str:
-    host = _text(host).strip()
-
-    if not host:
-        return ""
-
-    # IPv6 is not used here. This keeps normal provider IP clean for identify match.
-    if ":" in host:
-        return host.split(":", 1)[0]
-
-    return host
-
-
 def _bool_value(value, default=True) -> bool:
     if value is None:
         return default
@@ -122,13 +109,6 @@ def generate_pjsip_config(trunks) -> dict:
         server = _server_with_port(sip_host)
 
         sip_domain = _text(getattr(trunk, "sip_domain", None), sip_host).strip()
-        provider_ip = _text(getattr(trunk, "provider_ip", None), "").strip()
-
-        if not provider_ip:
-            provider_ip = _host_without_port(sip_host)
-        else:
-            provider_ip = _host_without_port(provider_ip)
-
         transport = _text(getattr(trunk, "transport", None), "transport-udp").strip()
 
         # CRM-added SIP trunks are outbound-only.
@@ -173,11 +153,14 @@ def generate_pjsip_config(trunks) -> dict:
         lines.append("max_contacts=10")
         lines.append("")
 
-        lines.append(f"[{endpoint}_identify]")
-        lines.append("type=identify")
-        lines.append(f"endpoint={endpoint}")
-        lines.append(f"match={provider_ip}")
-        lines.append("")
+        # No type=identify section on purpose.
+        #
+        # These trunks are outbound-only and authenticate by registration, so an
+        # IP match adds nothing. It also actively breaks the common case of two
+        # numbers from the same provider: both would emit the same
+        # "match=<provider ip>" pointing at different endpoints, which Asterisk
+        # cannot resolve. The hand-written mobinet trunks omit identify for the
+        # same reason.
 
         lines.append(f"[{endpoint}_reg]")
         lines.append("type=registration")

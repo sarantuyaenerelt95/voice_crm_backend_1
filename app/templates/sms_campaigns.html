@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>SMS Campaigns</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f5f7fb; margin: 0; padding: 24px; color: #111827; }
+        .wrap { max-width: 1100px; margin: 0 auto; }
+        .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .btn { display: inline-block; padding: 10px 14px; background: #2563eb; color: white; text-decoration: none; border-radius: 8px; border: 0; cursor: pointer; }
+        .btn.gray { background: #6b7280; }
+        .card { background: white; border-radius: 12px; padding: 18px; box-shadow: 0 1px 5px rgba(0,0,0,.08); }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
+        th { background: #f9fafb; }
+        .badge { padding: 4px 8px; border-radius: 999px; background: #e5e7eb; font-size: 12px; }
+        a { color: #2563eb; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="top">
+        <div>
+            <h1>SMS Campaigns</h1>
+            <a href="/web/dashboard">← Dashboard</a>
+        </div>
+        <a class="btn gray" href="/web/sms-sip-settings">SMS SIP Settings</a>
+        <a class="btn" href="/web/sms-campaigns/new">+ New SMS Campaign</a>
+    </div>
+
+    <div class="card">
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Total</th>
+                <th>Sent</th>
+                <th>Delivered</th>
+                <th>Failed</th>
+                <th>Created</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for c in campaigns %}
+            <tr>
+                <td>{{ c.id }}</td>
+                <td><a href="/web/sms-campaigns/{{ c.id }}">{{ c.name }}</a></td>
+                <td><span class="badge">{{ c.status }}</span></td>
+                <td>{{ c.total_contacts }}</td>
+                <td>{{ c.sent_count }}</td>
+                <td>{{ c.delivered_count }}</td>
+                <td>{{ c.failed_count }}</td>
+                <td>{{ c.created_at }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8">No SMS campaigns yet.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

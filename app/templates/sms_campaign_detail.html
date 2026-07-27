@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>SMS Campaign Detail</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f5f7fb; margin: 0; padding: 24px; color: #111827; }
+        .wrap { max-width: 1100px; margin: 0 auto; }
+        .card { background: white; border-radius: 12px; padding: 18px; box-shadow: 0 1px 5px rgba(0,0,0,.08); margin-bottom: 18px; }
+        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .stat { background: #f9fafb; border-radius: 10px; padding: 14px; }
+        .stat .num { font-size: 24px; font-weight: bold; }
+        .btn { display: inline-block; padding: 10px 14px; background: #2563eb; color: white; text-decoration: none; border-radius: 8px; border: 0; cursor: pointer; }
+        .btn.red { background: #dc2626; }
+        .btn.gray { background: #6b7280; }
+        .actions { display: flex; gap: 10px; margin-top: 12px; }
+        .badge { padding: 4px 8px; border-radius: 999px; background: #e5e7eb; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 9px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
+        th { background: #f9fafb; }
+        pre { white-space: pre-wrap; background: #f9fafb; padding: 12px; border-radius: 10px; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <p><a href="/web/sms-campaigns">← Back to SMS campaigns</a></p>
+
+    <div class="card">
+        <h1>{{ campaign.name }}</h1>
+        <p>Status: <span class="badge">{{ campaign.status }}</span></p>
+
+        <p>
+            Sender SIP number:
+            {% if sip_trunk %}
+                {{ sip_trunk.number }} / {{ sip_trunk.asterisk_endpoint }}
+            {% else %}
+                -
+            {% endif %}
+        </p>
+
+        <p>SMS segments estimate: {{ segments }}</p>
+
+        <pre>{{ campaign.message_text }}</pre>
+
+        <div class="actions">
+            {% if campaign.status in ["draft", "queued", "failed"] %}
+            <form method="post" action="/web/sms-campaigns/{{ campaign.id }}/send">
+                <button class="btn" type="submit">Send SMS Campaign</button>
+            </form>
+            {% endif %}
+
+            {% if campaign.status in ["queued", "running"] %}
+            <form method="post" action="/web/sms-campaigns/{{ campaign.id }}/cancel">
+                <button class="btn red" type="submit">Cancel</button>
+            </form>
+            {% endif %}
+
+            <a class="btn gray" href="/web/sms-campaigns/{{ campaign.id }}">Refresh</a>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="stat">
+            <div>Total</div>
+            <div class="num">{{ campaign.total_contacts }}</div>
+        </div>
+        <div class="stat">
+            <div>Sent</div>
+            <div class="num">{{ campaign.sent_count }}</div>
+        </div>
+        <div class="stat">
+            <div>Delivered</div>
+            <div class="num">{{ campaign.delivered_count }}</div>
+        </div>
+        <div class="stat">
+            <div>Failed</div>
+            <div class="num">{{ campaign.failed_count }}</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>SMS Logs</h2>
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Phone</th>
+                <th>Status</th>
+                <th>Provider message ID</th>
+                <th>Response</th>
+                <th>Error</th>
+                <th>Sent at</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for log in logs %}
+            <tr>
+                <td>{{ log.id }}</td>
+                <td>{{ log.phone }}</td>
+                <td><span class="badge">{{ log.status }}</span></td>
+                <td>{{ log.provider_message_id or '-' }}</td>
+                <td>{{ log.provider_response or '-' }}</td>
+                <td>{{ log.error_message or '-' }}</td>
+                <td>{{ log.sent_at or '-' }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7">No SMS logs yet. Click Send SMS Campaign.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

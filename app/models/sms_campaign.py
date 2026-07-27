@@ -29,11 +29,7 @@ class SMSCampaign(Base):
     name = Column(String(200), nullable=False)
     message_text = Column(Text, nullable=False)
 
-    selected_provider_id = Column(
-        Integer,
-        ForeignKey("sms_providers.id", ondelete="SET NULL"),
-        nullable=True,
-    )
+    selected_provider_id = Column(Integer, nullable=True)
     
     selected_sip_trunk_id = Column(
         Integer,

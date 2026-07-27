@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Optional, Dict, Any
+from typing import Optional
 
 import redis
 
@@ -40,24 +40,13 @@ def signal_call_done(call_id: int, status: Optional[str] = None) -> None:
         print(f"call_signal publish failed: call_id={call_id} error={exc}")
 
 
-def get_call_done_cached_payload(call_log_id: int) -> Optional[Dict[str, Any]]:
-    try:
-        client = _redis_client()
-        channel = _channel_name(call_log_id)
-
-        value = client.get(channel)
-
-        if not value:
-            return None
-
-        return json.loads(value)
-
-    except Exception as exc:
-        print(f"call_signal cache read failed: call_id={call_log_id} error={exc}")
-        return None
-
-
 def wait_call_done_signal(call_log_id: int, timeout_sec: int = 120) -> bool:
+    """Block until run_listener reports this call finished.
+
+    Currently unused: the campaign scheduler polls call status from the database
+    instead. Kept as the read side of signal_call_done, which run_listener still
+    publishes on every hangup.
+    """
     try:
         client = _redis_client()
         channel = _channel_name(call_log_id)

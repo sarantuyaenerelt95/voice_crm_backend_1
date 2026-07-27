@@ -429,7 +429,7 @@ async def sms_sip_settings_update(
 
     sms_mode = str(form.get("sms_mode") or "simulation").strip().lower()
 
-    if sms_mode not in ("simulation",):
+    if sms_mode not in ("simulation", "sip_message", "http_api", "smpp"):
         sms_mode = "simulation"
 
     sip_trunk.sms_enabled = str(form.get("sms_enabled") or "").lower() in (
@@ -440,6 +440,18 @@ async def sms_sip_settings_update(
     )
     sip_trunk.sms_mode = sms_mode
     sip_trunk.sms_sender_name = str(form.get("sms_sender_name") or "").strip() or sip_trunk.number
+    
+    sip_trunk.sms_api_url = str(form.get("sms_api_url") or "").strip() or None
+    sip_trunk.sms_api_username = str(form.get("sms_api_username") or "").strip() or None
+
+    new_sms_api_password = str(form.get("sms_api_password") or "").strip()
+    new_sms_api_token = str(form.get("sms_api_token") or "").strip()
+
+    if new_sms_api_password:
+        sip_trunk.sms_api_password = new_sms_api_password
+
+    if new_sms_api_token:
+        sip_trunk.sms_api_token = new_sms_api_token
 
     db.commit()
 

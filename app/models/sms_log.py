@@ -32,11 +32,7 @@ class SMSLog(Base):
         index=True,
     )
 
-    provider_id = Column(
-        Integer,
-        ForeignKey("sms_providers.id", ondelete="SET NULL"),
-        nullable=True,
-    )
+    provider_id = Column(Integer, nullable=True)
     
     sip_trunk_id = Column(
         Integer,

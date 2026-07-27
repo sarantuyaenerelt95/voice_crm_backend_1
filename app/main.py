@@ -18,7 +18,10 @@ from app.routes import (
     web_routes,
     web_auth_routes,
     admin_routes,
+    sms_routes,
 )
+
+
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -187,3 +190,4 @@ app.include_router(campaign_routes.router)
 app.include_router(web_auth_routes.router)
 app.include_router(web_routes.router)
 app.include_router(admin_routes.router)
+app.include_router(sms_routes.router)

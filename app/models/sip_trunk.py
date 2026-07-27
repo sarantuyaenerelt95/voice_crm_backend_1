@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import enum
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum
+from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -41,6 +41,14 @@ class SIPTrunk(Base):
     sms_enabled = Column(Boolean, nullable=False, default=False)
     sms_mode = Column(String(30), nullable=False, default="simulation")
     sms_sender_name = Column(String(30), nullable=True)
+
+    sms_api_url = Column(Text, nullable=True)
+    sms_api_username = Column(String(200), nullable=True)
+    sms_api_password = Column(Text, nullable=True)
+    sms_api_token = Column(Text, nullable=True)
+    sms_last_test_status = Column(String(30), nullable=True)
+    sms_last_test_error = Column(Text, nullable=True)
+    sms_last_test_at = Column(DateTime(timezone=True), nullable=True)
 
     # relationships
     call_logs = relationship("CallLog", back_populates="trunk")

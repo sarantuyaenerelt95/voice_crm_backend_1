@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>SMS Providers</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f5f7fb; margin: 0; padding: 24px; color: #111827; }
+        .wrap { max-width: 1200px; margin: 0 auto; }
+        .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .card { background: white; border-radius: 12px; padding: 18px; box-shadow: 0 1px 5px rgba(0,0,0,.08); margin-bottom: 18px; }
+        label { display: block; font-weight: bold; margin: 12px 0 6px; }
+        input, select { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+        .btn { display: inline-block; padding: 10px 14px; background: #2563eb; color: white; text-decoration: none; border-radius: 8px; border: 0; cursor: pointer; }
+        .btn.gray { background: #6b7280; }
+        .btn.red { background: #dc2626; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 9px; border-bottom: 1px solid #e5e7eb; font-size: 14px; vertical-align: top; }
+        th { background: #f9fafb; }
+        .badge { padding: 4px 8px; border-radius: 999px; background: #e5e7eb; font-size: 12px; }
+        .muted { color: #6b7280; font-size: 13px; }
+        .actions { display: flex; gap: 8px; align-items: center; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="top">
+        <div>
+            <h1>SMS Providers</h1>
+            <a href="/web/sms-campaigns">← SMS Campaigns</a>
+        </div>
+        <a class="btn gray" href="/web/dashboard">Dashboard</a>
+    </div>
+
+    <div class="card">
+        <h2>Add provider</h2>
+
+        <form method="post" action="/web/sms-providers/create">
+            <div class="grid">
+                <div>
+                    <label>Provider name</label>
+                    <input name="name" placeholder="Example: Mobinet SMS API">
+                </div>
+
+                <div>
+                    <label>Provider type</label>
+                    <select name="provider_type">
+                        <option value="simulation">simulation</option>
+                        <option value="http_api">http_api</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label>Sender name</label>
+                    <input name="sender_name" placeholder="VoiceCRM">
+                </div>
+
+                <div>
+                    <label>API URL</label>
+                    <input name="api_url" placeholder="https://sms-provider.mn/api/send">
+                </div>
+
+                <div>
+                    <label>API username</label>
+                    <input name="api_username">
+                </div>
+
+                <div>
+                    <label>API password</label>
+                    <input name="api_password" type="password">
+                </div>
+
+                <div>
+                    <label>API token</label>
+                    <input name="api_token" type="password">
+                </div>
+            </div>
+
+            <p class="muted">
+                For now, only simulation sending is active. HTTP API fields are saved for the next integration step.
+            </p>
+
+            <button class="btn" type="submit">Add Provider</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>Existing providers</h2>
+
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Provider</th>
+                <th>Type</th>
+                <th>Sender</th>
+                <th>API URL</th>
+                <th>Active</th>
+                <th>Update</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for p in providers %}
+            <tr>
+                <form method="post" action="/web/sms-providers/{{ p.id }}/update">
+                    <td>{{ p.id }}</td>
+                    <td><input name="name" value="{{ p.name }}"></td>
+                    <td>
+                        <select name="provider_type">
+                            <option value="simulation" {% if p.provider_type == "simulation" %}selected{% endif %}>simulation</option>
+                            <option value="http_api" {% if p.provider_type == "http_api" %}selected{% endif %}>http_api</option>
+                        </select>
+                    </td>
+                    <td><input name="sender_name" value="{{ p.sender_name or '' }}"></td>
+                    <td><input name="api_url" value="{{ p.api_url or '' }}"></td>
+                    <td>
+                        <input type="checkbox" name="is_active" {% if p.is_active %}checked{% endif %}>
+                    </td>
+                    <td>
+                        <input name="api_username" placeholder="username" value="{{ p.api_username or '' }}">
+                        <input name="api_password" type="password" placeholder="new password only">
+                        <input name="api_token" type="password" placeholder="new token only">
+                        <div class="actions" style="margin-top:8px;">
+                            <button class="btn" type="submit">Save</button>
+                        </div>
+                    </td>
+                </form>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7">No SMS providers found.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

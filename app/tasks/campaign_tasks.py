@@ -16,16 +16,34 @@ from app.models.contact import Contact
 from app.models.sip_trunk import SIPTrunk
 from app.models.call_log import CallLog, CallStatus
 from app.models.campaign_target import CampaignTarget
-from app.services.asterisk import AsteriskService
+from app.services.asterisk import AsteriskService, ORIGINATE_TIMEOUT_SEC
 from app.services.asterisk_status import get_pjsip_registration_status
-from app.services.call_signal import wait_call_done_signal
 
 
 SLOT_WAIT_SEC = 1.0
 DEFAULT_STUCK_CALL_TIMEOUT_SEC = 120.0
 DIAL_TIMEOUT_SEC = 60.0
-MIN_STUCK_CALL_TIMEOUT_SEC = 180.0
 STUCK_CALL_EXTRA_SEC = 90.0
+
+# The sweeper must outlive Asterisk's own originate timeout, otherwise it marks
+# a still-ringing call as congestion and frees the slot too early.
+MIN_STUCK_CALL_TIMEOUT_SEC = ORIGINATE_TIMEOUT_SEC + 40.0
+
+# Abort a campaign that cannot make any forward progress (no originate, no call
+# finishing) for this long. Without this the scheduler loop spins forever and
+# permanently occupies a Celery worker.
+MAX_NO_PROGRESS_SEC = 900.0
+
+# How many times one contact may fail to originate before we give up on it
+# instead of pushing it back onto the queue forever.
+MAX_CONTACT_ATTEMPTS = 3
+
+# Re-read trunk registration/capacity while a campaign runs, so enabling or
+# disabling a trunk mid-campaign is picked up.
+TRUNK_REFRESH_SEC = 15.0
+
+# Cache window for the live Asterisk channel count (one CLI call, not one per trunk).
+LIVE_CHANNEL_CACHE_SEC = 0.9
 
 SLOT_RELEASE_COMPLETED_SEC = 3.0
 SLOT_RELEASE_BUSY_SEC = 5.0
@@ -107,81 +125,6 @@ def update_campaign_target_from_call(db, call: Optional[CallLog]) -> None:
     target.status = status_value
     target.call_log_id = call.id
     target.updated_at = utc_now()
-
-
-def wait_until_call_finished(db, call_log_id: int, max_wait_sec: int = 120):
-    db.expire_all()
-
-    call = (
-        db.query(CallLog)
-        .filter(CallLog.id == call_log_id)
-        .populate_existing()
-        .first()
-    )
-
-    if not call:
-        return None
-
-    if call.status in FINAL_CALL_STATUSES:
-        update_campaign_target_from_call(db, call)
-        db.commit()
-        return call
-
-    got_signal = wait_call_done_signal(
-        call_log_id=call_log_id,
-        timeout_sec=int(max_wait_sec),
-    )
-
-    db.expire_all()
-
-    call = (
-        db.query(CallLog)
-        .filter(CallLog.id == call_log_id)
-        .populate_existing()
-        .first()
-    )
-
-    if not call:
-        return None
-
-    if call.status in FINAL_CALL_STATUSES:
-        update_campaign_target_from_call(db, call)
-        db.commit()
-        return call
-
-    if not got_signal and call.status == CallStatus.calling:
-        call.status = CallStatus.congestion
-        call.ended_at = utc_now()
-        call.duration_sec = 0
-        update_campaign_target_from_call(db, call)
-        db.commit()
-        db.refresh(call)
-
-    return call
-
-
-def old_system_cooldown(call):
-    if not call:
-        time.sleep(5)
-        return
-
-    if call.status == CallStatus.completed:
-        sleep_sec = 10.0
-    elif call.status == CallStatus.congestion:
-        sleep_sec = 45.0
-    elif call.status == CallStatus.no_answer:
-        sleep_sec = 10.0
-    elif call.status == CallStatus.busy:
-        sleep_sec = 10.0
-    else:
-        sleep_sec = 10.0
-
-    print(
-        f"Celery: cooldown. "
-        f"phone={call.phone} status={call.status} sleep={sleep_sec:.1f}s"
-    )
-
-    time.sleep(sleep_sec)
 
 
 def refresh_campaign_stats(db, campaign: Campaign):
@@ -366,10 +309,9 @@ def mark_stuck_calling(db, campaign: Campaign, timeout_sec: float) -> int:
     for call in calling_calls:
         started_at = as_utc(call.started_at)
 
-        if not started_at:
-            continue
-
-        if (now - started_at).total_seconds() <= timeout_sec:
+        # A call with no start time cannot be aged out, so it would otherwise
+        # stay in "calling" forever and block the campaign from ever finishing.
+        if started_at and (now - started_at).total_seconds() <= timeout_sec:
             continue
 
         call.status = CallStatus.congestion
@@ -477,37 +419,12 @@ def campaign_cancelled(db, campaign: Campaign) -> bool:
     return campaign.status == CampaignStatus.cancelled
 
 
-def wait_for_available_sip_trunk(
-    db,
-    campaign: Campaign,
-    stuck_timeout_sec: float,
-    selected_sip_trunk_id: Optional[int] = None,
-):
-    while True:
-        if campaign_cancelled(db, campaign):
-            return None
-
-        if mark_stuck_calling(db, campaign, stuck_timeout_sec):
-            refresh_campaign_stats(db, campaign)
-            db.commit()
-            db.refresh(campaign)
-
-            if campaign.status == CampaignStatus.cancelled:
-                return None
-
-        trunk = get_available_sip_trunk(
-            db=db,
-            company_id=campaign.company_id,
-            selected_sip_trunk_id=selected_sip_trunk_id,
-        )
-
-        if trunk:
-            return trunk
-
-        time.sleep(SLOT_WAIT_SEC)
-
-
 def wait_for_active_calls_to_finish(db, campaign: Campaign, stuck_timeout_sec: float) -> bool:
+    # Hard backstop: the sweeper should retire every call within stuck_timeout,
+    # so anything beyond that plus a margin means we are not converging. Give up
+    # rather than hold the Celery worker forever.
+    deadline = time.monotonic() + stuck_timeout_sec + MAX_NO_PROGRESS_SEC
+
     while True:
         if campaign_cancelled(db, campaign):
             return False
@@ -525,20 +442,43 @@ def wait_for_active_calls_to_finish(db, campaign: Campaign, stuck_timeout_sec: f
         if active_count == 0:
             return True
 
+        if time.monotonic() > deadline:
+            print(
+                f"Celery: Campaign {campaign.id} still has {active_count} call(s) "
+                f"in 'calling' after the drain deadline. Giving up the wait."
+            )
+            return False
+
         time.sleep(SLOT_WAIT_SEC)
 
 
-def get_existing_call_log(db, campaign_id: int, contact_id: int):
+def get_existing_call_log(db, campaign_id: int, contact_id: int, phone: str = ""):
+    """Find an already-created call log for this campaign.
+
+    AsteriskService.initiate_call de-duplicates on (campaign_id, phone), so we
+    must check the same key here. Otherwise two contacts sharing a phone number
+    look "new" to the scheduler, and initiate_call silently hands back the
+    earlier (often already finished) call log.
+    """
     db.expire_all()
 
-    return db.query(CallLog).filter(
+    normalized_phone = normalize_phone(phone)
+
+    query = db.query(CallLog).filter(
         CallLog.campaign_id == campaign_id,
-        CallLog.contact_id == contact_id,
-    ).first()
+    )
 
+    if normalized_phone:
+        query = query.filter(
+            or_(
+                CallLog.contact_id == contact_id,
+                CallLog.phone == normalized_phone,
+            )
+        )
+    else:
+        query = query.filter(CallLog.contact_id == contact_id)
 
-def call_log_exists(db, campaign_id: int, contact_id: int) -> bool:
-    return get_existing_call_log(db, campaign_id, contact_id) is not None
+    return query.first()
 
 
 def get_campaign_target_count(db, campaign: Campaign) -> int:
@@ -569,30 +509,51 @@ def mark_pending_targets_cancelled(db, campaign: Campaign) -> int:
 
     return int(cancelled_targets or 0)
 
-def get_live_endpoint_channel_count(endpoint: str) -> int:
-    if not endpoint:
-        return 0
+_live_channels_cache = {"at": 0.0, "lines": []}
+
+
+def get_live_channel_lines() -> List[str]:
+    """Read Asterisk's channel list once and cache it briefly.
+
+    The scheduler polls every second, so without this cache we spawned one
+    `asterisk -rx` subprocess per trunk per iteration.
+    """
+    now = time.monotonic()
+
+    if now - _live_channels_cache["at"] < LIVE_CHANNEL_CACHE_SEC:
+        return _live_channels_cache["lines"]
 
     try:
         result = subprocess.run(
-            ["sudo", "asterisk", "-rx", "core show channels concise"],
+            ["sudo", "-n", "/usr/sbin/asterisk", "-rx", "core show channels concise"],
             text=True,
             capture_output=True,
             timeout=3,
         )
 
-        output = (result.stdout or "") + (result.stderr or "")
-        endpoint_prefix = f"PJSIP/{endpoint}-"
-
-        return sum(
-            1
-            for line in output.splitlines()
-            if endpoint_prefix in line
-        )
+        lines = ((result.stdout or "") + (result.stderr or "")).splitlines()
 
     except Exception as e:
-        print(f"Celery: live Asterisk channel count failed for {endpoint}: {e}")
+        print(f"Celery: live Asterisk channel count failed: {e}")
+        lines = []
+
+    _live_channels_cache["at"] = now
+    _live_channels_cache["lines"] = lines
+
+    return lines
+
+
+def get_live_endpoint_channel_count(endpoint: str) -> int:
+    if not endpoint:
         return 0
+
+    endpoint_prefix = f"PJSIP/{endpoint}-"
+
+    return sum(
+        1
+        for line in get_live_channel_lines()
+        if endpoint_prefix in line
+    )
 
 def to_call_log_id(value):
     if value is None:
@@ -825,8 +786,13 @@ def run_campaign_task(self, campaign_id: int):
         last_originate_at = 0.0
         congestion_backoff_until = 0.0
 
+        last_progress_at = time.monotonic()
+        last_trunk_refresh_at = time.monotonic()
+        contact_attempts = {}
+        abandoned_contacts = 0
+
         print(
-            f"Celery: 4-slot scheduler enabled. "
+            f"Celery: slot scheduler enabled. "
             f"campaign_id={campaign_id}, total_contacts={len(pending_contacts)}, "
             f"sip_capacity={total_capacity}"
         )
@@ -849,6 +815,46 @@ def run_campaign_task(self, campaign_id: int):
             if campaign.status == CampaignStatus.cancelled:
                 print(f"Celery: Campaign {campaign_id} cancelled.")
                 break
+
+            # Give up if nothing can move forward any more. Without this the
+            # loop spins at SLOT_WAIT_SEC forever (e.g. the selected trunk
+            # deregistered) and holds this Celery worker permanently.
+            stalled_for = time.monotonic() - last_progress_at
+
+            if stalled_for > MAX_NO_PROGRESS_SEC:
+                print(
+                    f"Celery: Campaign {campaign_id} made no progress for "
+                    f"{stalled_for:.0f}s (pending={len(pending_contacts)}, "
+                    f"active={len(active_call_ids)}). Aborting to free the worker."
+                )
+                break
+
+            # Pick up trunks that were enabled/disabled while this campaign runs.
+            if time.monotonic() - last_trunk_refresh_at > TRUNK_REFRESH_SEC:
+                last_trunk_refresh_at = time.monotonic()
+
+                refreshed_trunks = get_registered_allowed_trunks(db, campaign.company_id)
+
+                if selected_sip_trunk_id:
+                    refreshed_trunks = [
+                        trunk for trunk in refreshed_trunks
+                        if int(trunk.id) == int(selected_sip_trunk_id)
+                    ]
+
+                if refreshed_trunks:
+                    refreshed_capacity = sum(
+                        max(1, int(trunk.max_concurrent or 1))
+                        for trunk in refreshed_trunks
+                    )
+
+                    if refreshed_capacity != total_capacity:
+                        print(
+                            f"Celery: SIP capacity changed mid-campaign. "
+                            f"{total_capacity} -> {refreshed_capacity}"
+                        )
+
+                    registered_trunks = refreshed_trunks
+                    total_capacity = refreshed_capacity
 
             if mark_stuck_calling(db, campaign, stuck_timeout_sec):
                 refresh_campaign_stats(db, campaign)
@@ -873,6 +879,7 @@ def run_campaign_task(self, campaign_id: int):
 
                 if call_is_final(finished_call):
                     active_call_ids.discard(active_item)
+                    last_progress_at = time.monotonic()
 
                     if finished_call:
                         update_campaign_target_from_call(db, finished_call)
@@ -959,12 +966,18 @@ def run_campaign_task(self, campaign_id: int):
 
                 contact = pending_contacts.pop(0)
 
-                existing_call = get_existing_call_log(db, campaign.id, contact.id)
+                existing_call = get_existing_call_log(
+                    db,
+                    campaign.id,
+                    contact.id,
+                    getattr(contact, "phone", ""),
+                )
 
                 if existing_call:
                     update_campaign_target_from_call(db, existing_call)
                     db.commit()
                     skipped_duplicates += 1
+                    last_progress_at = time.monotonic()
                     continue
 
                 trunk = get_available_sip_trunk(
@@ -996,6 +1009,8 @@ def run_campaign_task(self, campaign_id: int):
                     active_call_ids.add(int(call_log.id))
                     triggered_calls += 1
                     last_originate_at = time.monotonic()
+                    last_progress_at = time.monotonic()
+                    contact_attempts.pop(contact.id, None)
 
                     update_campaign_target_from_call(db, call_log)
                     refresh_campaign_stats(db, campaign)
@@ -1013,7 +1028,9 @@ def run_campaign_task(self, campaign_id: int):
 
                 except Exception as e:
                     db.rollback()
-                    pending_contacts.insert(0, contact)
+
+                    attempts = int(contact_attempts.get(contact.id, 0)) + 1
+                    contact_attempts[contact.id] = attempts
 
                     campaign = db.query(Campaign).filter(
                         Campaign.id == campaign_id,
@@ -1022,7 +1039,23 @@ def run_campaign_task(self, campaign_id: int):
                     if not campaign or campaign.status == CampaignStatus.cancelled:
                         break
 
-                    print(f"Celery error triggering slot call for {contact.phone}: {e}")
+                    if attempts >= MAX_CONTACT_ATTEMPTS:
+                        # Drop the contact instead of pushing it back forever.
+                        abandoned_contacts += 1
+                        last_progress_at = time.monotonic()
+
+                        print(
+                            f"Celery: Giving up on {contact.phone} after "
+                            f"{attempts} failed originate attempts: {e}"
+                        )
+                    else:
+                        pending_contacts.insert(0, contact)
+
+                        print(
+                            f"Celery error triggering slot call for {contact.phone} "
+                            f"(attempt {attempts}/{MAX_CONTACT_ATTEMPTS}): {e}"
+                        )
+
                     time.sleep(SLOT_WAIT_SEC)
                     break
 
@@ -1039,12 +1072,7 @@ def run_campaign_task(self, campaign_id: int):
 
         db.refresh(campaign)
 
-        if campaign.status != CampaignStatus.cancelled:
-            refresh_campaign_stats(db, campaign)
-            campaign.status = CampaignStatus.completed
-            campaign.completed_at = utc_now()
-            db.commit()
-        else:
+        if campaign.status == CampaignStatus.cancelled:
             cancelled_targets = mark_pending_targets_cancelled(db, campaign)
             db.commit()
 
@@ -1053,9 +1081,31 @@ def run_campaign_task(self, campaign_id: int):
                 f"cancelled_targets={cancelled_targets}"
             )
 
+        elif pending_contacts:
+            # We exited the scheduler with work left over, so this campaign did
+            # not really complete. Do not report it as completed.
+            refresh_campaign_stats(db, campaign)
+            cancelled_targets = mark_pending_targets_cancelled(db, campaign)
+            campaign.status = CampaignStatus.failed
+            campaign.completed_at = utc_now()
+            db.commit()
+
+            print(
+                f"Celery: Campaign {campaign.id} aborted with "
+                f"{len(pending_contacts)} contact(s) never dialled. "
+                f"cancelled_targets={cancelled_targets}"
+            )
+
+        else:
+            refresh_campaign_stats(db, campaign)
+            campaign.status = CampaignStatus.completed
+            campaign.completed_at = utc_now()
+            db.commit()
+
         print(
             f"Celery: Campaign {campaign_id} finished. "
-            f"originated={triggered_calls}, skipped_duplicates={skipped_duplicates}."
+            f"originated={triggered_calls}, skipped_duplicates={skipped_duplicates}, "
+            f"abandoned={abandoned_contacts}."
         )
 
     except Exception as e:

@@ -15,6 +15,15 @@ from app.models.call_log import CallLog, CallStatus
 from app.models.campaign_target import CampaignTarget
 
 
+# Maximum time Asterisk keeps ringing one originate before giving up.
+# Observed pickups on this system land between ~6s and ~18s, so 30s covers
+# real answers with margin while freeing the slot quickly on no-answer.
+# The Celery stuck-call sweeper must wait LONGER than this, otherwise it
+# marks a call as congestion while Asterisk is still legitimately ringing.
+# See MIN_STUCK_CALL_TIMEOUT_SEC in app/tasks/campaign_tasks.py.
+ORIGINATE_TIMEOUT_SEC = 30.0
+
+
 class AsteriskService:
     @staticmethod
     def _read_ami_block(sock: socket.socket, timeout: float = 5.0) -> str:
@@ -111,7 +120,7 @@ class AsteriskService:
                 "Exten: s\r\n"
                 "Priority: 1\r\n"
                 f"CallerID: \"Voice CRM\" <{trunk.number}>\r\n"
-                "Timeout: 200000\r\n"
+                f"Timeout: {int(ORIGINATE_TIMEOUT_SEC * 1000)}\r\n"
                 f"Variable: AUDIO_FILE={clean_audio_filename}\r\n"
                 f"Variable: TARGET_USER={phone_number}\r\n"
                 f"Variable: CALL_LOG_ID={call_log_id}\r\n"

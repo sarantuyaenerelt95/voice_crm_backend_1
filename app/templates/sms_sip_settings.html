@@ -67,10 +67,21 @@
                     <td>
                         <select name="sms_mode">
                             <option value="simulation" {% if trunk.sms_mode == "simulation" %}selected{% endif %}>simulation</option>
+                            <option value="sip_message" {% if trunk.sms_mode == "sip_message" %}selected{% endif %}>sip_message</option>
+                            <option value="http_api" {% if trunk.sms_mode == "http_api" %}selected{% endif %}>http_api</option>
+                            <option value="smpp" {% if trunk.sms_mode == "smpp" %}selected{% endif %}>smpp</option>
                         </select>
                     </td>
                     <td>
                         <input name="sms_sender_name" value="{{ trunk.sms_sender_name or trunk.number or '' }}">
+                        <br><br>
+                        <input name="sms_api_url" placeholder="SMS API URL" value="{{ trunk.sms_api_url or '' }}">
+                        <br><br>
+                        <input name="sms_api_username" placeholder="SMS API username" value="{{ trunk.sms_api_username or '' }}">
+                        <br><br>
+                        <input name="sms_api_password" type="password" placeholder="New SMS API password only">
+                        <br><br>
+                        <input name="sms_api_token" type="password" placeholder="New SMS API token only">
                     </td>
                     <td>
                         <button class="btn" type="submit">Save</button>

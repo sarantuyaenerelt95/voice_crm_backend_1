@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
+from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -23,6 +23,14 @@ class Company(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     audio_storage_limit_mb = Column(Integer, default=200)
+
+    # Call token balance. One token = one answered (billable) call.
+    # These are a fast cache of token_ledger and can be rebuilt from it.
+    # call_tokens  = tokens owned, including any currently reserved
+    # reserved_tokens = held for dials in flight, not yet spent or released
+    # spendable = call_tokens - reserved_tokens
+    call_tokens = Column(Integer, nullable=False, default=0)
+    reserved_tokens = Column(Integer, nullable=False, default=0)
 
     # relationships
     users = relationship("User", back_populates="company", cascade="all, delete-orphan")

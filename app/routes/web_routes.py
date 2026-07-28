@@ -10,6 +10,8 @@ import os
 import time
 import shutil
 
+from app.services.tts_service import TTSService, DEFAULT_TTS_VOICE
+
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -26,10 +28,12 @@ from app.models.audio_file import AudioFile, AudioSource
 from app.models.contact import Contact
 from app.models.user import User
 from app.models.company import Company
-from app.models.sip_trunk import SIPTrunk
+
 from app.models.campaign_target import CampaignTarget
 from app.models.contact_group import ContactGroup, ContactGroupMember, CampaignContactGroup
+from app.models.billing import TokenPackage, TokenPurchase
 
+from app.services import billing_service
 from app.services.audio_converter import AudioConverter
 from app.services.sip_availability import get_available_sip_rows
 from app.services.campaign_target_service import sync_campaign_targets_from_contact_ids
@@ -108,12 +112,29 @@ def profile_context(
 
     role_value = normalized_role(user)
 
+    token_balance = billing_service.get_balance(db, user.company_id)
+
+    token_packages = db.query(TokenPackage).filter(
+        TokenPackage.is_active == True,
+    ).order_by(
+        TokenPackage.sort_order.asc(),
+    ).all()
+
+    recent_purchases = db.query(TokenPurchase).filter(
+        TokenPurchase.company_id == user.company_id,
+    ).order_by(
+        TokenPurchase.id.desc(),
+    ).limit(10).all()
+
     return {
         "request": request,
         "user": user,
         "company": company,
         "company_users": company_users,
         "role_value": role_value,
+        "token_balance": token_balance,
+        "token_packages": token_packages,
+        "recent_purchases": recent_purchases,
         "can_edit_company": role_value == "admin",
         "user_has_phone": has_model_column(User, "phone"),
         "message": message,
@@ -1835,6 +1856,119 @@ def web_delete_audio(
         status_code=303,
     )
 
+@router.post("/audio/tts", response_class=HTMLResponse)
+def web_generate_tts_audio(
+    request: Request,
+    text: str = Form(...),
+    voice: str = Form(DEFAULT_TTS_VOICE),
+    db: Session = Depends(get_db),
+):
+    user = get_current_web_user(request, db)
+
+    def render(error: str | None, result: dict | None = None):
+        audio_files = db.query(AudioFile).filter(
+            AudioFile.company_id == user.company_id,
+            AudioFile.is_active == True,
+        ).order_by(
+            AudioFile.created_at.asc(),
+            AudioFile.id.asc(),
+        ).all()
+
+        return templates.TemplateResponse(
+            "audio_upload.html",
+            {
+                "request": request,
+                "user": user,
+                "audio_files": audio_files,
+                "result": result,
+                "error": error,
+            },
+        )
+
+    text = (text or "").strip()
+
+    if not text:
+        return render("Please enter some text to generate audio from.")
+
+    os.makedirs(ASTERISK_SOUNDS_DIR, exist_ok=True)
+
+    safe_name = safe_audio_name(text[:40] or "tts")
+    unique_name = f"tts_{safe_name}_{int(time.time())}"
+
+    temp_tts_path = f"/tmp/{unique_name}.mp3"
+    output_filename = f"{unique_name}.wav"
+    output_path = os.path.join(ASTERISK_SOUNDS_DIR, output_filename)
+
+    try:
+        TTSService.generate_speech(
+            text=text,
+            output_path=temp_tts_path,
+            voice=voice or DEFAULT_TTS_VOICE,
+        )
+
+        AudioConverter.convert_to_wav_8k_mono(
+            input_path=temp_tts_path,
+            output_path=output_path,
+        )
+
+        os.chmod(output_path, 0o644)
+
+        duration_sec = AudioConverter.get_duration_sec(output_path)
+        check_audio_duration(duration_sec)
+
+        file_size_bytes = os.path.getsize(output_path)
+        check_audio_storage_capacity(db, user.company_id, file_size_bytes)
+
+        audio = AudioFile(
+            company_id=user.company_id,
+            filename=unique_name,
+            file_path=output_path,
+            source=AudioSource.tts,
+            tts_text=text,
+            duration_sec=duration_sec,
+            file_size_bytes=file_size_bytes,
+            is_active=True,
+        )
+
+        db.add(audio)
+        db.commit()
+        db.refresh(audio)
+
+        audio_files_for_display = db.query(AudioFile).filter(
+            AudioFile.company_id == user.company_id,
+            AudioFile.is_active == True,
+        ).order_by(
+            AudioFile.created_at.asc(),
+            AudioFile.id.asc(),
+        ).all()
+
+        audio_display_map = {
+            audio_item.id: index
+            for index, audio_item in enumerate(audio_files_for_display)
+        }
+
+        result = {
+            "id": audio.id,
+            "display_id": audio_display_map.get(audio.id, 0),
+            "filename": audio.filename,
+            "duration_sec": audio.duration_sec,
+            "playback_name": f"custom/{audio.filename}",
+        }
+
+        return render(None, result)
+
+    except HTTPException as exc:
+        db.rollback()
+        safe_remove_file(output_path)
+        return render(str(exc.detail))
+
+    except Exception as exc:
+        db.rollback()
+        safe_remove_file(output_path)
+        return render(f"Text-to-speech generation failed: {exc}")
+
+    finally:
+        safe_remove_file(temp_tts_path)
 
 @router.get("/campaigns/{campaign_id}/contacts", response_class=HTMLResponse)
 def web_campaign_contacts(
@@ -2356,6 +2490,56 @@ def web_export_campaign_report(
     )
 
 
+@router.post("/profile/tokens/buy", response_class=HTMLResponse)
+async def web_buy_tokens(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Create a token purchase order.
+
+    Right now the order is settled immediately so the system is usable before a
+    bank is connected. When a real payment gateway is added, drop the
+    mark_purchase_paid call here and let the gateway callback do it instead.
+    """
+    user = get_current_web_user(request, db)
+
+    form = await request.form()
+    package_code = str(form.get("package_code") or "").strip()
+
+    raw_count = str(form.get("call_count") or "").strip()
+    call_count = int(raw_count) if raw_count.isdigit() else None
+
+    try:
+        purchase = billing_service.create_purchase(
+            db=db,
+            company_id=user.company_id,
+            package_code=package_code,
+            call_count=call_count,
+            user_id=user.id,
+        )
+
+        billing_service.mark_purchase_paid(db, purchase.id)
+        db.commit()
+
+    except HTTPException as exc:
+        db.rollback()
+        return render_profile(request, user, db, error=str(exc.detail), status_code=400)
+
+    except Exception as exc:
+        db.rollback()
+        return render_profile(request, user, db, error=f"Purchase failed: {exc}")
+
+    return render_profile(
+        request,
+        user,
+        db,
+        message=(
+            f"Added {purchase.call_count} call tokens "
+            f"for {purchase.amount_mnt:,} MNT."
+        ),
+    )
+
+
 @router.post("/campaigns/{campaign_id}/simulate")
 def web_campaign_simulate(
     campaign_id: int,
@@ -2479,6 +2663,22 @@ def web_real_start_campaign(
         raise HTTPException(
             status_code=400,
             detail="Selected SIP number is not available.",
+        )
+
+    # Refuse to start unless the whole campaign can be paid for. The campaign is
+    # left as a draft so it can be started again after topping up.
+    needed_tokens = get_campaign_target_count(db, campaign)
+    balance = billing_service.get_balance(db, user.company_id)
+
+    if balance["spendable"] < needed_tokens:
+        raise HTTPException(
+            status_code=402,
+            detail=(
+                f"Not enough call tokens to run this campaign. "
+                f"It needs {needed_tokens} but only {balance['spendable']} are available"
+                + (f" ({balance['reserved']} held by running campaigns)" if balance["reserved"] else "")
+                + ". Buy more tokens from your profile page, then start the campaign again."
+            ),
         )
 
     campaign.selected_sip_trunk_id = int(selected_sip_row["id"])

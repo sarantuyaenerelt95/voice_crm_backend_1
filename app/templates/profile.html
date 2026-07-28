@@ -59,6 +59,115 @@
     </div>
   </div>
 
+  <section class="card">
+    <h2>Дуудлагын эрх / Call Tokens</h2>
+
+    <p class="muted small-text">
+      Нэг токен = нэг холбогдсон дуудлага. Хариулаагүй, завгүй, амжилтгүй
+      дуудлагад токен зарцуулагдахгүй.
+      <br>
+      One token = one answered call. Busy, no-answer and failed calls cost nothing.
+    </p>
+
+    <div class="grid grid-4">
+      <div class="stat">
+        <div>Боломжтой / Available</div>
+        <b>{{ token_balance.spendable }}</b>
+      </div>
+
+      <div class="stat">
+        <div>Нийт / Total owned</div>
+        <b>{{ token_balance.tokens }}</b>
+      </div>
+
+      <div class="stat">
+        <div>Хүлээгдэж буй / Held</div>
+        <b>{{ token_balance.reserved }}</b>
+        <span class="muted small-text">calls in progress</span>
+      </div>
+    </div>
+
+    {% if token_balance.spendable < 1 %}
+      <div class="alert alert-error">
+        Танд дуудлагын эрх үлдээгүй байна. Кампанит ажил эхлүүлэхийн тулд багц аваарай.
+        <br>
+        No call tokens left. Buy a package below before starting a campaign.
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Багц авах / Buy Tokens</h2>
+
+    <div class="grid grid-4">
+      {% for package in token_packages %}
+        <div class="stat">
+          <div><b>{{ package.name }}</b></div>
+
+          {% if package.is_custom_quantity %}
+            <div class="muted small-text">
+              {{ package.min_call_count }}+ дуудлага, {{ package.per_call_mnt }}₮ / дуудлага
+            </div>
+
+            <form method="post" action="/web/profile/tokens/buy">
+              <input type="hidden" name="package_code" value="{{ package.code }}">
+              <input type="number"
+                     name="call_count"
+                     min="{{ package.min_call_count }}"
+                     step="1"
+                     placeholder="Дуудлагын тоо"
+                     required>
+              <button class="btn" type="submit">Авах</button>
+            </form>
+          {% else %}
+            <div><b>{{ "{:,}".format(package.price_mnt) }}₮</b></div>
+            <div class="muted small-text">
+              {{ package.call_count }} дуудлага
+              ({{ (package.price_mnt / package.call_count) | round(0) | int }}₮ / дуудлага)
+            </div>
+
+            <form method="post" action="/web/profile/tokens/buy">
+              <input type="hidden" name="package_code" value="{{ package.code }}">
+              <button class="btn" type="submit">Авах</button>
+            </form>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if recent_purchases %}
+    <section class="card">
+      <h2>Худалдан авалтын түүх / Purchase History</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>No.</th>
+              <th>Дуудлага</th>
+              <th>Дүн</th>
+              <th>Төлөв</th>
+              <th>Огноо</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for purchase in recent_purchases %}
+              <tr>
+                <td>{{ purchase.id }}</td>
+                <td>{{ purchase.call_count }}</td>
+                <td>{{ "{:,}".format(purchase.amount_mnt) }}₮</td>
+                <td>{{ purchase.status.value if purchase.status else "" }}</td>
+                <td>{{ purchase.paid_at or purchase.created_at }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+
   <div class="profile-grid">
     <section class="card">
       <h2>Your Account</h2>

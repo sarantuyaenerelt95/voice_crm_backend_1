@@ -15,3 +15,5 @@ email-validator
 itsdangerous
 eval-type-backport
 bcrypt==4.0.1
+edge-tts
+alembic==1.14.1

@@ -37,6 +37,21 @@ def get_trunk_active_call_count(db: Session, trunk_id: int) -> int:
     ).count()
 
 
+def apply_failed_error(message: str, generate_result, apply_result) -> HTTPException:
+    """Report an Asterisk apply failure without leaking internals to the browser.
+
+    generate_result/apply_result contain server file paths and raw stderr, so
+    they go to the log; the user gets a short message and the trunk's
+    last_apply_error field holds the detail for an admin to read.
+    """
+    print(
+        f"ADMIN APPLY FAILED: {message} "
+        f"generate={generate_result} apply={apply_result}"
+    )
+
+    return HTTPException(status_code=500, detail=message)
+
+
 def regenerate_and_apply(db: Session):
     """Write the CRM-managed PJSIP config and reload Asterisk."""
     trunks = get_active_managed_trunks(db)
@@ -318,13 +333,10 @@ async def admin_add_apply_sip_number(
 
     db.commit()
 
-    raise HTTPException(
-        status_code=500,
-        detail={
-            "message": "SIP saved to DB, but failed to apply to Asterisk",
-            "generate_result": generate_result,
-            "apply_result": apply_result,
-        },
+    raise apply_failed_error(
+        "SIP number was saved but could not be applied to Asterisk.",
+        generate_result,
+        apply_result,
     )
 
 
@@ -402,13 +414,10 @@ def admin_enable_sip_number(
 
     generate_pjsip_config(get_active_managed_trunks(db))
 
-    raise HTTPException(
-        status_code=500,
-        detail={
-            "message": "Failed to apply to Asterisk. SIP number was left disabled.",
-            "generate_result": generate_result,
-            "apply_result": apply_result,
-        },
+    raise apply_failed_error(
+        "Could not apply to Asterisk. The SIP number was left disabled.",
+        generate_result,
+        apply_result,
     )
 
 @router.post("/sip-numbers/{trunk_id}/disable")
@@ -467,13 +476,10 @@ def admin_disable_sip_number(trunk_id: int, request: Request, db: Session = Depe
     # Put the generated file back in sync with the reverted DB state.
     generate_pjsip_config(get_active_managed_trunks(db))
 
-    raise HTTPException(
-        status_code=500,
-        detail={
-            "message": "Failed to apply to Asterisk. SIP number was left enabled.",
-            "generate_result": generate_result,
-            "apply_result": apply_result,
-        },
+    raise apply_failed_error(
+        "Could not apply to Asterisk. The SIP number was left enabled.",
+        generate_result,
+        apply_result,
     )
 
 @router.get("/sip-trunks")

@@ -13,7 +13,6 @@ celery_app = Celery(
     backend=settings.REDIS_URL,
     include=[
         "app.tasks.campaign_tasks",
-        "app.tasks.sms_tasks",
     ],
 )
 

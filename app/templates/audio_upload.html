@@ -88,6 +88,36 @@
   </div>
 
   <div class="card">
+    <h2>Generate from Text (Text-to-Speech)</h2>
+
+    <div class="alert alert-info">
+      Type the message text below. The system generates speech audio and converts
+      it to 8kHz mono WAV for Asterisk playback, same as an upload.
+    </div>
+
+    <form class="form-grid" method="post" action="/web/audio/tts">
+      <div>
+        <label>Message text</label>
+        <textarea name="text" rows="4" required></textarea>
+      </div>
+
+      <div>
+        <label>Voice</label>
+        <select name="voice">
+          <option value="mn-MN-YesuiNeural">Mongolian — Female (Yesui)</option>
+          <option value="mn-MN-BataaNeural">Mongolian — Male (Bataa)</option>
+        </select>
+      </div>
+
+      <div class="actions">
+        <button class="btn" type="submit">
+          Generate Audio
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
     <div class="section-title-row">
       <div>
         <h2>Audio Files</h2>

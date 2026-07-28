@@ -6,9 +6,11 @@ import os
 from pathlib import Path
 
 from fastapi import FastAPI, Request
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
@@ -18,7 +20,6 @@ from app.routes import (
     web_routes,
     web_auth_routes,
     admin_routes,
-    sms_routes,
 )
 
 
@@ -177,6 +178,47 @@ def public_home_alias(request: Request):
     )
 
 
+ERROR_TITLES = {
+    400: "Something was wrong with that request",
+    401: "Please sign in",
+    402: "Not enough call tokens",
+    403: "You do not have access to this",
+    404: "Page not found",
+    409: "That action conflicts with the current state",
+    500: "Something went wrong on our side",
+}
+
+
+@app.exception_handler(StarletteHTTPException)
+async def html_error_handler(request: Request, exc: StarletteHTTPException):
+    """Render browser errors as a page instead of a raw JSON blob.
+
+    API clients under /auth, /campaigns and /docs still get JSON.
+    """
+    path = request.url.path
+    is_browser_page = path.startswith("/web") or path.startswith("/admin") or path == "/"
+
+    if not is_browser_page:
+        return await http_exception_handler(request, exc)
+
+    detail = exc.detail
+
+    if isinstance(detail, dict):
+        detail = detail.get("message") or "Unexpected error."
+
+    return templates.TemplateResponse(
+        "error.html",
+        {
+            "request": request,
+            "status_code": exc.status_code,
+            "title": ERROR_TITLES.get(exc.status_code, "Error"),
+            "detail": detail,
+            "user": request.session.get("user_id") if hasattr(request, "session") else None,
+        },
+        status_code=exc.status_code,
+    )
+
+
 @app.get("/health")
 def health_check():
     return {
@@ -190,4 +232,3 @@ app.include_router(campaign_routes.router)
 app.include_router(web_auth_routes.router)
 app.include_router(web_routes.router)
 app.include_router(admin_routes.router)
-app.include_router(sms_routes.router)

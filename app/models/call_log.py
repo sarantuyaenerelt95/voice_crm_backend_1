@@ -39,6 +39,11 @@ class CallLog(Base):
     answered_at = Column(DateTime(timezone=True))
     ended_at = Column(DateTime(timezone=True))
 
+    # Billing state for this call, so a token can never be double charged or
+    # double refunded no matter how many times an outcome is reprocessed.
+    # none -> reserved -> committed (answered) | released (not answered)
+    token_state = Column(String(20), nullable=False, default="none", index=True)
+
     # relationships
     campaign = relationship("Campaign", back_populates="call_logs")
     contact = relationship("Contact", back_populates="call_logs")

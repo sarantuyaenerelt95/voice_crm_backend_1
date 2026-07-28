@@ -18,6 +18,7 @@ from app.models.call_log import CallLog, CallStatus
 from app.models.campaign_target import CampaignTarget
 from app.services.asterisk import AsteriskService, ORIGINATE_TIMEOUT_SEC
 from app.services.asterisk_status import get_pjsip_registration_status
+from app.services import billing_service
 
 
 SLOT_WAIT_SEC = 1.0
@@ -790,6 +791,7 @@ def run_campaign_task(self, campaign_id: int):
         last_trunk_refresh_at = time.monotonic()
         contact_attempts = {}
         abandoned_contacts = 0
+        out_of_tokens = False
 
         print(
             f"Celery: slot scheduler enabled. "
@@ -882,6 +884,11 @@ def run_campaign_task(self, campaign_id: int):
                     last_progress_at = time.monotonic()
 
                     if finished_call:
+                        # Settle billing first: an answered call spends the held
+                        # token, anything else hands it back.
+                        answered = call_status_value(finished_call.status) == "completed"
+                        billing_service.settle_call(db, finished_call, answered)
+
                         update_campaign_target_from_call(db, finished_call)
 
                         release_delay = get_slot_release_delay_sec(finished_call)
@@ -980,6 +987,19 @@ def run_campaign_task(self, campaign_id: int):
                     last_progress_at = time.monotonic()
                     continue
 
+                # Do not dial what the company cannot pay for. Tokens are only
+                # spent on answered calls, but each dial holds one until we know.
+                if billing_service.get_balance(db, campaign.company_id)["spendable"] < 1:
+                    pending_contacts.insert(0, contact)
+                    out_of_tokens = True
+
+                    print(
+                        f"Celery: Campaign {campaign.id} stopped, no call tokens left. "
+                        f"{len(pending_contacts)} contact(s) not dialled."
+                    )
+
+                    break
+
                 trunk = get_available_sip_trunk(
                     db=db,
                     company_id=campaign.company_id,
@@ -1005,6 +1025,10 @@ def run_campaign_task(self, campaign_id: int):
                         trunk_id=trunk.id,
                         audio_filename=campaign.audio_file.filename,
                     )
+
+                    # Hold the token now that the call log exists. The hold is
+                    # settled when the outcome arrives.
+                    billing_service.reserve_token(db, campaign.company_id, call_log)
 
                     active_call_ids.add(int(call_log.id))
                     triggered_calls += 1
@@ -1062,6 +1086,10 @@ def run_campaign_task(self, campaign_id: int):
             refresh_campaign_stats(db, campaign)
             db.commit()
 
+            # Out of tokens: let calls already dialled finish, then stop.
+            if out_of_tokens and not active_call_ids:
+                break
+
             if pending_contacts or active_call_ids:
                 time.sleep(SLOT_WAIT_SEC)
 
@@ -1069,6 +1097,14 @@ def run_campaign_task(self, campaign_id: int):
 
         if campaign.status != CampaignStatus.cancelled:
             wait_for_active_calls_to_finish(db, campaign, stuck_timeout_sec)
+
+        # Hand back holds for any call that finished without being settled, so a
+        # crashed worker cannot leave tokens reserved forever.
+        stranded = billing_service.release_stale_reservations(db, campaign_id)
+
+        if stranded:
+            db.commit()
+            print(f"Celery: Released {stranded} stranded token hold(s).")
 
         db.refresh(campaign)
 
@@ -1090,8 +1126,10 @@ def run_campaign_task(self, campaign_id: int):
             campaign.completed_at = utc_now()
             db.commit()
 
+            reason = "ran out of call tokens" if out_of_tokens else "could not make progress"
+
             print(
-                f"Celery: Campaign {campaign.id} aborted with "
+                f"Celery: Campaign {campaign.id} aborted, {reason}. "
                 f"{len(pending_contacts)} contact(s) never dialled. "
                 f"cancelled_targets={cancelled_targets}"
             )

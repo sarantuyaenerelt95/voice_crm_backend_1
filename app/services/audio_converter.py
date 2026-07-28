@@ -105,3 +105,43 @@ class AudioConverter:
             raise RuntimeError(f"Could not read audio duration: {path}")
 
         return round(float(duration_text), 2)
+
+
+
+    @staticmethod
+    def normalize_volume(input_path: str, output_path: str) -> None:
+        """Even out loudness and re-encode to the 8kHz mono WAV Asterisk expects."""
+        input_file = Path(input_path)
+        output_file = Path(output_path)
+
+        if not input_file.exists():
+            raise FileNotFoundError(f"Input audio file not found: {input_path}")
+
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+
+        command = [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            str(input_file),
+            "-vn",
+            "-af",
+            "loudnorm=I=-16:TP=-1.5:LRA=11",
+            "-ac",
+            "1",
+            "-ar",
+            "8000",
+            "-acodec",
+            "pcm_s16le",
+            "-f",
+            "wav",
+            str(output_file),
+        ]
+
+        AudioConverter._run_command(command)
+
+        if not output_file.exists() or output_file.stat().st_size <= 0:
+            raise RuntimeError(f"Normalized audio file was not created: {output_path}")

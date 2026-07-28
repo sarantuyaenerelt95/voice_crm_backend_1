@@ -1,0 +1,41 @@
+<!-- app/templates/error.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ status_code }} | Voice CRM</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/voicecrm.css">
+</head>
+
+<body>
+
+{% if user %}
+  {% include "_web_nav.html" %}
+{% endif %}
+
+<div class="page-shell">
+
+  <div class="page-header">
+    <div>
+      <p class="page-eyebrow">{{ status_code }}</p>
+      <h1>{{ title }}</h1>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="alert alert-error">
+      {{ detail }}
+    </div>
+
+    <div class="actions">
+      <a class="btn btn-secondary" href="javascript:history.back()">← Back</a>
+      <a class="btn" href="/web/dashboard">Go to dashboard</a>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

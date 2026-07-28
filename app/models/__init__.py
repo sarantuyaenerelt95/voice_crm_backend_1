@@ -10,6 +10,18 @@ from app.models.audio_file import AudioFile, AudioSource
 from app.models.campaign import Campaign, CampaignStatus
 from app.models.call_log import CallLog, CallStatus
 from app.models.campaign_target import CampaignTarget
+from app.models.contact_group import (
+    ContactGroup,
+    ContactGroupMember,
+    CampaignContactGroup,
+)
+from app.models.billing import (
+    TokenPackage,
+    TokenPurchase,
+    TokenLedger,
+    PurchaseStatus,
+    LedgerEntryType,
+)
 
 __all__ = [
     "Company",
@@ -25,4 +37,12 @@ __all__ = [
     "CallLog",
     "CallStatus",
     "CampaignTarget",
+    "ContactGroup",
+    "ContactGroupMember",
+    "CampaignContactGroup",
+    "TokenPackage",
+    "TokenPurchase",
+    "TokenLedger",
+    "PurchaseStatus",
+    "LedgerEntryType",
 ]

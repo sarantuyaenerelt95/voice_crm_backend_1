@@ -31,7 +31,7 @@ TEMPLATES_DIR = BASE_DIR / "templates"
 
 
 app = FastAPI(
-    title="Voice CRM Backend",
+    title="Voicebro Backend",
     description="Multi-tenant Voice Broadcast API",
     version="1.0.0",
     docs_url=None,
@@ -111,7 +111,7 @@ def custom_swagger_ui_html():
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Voice CRM Backend - Swagger UI</title>
+  <title>Voicebro Backend - Swagger UI</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
   <style>
     body { margin: 0; font-family: Arial, sans-serif; background: #f7f7f7; }
@@ -123,7 +123,7 @@ def custom_swagger_ui_html():
 </head>
 <body>
   <div id="docs-fallback">
-    <h1>Voice CRM Backend API</h1>
+    <h1>Voicebro Backend API</h1>
     <p>Swagger UI is loading. If it does not appear, these API links are working:</p>
     <p><a href="/openapi.json">/openapi.json</a> · <a href="/health">/health</a></p>
     <p>CSV/TXT contact import endpoint: <code>POST /campaigns/contacts/import</code></p>
@@ -223,7 +223,7 @@ async def html_error_handler(request: Request, exc: StarletteHTTPException):
 def health_check():
     return {
         "status": "ok",
-        "service": "Voice CRM API",
+        "service": "Voicebro API",
     }
 
 

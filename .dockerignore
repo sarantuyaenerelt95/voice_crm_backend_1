@@ -1,0 +1,37 @@
+# Virtualenv built for the host: never copy into an image, it has host paths
+# baked into its scripts and is ~117MB.
+backend/
+venv/
+.venv/
+
+# Secrets: inject at runtime, never bake into a layer.
+.env
+.env.*
+
+# Python noise
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Working files and backups
+*.bak_*
+*.broken
+*.log
+runtime/
+uploads/
+
+# Generated/large media
+audio/
+*.wav
+*.mp3
+
+# Archived code that is no longer part of the running system
+sms_module_archive/
+
+# VCS and editor
+.git/
+.gitignore
+.DS_Store
+*.swp

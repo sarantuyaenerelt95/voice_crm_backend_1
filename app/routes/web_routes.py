@@ -21,6 +21,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 
+from app.config import settings
 from app.database import get_db
 from app.models.campaign import Campaign, CampaignStatus
 from app.models.call_log import CallLog, CallStatus
@@ -55,7 +56,7 @@ from app.routes.web_auth_routes import (
 router = APIRouter(prefix="/web", tags=["web"])
 templates = Jinja2Templates(directory="app/templates")
 
-ASTERISK_SOUNDS_DIR = "/var/lib/asterisk/sounds/mn/custom"
+ASTERISK_SOUNDS_DIR = settings.ASTERISK_SOUNDS_DIR
 ALLOWED_EXTENSIONS = {".mp3", ".wav", ".m4a", ".ogg", ".flac", ".gsm"}
 
 

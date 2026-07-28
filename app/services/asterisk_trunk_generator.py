@@ -7,9 +7,11 @@ import re
 import subprocess
 from datetime import datetime
 
+from app.config import settings
 
-GENERATED_FILE = "/home/voice_test/voice_crm_backend/runtime/pjsip_voicecrm_trunks.conf"
-APPLY_SCRIPT = "/usr/local/bin/voicecrm_apply_trunks.sh"
+
+GENERATED_FILE = settings.TRUNK_CONFIG_FILE
+APPLY_SCRIPT = settings.TRUNK_APPLY_SCRIPT
 
 
 def _text(value, default=""):

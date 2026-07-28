@@ -59,7 +59,7 @@ from app.services.audio_capacity import (
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 
-ASTERISK_SOUNDS_DIR = "/var/lib/asterisk/sounds/mn/custom"
+ASTERISK_SOUNDS_DIR = settings.ASTERISK_SOUNDS_DIR
 ALLOWED_EXTENSIONS = {".mp3", ".wav", ".m4a", ".ogg", ".flac"}
 
 

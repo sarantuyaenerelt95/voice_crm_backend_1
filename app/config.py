@@ -21,11 +21,15 @@ class Settings(BaseSettings):
     ASTERISK_SOUNDS_DIR: str = "/var/lib/asterisk/sounds/mn/custom"
     AUDIO_TEMP_DIR: str = "/tmp"
     TRUNK_CONFIG_FILE: str = "/home/voice_test/voice_crm_backend/runtime/pjsip_voicecrm_trunks.conf"
-    TRUNK_APPLY_SCRIPT: str = "/usr/local/bin/voicecrm_apply_trunks.sh"
 
-    # Path to the Asterisk CLI binary used for status queries.
-    ASTERISK_BIN: str = "/usr/sbin/asterisk"
-    ASTERISK_USE_SUDO: bool = True
+    # How generated trunk config reaches Asterisk.
+    #   script mode : run TRUNK_APPLY_SCRIPT via sudo (needs a local Asterisk host)
+    #   native mode : set TRUNK_APPLY_SCRIPT="" and this service writes into
+    #                 ASTERISK_CONFIG_DIR itself, then reloads over AMI.
+    #                 Use this in containers, with /etc/asterisk mounted writable.
+    TRUNK_APPLY_SCRIPT: str = "/usr/local/bin/voicecrm_apply_trunks.sh"
+    ASTERISK_CONFIG_DIR: str = "/etc/asterisk"
+    TRUNK_INCLUDE_FILENAME: str = "pjsip_voicecrm_trunks.conf"
 
     ENABLE_SIMULATION: bool = False
 

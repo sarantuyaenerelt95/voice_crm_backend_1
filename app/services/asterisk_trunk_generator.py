@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import subprocess
 from datetime import datetime
 
 from app.config import settings
+from app.services.ami_client import run_cli_command
 
 
 GENERATED_FILE = settings.TRUNK_CONFIG_FILE
@@ -198,7 +200,8 @@ def generate_pjsip_config(trunks) -> dict:
     }
 
 
-def apply_pjsip_config() -> dict:
+def _apply_via_script() -> dict:
+    """Hand off to the privileged host script (local Asterisk deployments)."""
     try:
         result = subprocess.run(
             ["sudo", "-n", APPLY_SCRIPT],
@@ -209,6 +212,7 @@ def apply_pjsip_config() -> dict:
 
         return {
             "ok": result.returncode == 0,
+            "mode": "script",
             "returncode": result.returncode,
             "stdout": result.stdout,
             "stderr": result.stderr,
@@ -217,7 +221,92 @@ def apply_pjsip_config() -> dict:
     except Exception as exc:
         return {
             "ok": False,
+            "mode": "script",
             "returncode": -1,
             "stdout": "",
             "stderr": str(exc),
         }
+
+
+def _apply_native() -> dict:
+    """Install the config directly and reload Asterisk over AMI.
+
+    Needs ASTERISK_CONFIG_DIR to be writable, which in a container means
+    mounting /etc/asterisk as a shared writable volume. No sudo, no CLI.
+    """
+    config_dir = settings.ASTERISK_CONFIG_DIR
+    destination = os.path.join(config_dir, settings.TRUNK_INCLUDE_FILENAME)
+    pjsip_conf = os.path.join(config_dir, "pjsip.conf")
+
+    try:
+        if not os.path.exists(GENERATED_FILE):
+            return {
+                "ok": False,
+                "mode": "native",
+                "returncode": -1,
+                "stdout": "",
+                "stderr": f"Generated trunk file not found: {GENERATED_FILE}",
+            }
+
+        shutil.copyfile(GENERATED_FILE, destination)
+
+        # Make sure pjsip.conf pulls the generated file in. Without this the
+        # trunks exist on disk but Asterisk never loads them.
+        include_line = f"#include {settings.TRUNK_INCLUDE_FILENAME}"
+        existing = ""
+
+        if os.path.exists(pjsip_conf):
+            with open(pjsip_conf, "r", encoding="utf-8") as handle:
+                existing = handle.read()
+
+        if settings.TRUNK_INCLUDE_FILENAME not in existing:
+            with open(pjsip_conf, "a", encoding="utf-8") as handle:
+                handle.write(f"\n; VoiceCRM generated SIP trunks\n{include_line}\n")
+
+    except PermissionError as exc:
+        return {
+            "ok": False,
+            "mode": "native",
+            "returncode": -1,
+            "stdout": "",
+            "stderr": (
+                f"Cannot write Asterisk config at {config_dir}: {exc}. "
+                f"Mount it writable, or set TRUNK_APPLY_SCRIPT to use the host script."
+            ),
+        }
+
+    except Exception as exc:
+        return {
+            "ok": False,
+            "mode": "native",
+            "returncode": -1,
+            "stdout": "",
+            "stderr": str(exc),
+        }
+
+    reload_output = run_cli_command("pjsip reload", timeout=10.0)
+
+    if reload_output is None:
+        return {
+            "ok": False,
+            "mode": "native",
+            "returncode": -1,
+            "stdout": "",
+            "stderr": "Config was written but Asterisk could not be reloaded over AMI.",
+        }
+
+    return {
+        "ok": True,
+        "mode": "native",
+        "returncode": 0,
+        "stdout": "\n".join(reload_output),
+        "stderr": "",
+    }
+
+
+def apply_pjsip_config() -> dict:
+    """Push generated trunk config to Asterisk and reload it."""
+    if APPLY_SCRIPT:
+        return _apply_via_script()
+
+    return _apply_native()

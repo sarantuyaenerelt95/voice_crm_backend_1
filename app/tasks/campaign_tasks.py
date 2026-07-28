@@ -5,7 +5,6 @@ from __future__ import annotations
 import time
 from datetime import datetime, timezone
 from typing import Optional, List
-import subprocess
 
 from sqlalchemy import or_, func, case
 
@@ -18,6 +17,7 @@ from app.models.call_log import CallLog, CallStatus
 from app.models.campaign_target import CampaignTarget
 from app.services.asterisk import AsteriskService, ORIGINATE_TIMEOUT_SEC
 from app.services.asterisk_status import get_pjsip_registration_status
+from app.services.ami_client import run_cli_command
 from app.services import billing_service
 
 
@@ -516,26 +516,23 @@ _live_channels_cache = {"at": 0.0, "lines": []}
 def get_live_channel_lines() -> List[str]:
     """Read Asterisk's channel list once and cache it briefly.
 
-    The scheduler polls every second, so without this cache we spawned one
-    `asterisk -rx` subprocess per trunk per iteration.
+    Queried over AMI so no Asterisk CLI or sudo is needed. The scheduler polls
+    every second, so the cache keeps that to roughly one AMI round trip per
+    second rather than one per trunk per iteration.
+
+    If Asterisk is unreachable this returns no lines. The caller combines this
+    with the database count using max(), so losing AMI degrades to database only
+    slot accounting rather than over dialling.
     """
     now = time.monotonic()
 
     if now - _live_channels_cache["at"] < LIVE_CHANNEL_CACHE_SEC:
         return _live_channels_cache["lines"]
 
-    try:
-        result = subprocess.run(
-            ["sudo", "-n", "/usr/sbin/asterisk", "-rx", "core show channels concise"],
-            text=True,
-            capture_output=True,
-            timeout=3,
-        )
+    lines = run_cli_command("core show channels concise", timeout=3.0)
 
-        lines = ((result.stdout or "") + (result.stderr or "")).splitlines()
-
-    except Exception as e:
-        print(f"Celery: live Asterisk channel count failed: {e}")
+    if lines is None:
+        print("Celery: could not read live channels over AMI, using database counts only.")
         lines = []
 
     _live_channels_cache["at"] = now

@@ -33,6 +33,12 @@ class Settings(BaseSettings):
 
     ENABLE_SIMULATION: bool = False
 
+    # Speech-to-text service (separate app, port 8002). Called server-side only
+    # so its API key never reaches the browser: a logged-in Voicebro session is
+    # what authorizes the call, not this key.
+    STT_INTERNAL_URL: str = "http://127.0.0.1:8002"
+    STT_API_KEY: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

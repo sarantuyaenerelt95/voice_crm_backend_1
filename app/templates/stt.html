@@ -1,0 +1,155 @@
+<!-- app/templates/stt.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Speech to Text | Voicebro</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/voicecrm.css">
+</head>
+
+<body>
+
+{% include "_web_nav.html" %}
+
+<div class="page-shell">
+
+  <div class="page-header">
+    <div>
+      <p class="page-eyebrow">Voicebro STT</p>
+      <h1>Speech to Text</h1>
+      <p class="muted">
+        Upload audio and get a Mongolian transcript. Processing takes roughly
+        1-3x the audio's length, so a 1 minute file can take a few minutes.
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Upload Audio</h2>
+
+    <div class="alert alert-info">
+      Supported formats: <b>wav, mp3, m4a, ogg, flac, gsm, webm</b>. Max 25MB.
+    </div>
+
+    <div class="form-grid">
+      <div>
+        <label>Audio file</label>
+        <input type="file" id="sttFile" accept=".wav,.mp3,.m4a,.ogg,.flac,.gsm,.webm">
+      </div>
+
+      <div class="actions">
+        <button class="btn" type="button" id="sttGo">Transcribe</button>
+      </div>
+    </div>
+
+    <div id="sttStatus" style="margin-top: 12px;"></div>
+  </div>
+
+  <div class="card" id="sttResult" style="display:none">
+    <h2>Result</h2>
+
+    <div class="grid grid-4">
+      <div class="stat">
+        <div>Audio length</div>
+        <b id="sttAudioLen"></b>
+        <span class="muted small-text">seconds</span>
+      </div>
+
+      <div class="stat">
+        <div>Processing time</div>
+        <b id="sttProcTime"></b>
+        <span class="muted small-text">seconds</span>
+      </div>
+
+      <div class="stat">
+        <div>Speed</div>
+        <b id="sttRtf"></b>
+      </div>
+    </div>
+
+    <div id="sttText" style="margin-top: 16px; font-size: 16px; line-height: 1.7; white-space: pre-wrap;"></div>
+
+    <details style="margin-top: 16px;">
+      <summary class="muted small-text" style="cursor: pointer;">Segments</summary>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Text</th>
+            </tr>
+          </thead>
+          <tbody id="sttSegs"></tbody>
+        </table>
+      </div>
+    </details>
+  </div>
+
+</div>
+
+<script>
+function sttFmt(s) {
+  const m = Math.floor(s / 60), r = (s % 60).toFixed(1).padStart(4, "0");
+  return `${m}:${r}`;
+}
+
+document.getElementById("sttGo").addEventListener("click", async () => {
+  const fileInput = document.getElementById("sttFile");
+  const file = fileInput.files[0];
+  const statusEl = document.getElementById("sttStatus");
+  const goBtn = document.getElementById("sttGo");
+  const resultEl = document.getElementById("sttResult");
+
+  if (!file) {
+    statusEl.innerHTML = '<div class="alert alert-error">Choose a file first.</div>';
+    return;
+  }
+
+  resultEl.style.display = "none";
+  goBtn.disabled = true;
+  statusEl.innerHTML =
+    '<div class="alert alert-info">Transcribing, this can take 1-3x the audio length...</div>';
+
+  const body = new FormData();
+  body.append("file", file);
+
+  const started = Date.now();
+
+  try {
+    // Same-origin, session-cookie authenticated. No API key here: the
+    // server attaches it when it calls the STT service internally.
+    const res = await fetch("/web/stt/transcribe", { method: "POST", body });
+    const data = await res.json();
+
+    if (!res.ok) {
+      statusEl.innerHTML = `<div class="alert alert-error">${res.status}: ${data.detail || "Transcription failed"}</div>`;
+      return;
+    }
+
+    const wall = ((Date.now() - started) / 1000).toFixed(1);
+    statusEl.innerHTML = '<div class="alert alert-success">Done.</div>';
+
+    document.getElementById("sttAudioLen").textContent = data.audio_duration_sec;
+    document.getElementById("sttProcTime").textContent = data.processing_sec;
+    document.getElementById("sttRtf").textContent = `${data.realtime_factor}x (${wall}s total)`;
+    document.getElementById("sttText").textContent = data.text || "(empty)";
+
+    document.getElementById("sttSegs").innerHTML = (data.segments || [])
+      .map(s => `<tr><td>${sttFmt(s.start)} - ${sttFmt(s.end)}</td><td>${s.text}</td></tr>`)
+      .join("");
+
+    resultEl.style.display = "block";
+
+  } catch (err) {
+    statusEl.innerHTML = `<div class="alert alert-error">Error: ${err.message}</div>`;
+  } finally {
+    goBtn.disabled = false;
+  }
+});
+</script>
+
+</body>
+</html>

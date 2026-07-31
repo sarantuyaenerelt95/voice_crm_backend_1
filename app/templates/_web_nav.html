@@ -12,6 +12,10 @@
         Dashboard
       </a>
 
+      <a href="/web/stt" class="{% if request.url.path.startswith('/web/stt') %}active{% endif %}">
+        STT
+      </a>
+
       <a href="/web/campaigns" class="{% if request.url.path.startswith('/web/campaigns') %}active{% endif %}">
         Campaigns
       </a>

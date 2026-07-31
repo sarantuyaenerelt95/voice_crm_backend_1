@@ -10,13 +10,15 @@ import os
 import time
 import shutil
 
+import requests
+
 from app.services.tts_service import TTSService, DEFAULT_TTS_VOICE
 
 from pathlib import Path
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request, Depends, HTTPException, Form, UploadFile, File, Query
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
@@ -2538,6 +2540,72 @@ async def web_buy_tokens(
             f"Added {purchase.call_count} call tokens "
             f"for {purchase.amount_mnt:,} MNT."
         ),
+    )
+
+
+@router.get("/stt", response_class=HTMLResponse)
+def web_stt_page(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = get_current_web_user(request, db)
+
+    return templates.TemplateResponse(
+        "stt.html",
+        {
+            "request": request,
+            "user": user,
+        },
+    )
+
+
+@router.post("/stt/transcribe")
+async def web_stt_transcribe(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Proxy a transcription request to the STT service.
+
+    The browser never sees the STT service's API key: this route attaches it
+    server-side. Being logged into Voicebro is what authorizes the call
+    instead. The STT service itself still enforces its key for anyone calling
+    it directly (its public URL), so this does not weaken that.
+    """
+    get_current_web_user(request, db)
+
+    form = await request.form()
+    upload = form.get("file")
+
+    if upload is None or not hasattr(upload, "filename"):
+        raise HTTPException(status_code=400, detail="No audio file provided.")
+
+    file_bytes = await upload.read()
+
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    try:
+        response = requests.post(
+            f"{settings.STT_INTERNAL_URL}/transcribe",
+            headers={"X-API-Key": settings.STT_API_KEY},
+            files={"file": (upload.filename, file_bytes, upload.content_type)},
+            timeout=900,
+        )
+
+    except requests.exceptions.RequestException as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Could not reach the STT service: {exc}",
+        )
+
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = {"detail": response.text[:500] or "STT service returned an unreadable response."}
+
+    return JSONResponse(
+        status_code=response.status_code,
+        content=payload,
     )
 
 

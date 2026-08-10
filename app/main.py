@@ -65,6 +65,8 @@ async def require_web_login(request: Request, call_next):
         "/web/login",
         "/web/register",
         "/web/logout",
+        "/web/forgot-password",
+        "/web/reset-password",
     }
 
     if (

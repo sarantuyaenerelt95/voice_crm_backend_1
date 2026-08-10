@@ -39,6 +39,26 @@ class Settings(BaseSettings):
     STT_INTERNAL_URL: str = "http://127.0.0.1:8002"
     STT_API_KEY: str = ""
 
+    # Password reset email. Empty SMTP_HOST/SMTP_USER means sending is skipped
+    # (email_service logs it and returns False) rather than erroring, so the
+    # forgot-password page always behaves the same regardless of whether email
+    # is configured yet.
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = "noreply@voicebro.local"
+    SMTP_USE_TLS: bool = True
+    PASSWORD_RESET_BASE_URL: str = "http://64.119.31.106:8001"
+
+    # TEMPORARY bridge while the SMTP provider (Brevo) hasn't activated the
+    # account yet: if the email fails to send, show the code directly on the
+    # page instead of leaving the user with no way to get it. This must be
+    # False once real email delivery is confirmed working - it is a debug
+    # aid, not something to ship to real users who aren't also the admin
+    # testing the feature.
+    DEV_SHOW_RESET_CODE_ON_SEND_FAILURE: bool = False
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

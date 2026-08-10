@@ -99,7 +99,10 @@ def create_company_and_owner(
             company_id=new_company.id,
             email=email,
             hashed_password=hashed_pw,
-            role=UserRole.owner,
+            # Admin of their own company - NOT UserRole.owner. Owner is the
+            # platform super-admin role gating /admin/* (global SIP trunks and
+            # Asterisk config reload), so it must never come from public signup.
+            role=UserRole.admin,
             is_active=True,
         )
 

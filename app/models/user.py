@@ -30,6 +30,10 @@ class User(Base):
     last_login = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    reset_token_hash = Column(String(64), nullable=True, index=True)
+    reset_token_expires_at = Column(DateTime(timezone=True), nullable=True)
+    reset_attempts = Column(Integer, nullable=False, default=0)
+
     # relationships
     company = relationship("Company", back_populates="users")
     campaigns = relationship("Campaign", back_populates="created_by")

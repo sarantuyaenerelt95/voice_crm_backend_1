@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import hashlib
+import secrets
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -11,9 +13,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 
+from app.config import settings
 from app.database import get_db
 from app.models.user import User
 from app.models.company import Company
+from app.services.email_service import send_password_reset_email
 
 
 router = APIRouter(prefix="/web", tags=["web-auth"])
@@ -211,11 +215,25 @@ def web_register(
     full_name: str = Form(...),
     email: str = Form(...),
     password: str = Form(...),
+    confirm_password: str = Form(""),
     db: Session = Depends(get_db),
 ):
     company_name = company_name.strip()
     full_name = full_name.strip()
     email = email.strip().lower()
+
+    # Defaults to "" rather than being required so an older cached copy of the
+    # form (or a client that omits the field) fails closed with a clear message
+    # instead of a 422.
+    if password != confirm_password:
+        return templates.TemplateResponse(
+            "web_register.html",
+            {
+                "request": request,
+                "error": "Passwords do not match",
+            },
+            status_code=400,
+        )
 
     if len(password) < 6:
         return templates.TemplateResponse(
@@ -306,7 +324,13 @@ def web_register(
             user_kwargs["name"] = full_name
 
         if "role" in user_cols:
-            user_kwargs["role"] = "owner"
+            # Self-service signup creates the admin of a brand new company, not
+            # a platform owner. "owner" is what get_current_super_admin() in
+            # app/routes/admin_routes.py checks for, and that unlocks the
+            # global SIP trunk pages - every tenant's trunks, plus rewriting
+            # and reloading Asterisk's PJSIP config. Granting it here made the
+            # public register form a super-admin signup.
+            user_kwargs["role"] = "admin"
 
         if "is_active" in user_cols:
             user_kwargs["is_active"] = True
@@ -364,4 +388,141 @@ def web_logout(request: Request):
 @router.get("/logout")
 def web_logout_get(request: Request):
     request.session.clear()
+    return RedirectResponse(url="/web/login", status_code=303)
+
+
+RESET_CODE_EXPIRY_MINUTES = 10
+RESET_CODE_MAX_ATTEMPTS = 5
+
+
+def hash_reset_code(code: str) -> str:
+    return hashlib.sha256(code.encode("utf-8")).hexdigest()
+
+
+def generate_reset_code() -> str:
+    # 6 digits, zero-padded (e.g. "004821"), not a link. Matches the code
+    # entropy of standard OTP flows (Facebook, Google, etc): short by design,
+    # so it relies on RESET_CODE_EXPIRY_MINUTES + RESET_CODE_MAX_ATTEMPTS for
+    # safety rather than raw randomness the way the old 32-byte token did.
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
+@router.get("/forgot-password", response_class=HTMLResponse)
+def web_forgot_password_page(request: Request):
+    return templates.TemplateResponse(
+        "web_forgot_password.html",
+        {"request": request, "message": None, "error": None, "email": ""},
+    )
+
+
+@router.post("/forgot-password", response_class=HTMLResponse)
+def web_forgot_password(
+    request: Request,
+    email: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    email = email.strip().lower()
+    identity_col = user_email_column()
+
+    user = db.query(User).filter(getattr(User, identity_col) == email).first()
+
+    # Always show the same message, whether or not the email exists.
+    # Otherwise this endpoint becomes a way to check which emails are registered.
+    generic_message = (
+        f"If that email is registered, a 6-digit code has been sent. "
+        f"It expires in {RESET_CODE_EXPIRY_MINUTES} minutes."
+    )
+
+    if user:
+        code = generate_reset_code()
+        user.reset_token_hash = hash_reset_code(code)
+        user.reset_token_expires_at = datetime.now(timezone.utc) + timedelta(
+            minutes=RESET_CODE_EXPIRY_MINUTES
+        )
+        user.reset_attempts = 0
+        db.commit()
+
+        sent = send_password_reset_email(email, code)
+
+        # Temporary bridge while the SMTP provider isn't activated yet. Logs
+        # server-side only (journalctl), never in the HTTP response - showing
+        # it on-page would let anyone who knows a user's email pull their
+        # reset code with no access to that inbox at all. Only someone with
+        # server access can read a systemd journal.
+        # See DEV_SHOW_RESET_CODE_ON_SEND_FAILURE docstring in config.py.
+        if not sent and settings.DEV_SHOW_RESET_CODE_ON_SEND_FAILURE:
+            print(f"DEV RESET CODE (email send failed): {email} -> {code}")
+
+    return templates.TemplateResponse(
+        "web_forgot_password.html",
+        {"request": request, "message": generic_message, "error": None, "email": email},
+    )
+
+
+@router.get("/reset-password", response_class=HTMLResponse)
+def web_reset_password_page(request: Request, email: str = ""):
+    return templates.TemplateResponse(
+        "web_reset_password.html",
+        {"request": request, "email": email, "error": None},
+    )
+
+
+@router.post("/reset-password", response_class=HTMLResponse)
+def web_reset_password(
+    request: Request,
+    email: str = Form(...),
+    code: str = Form(...),
+    password: str = Form(...),
+    confirm_password: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    email = email.strip().lower()
+    code = code.strip()
+
+    def error_page(message: str, status_code: int = 400):
+        return templates.TemplateResponse(
+            "web_reset_password.html",
+            {"request": request, "email": email, "error": message},
+            status_code=status_code,
+        )
+
+    if password != confirm_password:
+        return error_page("Passwords do not match.")
+
+    if len(password) < 6:
+        return error_page("Password must be at least 6 characters.")
+
+    if not is_bcrypt_safe_password(password):
+        return error_page("Password is too long. Please use 72 bytes or less.")
+
+    identity_col = user_email_column()
+    user = db.query(User).filter(getattr(User, identity_col) == email).first()
+
+    # Same generic error whether the email doesn't exist, the code is wrong,
+    # or it expired - do not reveal which, same reasoning as forgot-password.
+    generic_error = "Invalid or expired code. Request a new one."
+
+    if not user or not user.reset_token_hash or not user.reset_token_expires_at:
+        return error_page(generic_error)
+
+    if user.reset_token_expires_at <= datetime.now(timezone.utc):
+        return error_page(generic_error)
+
+    if (user.reset_attempts or 0) >= RESET_CODE_MAX_ATTEMPTS:
+        return error_page("Too many incorrect attempts. Request a new code.")
+
+    if not secrets.compare_digest(hash_reset_code(code), user.reset_token_hash):
+        user.reset_attempts = (user.reset_attempts or 0) + 1
+        db.commit()
+        return error_page(generic_error)
+
+    password_col = user_password_column()
+    setattr(user, password_col, hash_password(password))
+
+    # Single-use: clear it so the same code can't be replayed.
+    user.reset_token_hash = None
+    user.reset_token_expires_at = None
+    user.reset_attempts = 0
+    db.commit()
+
     return RedirectResponse(url="/web/login", status_code=303)

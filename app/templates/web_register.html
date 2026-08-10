@@ -6,7 +6,7 @@
   <meta charset="UTF-8">
   <title>Create Account | Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet  <meta name="viewport" content" href="/static/voicecrm.css">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260808-ux-1">
 </head>
 
 <body>
@@ -25,7 +25,7 @@
   </div>
 </nav>
 
-<main class="page-shell">
+<main class="page-shell" id="main-content">
 
   <div class="login-wrap">
     <section class="login-panel">
@@ -66,10 +66,18 @@
         </div>
 
         <div>
-          <label>Password</label>
-          <input type="password" name="password" autocomplete="new-password" minlength="6" required>
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" autocomplete="new-password" minlength="6" required>
           <p class="muted small-text">
             Minimum 6 characters. Maximum 72 bytes.
+          </p>
+        </div>
+
+        <div>
+          <label for="confirm_password">Confirm password</label>
+          <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password" minlength="6" required>
+          <p class="muted small-text" id="passwordMismatch" style="display: none; color: var(--danger);">
+            Passwords do not match.
           </p>
         </div>
 
@@ -88,6 +96,29 @@
   </div>
 
 </main>
+
+<script>
+  // Convenience only - the authoritative check is server-side in
+  // web_register(), which rejects a mismatch before creating anything.
+  (function () {
+    var pw = document.getElementById("password");
+    var confirm = document.getElementById("confirm_password");
+    var hint = document.getElementById("passwordMismatch");
+
+    if (!pw || !confirm || !hint) {
+      return;
+    }
+
+    function check() {
+      var mismatch = confirm.value !== "" && pw.value !== confirm.value;
+      hint.style.display = mismatch ? "block" : "none";
+      confirm.setCustomValidity(mismatch ? "Passwords do not match." : "");
+    }
+
+    pw.addEventListener("input", check);
+    confirm.addEventListener("input", check);
+  })();
+</script>
 
 </body>
 </html>

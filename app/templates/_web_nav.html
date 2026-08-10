@@ -1,33 +1,48 @@
 <!-- app/templates/_web_nav.html -->
 
-<nav class="top-nav">
+<a class="skip-link" href="#main-content">Skip to main content</a>
+
+<nav class="top-nav" aria-label="Main">
   <div class="top-nav-inner">
-    <a class="brand" href="/web/dashboard">
-      <span class="brand-mark">VB</span>
+    <a class="brand" href="/web/dashboard" aria-label="Voicebro home">
+      <span class="brand-mark" aria-hidden="true">VB</span>
       <span class="brand-text">Voicebro</span>
     </a>
 
     <div class="nav-links">
-      <a href="/web/dashboard" class="{% if request.url.path == '/web/dashboard' %}active{% endif %}">
+      <a href="/web/dashboard"
+         class="{% if request.url.path == '/web/dashboard' %}active{% endif %}"
+         {% if request.url.path == '/web/dashboard' %}aria-current="page"{% endif %}>
         Dashboard
       </a>
 
-      <a href="/web/stt" class="{% if request.url.path.startswith('/web/stt') %}active{% endif %}">
+      <a href="/web/stt"
+         class="{% if request.url.path.startswith('/web/stt') %}active{% endif %}"
+         {% if request.url.path.startswith('/web/stt') %}aria-current="page"{% endif %}>
         STT
       </a>
 
-      <a href="/web/campaigns" class="{% if request.url.path.startswith('/web/campaigns') %}active{% endif %}">
+      <a href="/web/campaigns"
+         class="{% if request.url.path.startswith('/web/campaigns') %}active{% endif %}"
+         {% if request.url.path.startswith('/web/campaigns') %}aria-current="page"{% endif %}>
         Campaigns
       </a>
 
-      <a href="/web/contacts" class="{% if request.url.path.startswith('/web/contacts') %}active{% endif %}">
+      <a href="/web/contacts"
+         class="{% if request.url.path.startswith('/web/contacts') %}active{% endif %}"
+         {% if request.url.path.startswith('/web/contacts') %}aria-current="page"{% endif %}>
         Contacts
       </a>
-      <a href="/web/audio/upload" class="{% if request.url.path.startswith('/web/audio') %}active{% endif %}">
+
+      <a href="/web/audio/upload"
+         class="{% if request.url.path.startswith('/web/audio') %}active{% endif %}"
+         {% if request.url.path.startswith('/web/audio') %}aria-current="page"{% endif %}>
         Audio
       </a>
 
-      <a href="/web/profile" class="{% if request.url.path == '/web/profile' %}active{% endif %}">
+      <a href="/web/profile"
+         class="{% if request.url.path == '/web/profile' %}active{% endif %}"
+         {% if request.url.path == '/web/profile' %}aria-current="page"{% endif %}>
         Profile
       </a>
 

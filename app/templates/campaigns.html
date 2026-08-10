@@ -6,14 +6,14 @@
   <meta charset="UTF-8">
   <title>Campaigns | Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/voicecrm.css">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260808-ux-1">
 </head>
 
 <body>
 
 {% include "_web_nav.html" %}
 
-<main class="page-shell">
+<main class="page-shell" id="main-content">
 
   <div class="page-header">
     <div>
@@ -49,16 +49,16 @@
       <table>
         <thead>
           <tr>
-            <th>No.</th>
-            <th>Name</th>
-            <th>Status</th>
-            <th>Total</th>
-            <th>Completed</th>
-            <th>Busy</th>
-            <th>No Answer</th>
-            <th>Failed</th>
-            <th>Created</th>
-            <th>Open</th>
+            <th scope="col" class="num">No.</th>
+            <th scope="col">Name</th>
+            <th scope="col">Status</th>
+            <th scope="col" class="num">Total</th>
+            <th scope="col" class="num">Completed</th>
+            <th scope="col" class="num">Busy</th>
+            <th scope="col" class="num">No Answer</th>
+            <th scope="col" class="num">Failed</th>
+            <th scope="col">Created</th>
+            <th scope="col"><span class="sr-only">Actions</span></th>
           </tr>
         </thead>
 
@@ -67,7 +67,7 @@
             {% set status = c.status.value if c.status.value is defined else c.status|string %}
 
             <tr>
-              <td>{{ loop.index }}</td>
+              <td class="num muted">{{ loop.index }}</td>
 
               <td>
                 <strong>{{ c.name }}</strong>
@@ -79,16 +79,19 @@
                 </span>
               </td>
 
-              <td>{{ c.total_contacts or 0 }}</td>
-              <td>{{ c.completed_calls or 0 }}</td>
-              <td>{{ c.busy_calls or 0 }}</td>
-              <td>{{ c.no_answer_calls or 0 }}</td>
-              <td>{{ c.failed_calls or 0 }}</td>
-              <td>{{ c.created_at }}</td>
+              <td class="num">{{ c.total_contacts or 0 }}</td>
+              <td class="num">{{ c.completed_calls or 0 }}</td>
+              <td class="num">{{ c.busy_calls or 0 }}</td>
+              <td class="num">{{ c.no_answer_calls or 0 }}</td>
+              <td class="num">{{ c.failed_calls or 0 }}</td>
+
+              <td class="nowrap muted small-text">
+                {% if c.created_at %}{{ c.created_at.strftime('%Y-%m-%d %H:%M') }}{% else %}&mdash;{% endif %}
+              </td>
 
               <td>
                 <a class="btn btn-secondary" href="/web/campaigns/{{ c.id }}">
-                  Open
+                  Open<span class="sr-only"> campaign {{ c.name }}</span>
                 </a>
               </td>
             </tr>
@@ -96,7 +99,9 @@
             <tr>
               <td colspan="10">
                 <div class="empty-state">
-                  No campaigns yet.
+                  <strong>No campaigns yet</strong>
+                  <span>Create your first campaign to start broadcasting.</span>
+                  <a class="btn" href="/web/campaigns/new">Create campaign</a>
                 </div>
               </td>
             </tr>

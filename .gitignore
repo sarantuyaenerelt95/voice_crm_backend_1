@@ -16,3 +16,8 @@ audio/
 *.wav
 *.mp3
 .DS_Store
+
+# Editor and ad-hoc backups (nano .save files, dated .bak copies).
+*.save
+*.bak
+*.bak.*

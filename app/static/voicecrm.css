@@ -16,7 +16,7 @@
   --primary-dark: #163f9e;
   --primary-soft: #e8f0ff;
   --accent: #12a88a;
-  --accent-soft: #0a1512ff;
+  --accent-soft: #e6f7f3;
   --violet: #6958d7;
   --warning: #b7791f;
   --warning-soft: #fff7e6;
@@ -695,6 +695,7 @@ tr:hover td {
 .badge-failed, .badge-cancelled, .badge-rejected, .badge-not-available { background: var(--danger-soft); color: #8f2622; }
 .badge-busy, .badge-no_answer, .badge-congestion, .badge-unregistered { background: #fff1e6; color: #9a3412; }
 .badge-disabled, .badge-unknown { background: #e9eef5; color: #475569; }
+.badge-pending { background: #fef3c7; color: #92400e; }
 
 .form-grid {
   display: grid;
@@ -1224,22 +1225,305 @@ body.selecting-active {
     grid-template-columns: 1fr;
   }
 
-  .btn-danger {
-  background: #dc2626;
-  color: white;
-  }
   .btn,
   button.btn,
   .history-btn {
     white-space: normal;
   }
-  .badge-cancelled {
-  background: #fee2e2;
-  color: #991b1b;
+}
+
+/* ==========================================================================
+   UX refinements
+   Presentation only - no markup contracts, class names or behaviour depend
+   on anything below. Safe to delete this whole block to revert the look.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+  --focus-ring: 0 0 0 3px rgba(36, 87, 214, 0.35);
+}
+
+/* --- Keyboard accessibility -----------------------------------------------
+   Buttons and links previously had no visible focus indicator at all, so
+   keyboard and screen-reader users had no way to tell where they were. Only
+   :focus-visible is used, so mouse clicks stay visually unchanged. */
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.btn:focus-visible,
+.history-btn:focus-visible,
+.contact-card:focus-visible,
+.choice-card:focus-visible,
+.feature-card:focus-visible,
+.quick-action-card:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 8px;
+  box-shadow: var(--focus-ring);
+}
+
+/* Cards act as links; make them reachable and obviously interactive. */
+.feature-card,
+.quick-action-card,
+.contact-card,
+.choice-card {
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+/* Visually hidden, still announced by screen readers. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+/* Skip link - visually hidden until focused. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 10px 16px;
+  background: var(--primary);
+  color: #ffffff;
+  border-radius: 0 0 8px 0;
+  font-weight: 820;
+}
+
+.skip-link:focus {
+  left: 0;
+  color: #ffffff;
+}
+
+/* --- Numeric legibility ---------------------------------------------------
+   Counts and phone numbers line up column-to-column and stop "jittering"
+   as live campaign figures tick up. */
+
+.stat-value,
+.stat b,
+.console-metric strong,
+.preview-stat strong,
+.phone-text,
+.phone,
+td {
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Tables ---------------------------------------------------------------
+   Campaign and contact tables get long; keep headers visible while scrolling
+   and let numeric columns right-align for easier comparison. */
+
+.table-wrap {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f8fafc;
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+
+td.num,
+th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Row hover already exists; add a subtle zebra so wide rows stay trackable. */
+tbody tr:nth-child(even) td {
+  background: #fcfdff;
+}
+
+tbody tr:hover td {
+  background: #f2f7ff;
+}
+
+/* --- Status badges --------------------------------------------------------
+   A colour-coded dot makes state scannable at a glance and does not rely on
+   colour alone once paired with the existing text label. */
+
+.badge-draft::before,
+.badge-queued::before,
+.badge-running::before,
+.badge-calling::before,
+.badge-completed::before,
+.badge-active::before,
+.badge-registered::before,
+.badge-available::before,
+.badge-failed::before,
+.badge-cancelled::before,
+.badge-rejected::before,
+.badge-not-available::before,
+.badge-busy::before,
+.badge-no_answer::before,
+.badge-congestion::before,
+.badge-unregistered::before,
+.badge-pending::before,
+.badge-disabled::before,
+.badge-unknown::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: 0 0 auto;
+}
+
+/* In-flight states pulse gently so a running campaign reads as live. */
+.badge-running::before,
+.badge-calling::before,
+.badge-queued::before {
+  animation: vb-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes vb-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+
+/* --- Empty states ---------------------------------------------------------
+   Previously a bare sentence in a table cell; give it room and hierarchy. */
+
+.empty-state {
+  display: grid;
+  gap: 6px;
+  place-items: center;
+  padding: 44px 28px;
+  color: var(--muted);
+}
+
+.empty-state strong {
+  color: var(--text);
+  font-size: 16px;
+}
+
+.empty-state .btn {
+  margin-top: 8px;
+}
+
+/* --- Forms ----------------------------------------------------------------
+   Clearer affordance for required fields and disabled inputs. */
+
+label:has(+ input[required])::after,
+label.required::after {
+  content: " *";
+  color: var(--danger);
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background: #f1f5f9;
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+/* --- Navigation -----------------------------------------------------------
+   On narrow screens the nav previously stacked into a tall block that pushed
+   content off-screen. Scroll it horizontally instead. */
+
+@media (max-width: 860px) {
+  .nav-links {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    gap: 4px;
+    padding-bottom: 4px;
   }
 
-  .badge-pending {
-    background: #fef3c7;
-    color: #92400e;
+  .nav-links::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-links a,
+  .nav-logout button {
+    white-space: nowrap;
+  }
+
+  /* Comfortable touch targets. */
+  .btn,
+  button.btn,
+  .history-btn,
+  .nav-links a,
+  .nav-logout button {
+    min-height: 44px;
+  }
+
+  .table-wrap {
+    max-height: none;
+  }
+
+  thead th {
+    position: static;
+  }
+}
+
+/* --- Motion preferences ---------------------------------------------------
+   Respect users who ask the OS to reduce animation. */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .dashboard-actions-grid .action-card:hover,
+  .quick-action-card:hover {
+    transform: none;
+  }
+}
+
+/* --- Print ----------------------------------------------------------------
+   Campaign results get printed and PDF'd for reporting; drop the chrome. */
+
+@media print {
+  .top-nav,
+  .public-nav,
+  .actions,
+  .skip-link,
+  .monitor-controls {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff;
+  }
+
+  .card,
+  .stat,
+  .table-wrap {
+    box-shadow: none;
+    border-color: #cbd5e1;
+    break-inside: avoid;
+  }
+
+  .table-wrap {
+    max-height: none;
+    overflow: visible;
+  }
+
+  a {
+    color: var(--text);
   }
 }

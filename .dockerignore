@@ -1,37 +1,22 @@
-# Virtualenv built for the host: never copy into an image, it has host paths
-# baked into its scripts and is ~117MB.
 backend/
-venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.git/
 .venv/
-
-# Secrets: inject at runtime, never bake into a layer.
+venv/
+*.log
+# Secrets: inject at runtime via env_file, never bake into a layer.
+# The .env.* glob matters as much as .env itself - a stray .env.bak created
+# during an incident is still a full copy of every credential, and COPY . .
+# will happily bake it into the image.
 .env
 .env.*
 
-# Python noise
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.pytest_cache/
+# Editor and ad-hoc backups: never part of a build.
+*.bak
+*.bak.*
+*.save
+*~
 
-# Working files and backups
-*.bak_*
-*.broken
-*.log
-runtime/
-uploads/
-
-# Generated/large media
-audio/
-*.wav
-*.mp3
-
-# Archived code that is no longer part of the running system
 sms_module_archive/
-
-# VCS and editor
-.git/
-.gitignore
-.DS_Store
-*.swp

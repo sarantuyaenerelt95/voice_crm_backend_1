@@ -1,0 +1,60 @@
+# network_mode: host - containers share the host's real network stack, so
+# "localhost" inside them is the same localhost voicecrm-prod.service uses
+# natively. This replaced an earlier host.docker.internal-based setup: that
+# got DNS resolution right, but Postgres/Redis/Asterisk AMI are all bound to
+# 127.0.0.1 only on this host, which the docker bridge gateway (the address
+# host.docker.internal resolves to) cannot reach - every connection timed
+# out. Host networking sidesteps that without opening any of those services
+# (Redis has no auth, AMI is call-control) beyond loopback.
+#
+# Tradeoff: no per-container port remapping, so api1/api2 must bind their
+# ports directly via command overrides below, and stay off 0.0.0.0 or they'd
+# be the same "unauthenticated container reachable from the internet" bug
+# fixed earlier (Docker's iptables rules bypass ufw for anything on 0.0.0.0).
+#
+# The sounds bind mount is what lets uploaded audio reach Asterisk at all.
+# Asterisk runs on the host and resolves Playback(custom/...) relative to
+# astdatadir (/usr/share/asterisk), NOT astvarlibdir - so this exact path is
+# the only place it looks. Without the mount the app writes the .wav inside
+# the container, Asterisk never sees it, and the call answers and hangs up
+# silently while still recording as "completed".
+
+x-sounds-mount: &sounds-mount
+  - /usr/share/asterisk/sounds/mn/custom:/usr/share/asterisk/sounds/mn/custom
+
+services:
+  api1:
+    build: .
+    image: voice-crm:latest
+    restart: unless-stopped
+    env_file: .env
+    network_mode: host
+    volumes: *sounds-mount
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8003
+
+  api2:
+    image: voice-crm:latest
+    restart: unless-stopped
+    env_file: .env
+    network_mode: host
+    volumes: *sounds-mount
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8004
+    depends_on: [api1]
+
+  celery:
+    image: voice-crm:latest
+    restart: unless-stopped
+    env_file: .env
+    network_mode: host
+    volumes: *sounds-mount
+    command: celery -A app.celery_app worker --loglevel=info --concurrency=1
+    depends_on: [api1]
+
+  listener:
+    image: voice-crm:latest
+    restart: unless-stopped
+    env_file: .env
+    network_mode: host
+    volumes: *sounds-mount
+    command: python run_listener.py
+    depends_on: [api1]

@@ -21,7 +21,7 @@ from app.models.campaign_target import CampaignTarget
 # The Celery stuck-call sweeper must wait LONGER than this, otherwise it
 # marks a call as congestion while Asterisk is still legitimately ringing.
 # See MIN_STUCK_CALL_TIMEOUT_SEC in app/tasks/campaign_tasks.py.
-ORIGINATE_TIMEOUT_SEC = 30.0
+ORIGINATE_TIMEOUT_SEC = 20.0
 
 
 class AsteriskService:

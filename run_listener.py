@@ -18,6 +18,7 @@ from app.services.call_signal import signal_call_done
 
 
 RTP_TIMEOUT_CAUSE = 44
+NORMAL_CLEARING_CAUSE = 16          # <-- add this lin
 RTP_TIMEOUT_DELAY_SEC = 6.0
 
 FINAL_STATUSES = {
@@ -67,6 +68,14 @@ def classify_status(cause_code, answered=False):
     if answered:
         return CallStatus.completed
 
+    # Cause 0 = "Unknown": Asterisk never got a real cause code back before
+    # the channel tore down. Treat it as no_answer instead of falling through
+    # to the generic `failed` default at the bottom - otherwise this silently
+    # overwrites a more informative earlier guess (e.g. OriginateResponse's
+    # Reason:3 -> no_answer) with a less informative one.
+    if cause_code == 0:
+        return CallStatus.no_answer
+
     # Normal clearing without answer evidence should not be completed.
     if cause_code == 16:
         return CallStatus.no_answer
@@ -107,20 +116,31 @@ def classify_originate_failure(reason_code: int) -> CallStatus:
 def calculate_duration_sec(answered_at, ended_at, cause_code: int, audio_duration) -> float:
     """How many seconds of the message the person actually heard.
 
-    Starts from time-on-call (answered -> ended), then removes the parts that
-    were not listening:
+    Time-on-call (answered -> ended), minus RTP_TIMEOUT_DELAY_SEC, applied to
+    both cause 44 and cause 16.
 
-      * cause 44 (RTP timeout): the callee's audio stopped RTP_TIMEOUT_DELAY_SEC
-        before Asterisk declared the timeout. That trailing window is detection
-        lag, not listening.
-      * Anything past the end of the audio file. The dialplan runs System() and
-        UserEvent() after Playback finishes and before Hangup, so a caller who
-        heard the whole message still shows slightly more than the audio length.
-        You cannot hear more of a message than it contains, so cap it.
+    For cause 44 (RTP timeout) this is exact: the callee's audio stopped that
+    many seconds before Asterisk declared the timeout, so it is measured
+    detection lag, not listening.
 
-    Note: this is time-on-call based, not playback based, so it still includes
-    the few dialplan steps between Answer() and Playback() starting. Making it
-    exact would require tracking the UserEvent(PlaybackDone) the dialplan emits.
+    For cause 16 it is a deliberate approximation, not a measured lag. A full
+    completion (our own Hangup() right after Playback() finishes) and a real
+    early hangup near the RTP-timeout boundary produce almost the same raw
+    duration and are otherwise indistinguishable - confirmed 2026-07-31,
+    CHANNEL(rtpqos,audio,local_count) returns empty both mid-call and at
+    hangup, so there is no way to measure this directly on this system.
+    Subtracting the same flat buffer trims that uncertain window uniformly
+    instead of trusting an ambiguous number verbatim. Tradeoff accepted: a
+    genuine short cause-16 hangup (clean early BYE, no ambiguity) now also
+    reports RTP_TIMEOUT_DELAY_SEC less than it actually lasted.
+
+    Not capped to the audio file's length. Dialplan overhead between Playback
+    finishing and Hangup means a full completion can show slightly more than
+    audio_duration - RTP_TIMEOUT_DELAY_SEC; that overshoot is left as-is
+    rather than masked.
+
+    audio_duration is accepted for signature compatibility with existing
+    callers but is no longer used.
     """
     if not answered_at or not ended_at:
         return 0
@@ -134,22 +154,13 @@ def calculate_duration_sec(answered_at, ended_at, cause_code: int, audio_duratio
 
     listened = raw_duration
 
-    if cause_code == RTP_TIMEOUT_CAUSE:
+    if cause_code in (RTP_TIMEOUT_CAUSE, NORMAL_CLEARING_CAUSE):
         listened -= RTP_TIMEOUT_DELAY_SEC
 
     if listened <= 0:
         return 0
 
-    try:
-        audio_sec = float(audio_duration or 0)
-    except (TypeError, ValueError):
-        audio_sec = 0
-
-    if audio_sec > 0:
-        listened = min(listened, audio_sec)
-
     return round(listened, 2)
-
 
 def extract_call_log_id_from_event(event: dict):
     direct_keys = [

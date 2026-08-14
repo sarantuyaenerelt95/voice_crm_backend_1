@@ -18,7 +18,13 @@ class Settings(BaseSettings):
 
     # Filesystem locations. These are host paths by default; in a container they
     # must point at mounted volumes shared with Asterisk.
-    ASTERISK_SOUNDS_DIR: str = "/var/lib/asterisk/sounds/mn/custom"
+    #
+    # ASTERISK_SOUNDS_DIR must sit under Asterisk's astdatadir (/usr/share/asterisk
+    # in a default install), NOT astvarlibdir (/var/lib/asterisk). Playback()
+    # resolves relative to astdatadir, so audio written under /var/lib is never
+    # found: the call answers, plays silence, hangs up, and is still recorded as
+    # completed. Check the [directories] block in asterisk.conf before changing.
+    ASTERISK_SOUNDS_DIR: str = "/usr/share/asterisk/sounds/mn/custom"
     AUDIO_TEMP_DIR: str = "/tmp"
     TRUNK_CONFIG_FILE: str = "/home/voice_test/voice_crm_backend/runtime/pjsip_voicecrm_trunks.conf"
 
@@ -51,12 +57,14 @@ class Settings(BaseSettings):
     SMTP_USE_TLS: bool = True
     PASSWORD_RESET_BASE_URL: str = "http://64.119.31.106:8001"
 
-    # TEMPORARY bridge while the SMTP provider (Brevo) hasn't activated the
-    # account yet: if the email fails to send, show the code directly on the
-    # page instead of leaving the user with no way to get it. This must be
-    # False once real email delivery is confirmed working - it is a debug
-    # aid, not something to ship to real users who aren't also the admin
-    # testing the feature.
+    # Debug aid for when outbound email is broken: if the send fails, log the
+    # reset code to the container log so an admin with server access can still
+    # complete a reset. It is written ONLY to the server log - never to the
+    # HTTP response, because putting it on the page would let anyone who knows
+    # a user's email pull that account's reset code without inbox access.
+    #
+    # Added while Brevo had not activated the SMTP account. Outbound mail now
+    # goes through Gmail and works, so this should stay False.
     DEV_SHOW_RESET_CODE_ON_SEND_FAILURE: bool = False
 
     model_config = SettingsConfigDict(

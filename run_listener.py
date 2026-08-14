@@ -18,8 +18,13 @@ from app.services.call_signal import signal_call_done
 
 
 RTP_TIMEOUT_CAUSE = 44
-NORMAL_CLEARING_CAUSE = 16          # <-- add this lin
+NORMAL_CLEARING_CAUSE = 16
 RTP_TIMEOUT_DELAY_SEC = 6.0
+
+# How close raw channel time has to get to the audio file's length before we
+# call it a full playback. Covers dialplan overhead between Playback()
+# finishing and Hangup(), plus AMI event timestamping jitter.
+FULL_PLAYBACK_TOLERANCE_SEC = 1.5
 
 FINAL_STATUSES = {
     CallStatus.completed,
@@ -116,31 +121,24 @@ def classify_originate_failure(reason_code: int) -> CallStatus:
 def calculate_duration_sec(answered_at, ended_at, cause_code: int, audio_duration) -> float:
     """How many seconds of the message the person actually heard.
 
-    Time-on-call (answered -> ended), minus RTP_TIMEOUT_DELAY_SEC, applied to
-    both cause 44 and cause 16.
+    Starts from time-on-call (answered -> ended) and adjusts per hangup cause.
 
-    For cause 44 (RTP timeout) this is exact: the callee's audio stopped that
-    many seconds before Asterisk declared the timeout, so it is measured
-    detection lag, not listening.
+    Full playback is detected by comparing raw channel time against the audio
+    file's length. If the message ran to the end, the whole thing was heard,
+    so report the file's length - raw time also includes dialplan overhead.
 
-    For cause 16 it is a deliberate approximation, not a measured lag. A full
-    completion (our own Hangup() right after Playback() finishes) and a real
-    early hangup near the RTP-timeout boundary produce almost the same raw
-    duration and are otherwise indistinguishable - confirmed 2026-07-31,
-    CHANNEL(rtpqos,audio,local_count) returns empty both mid-call and at
-    hangup, so there is no way to measure this directly on this system.
-    Subtracting the same flat buffer trims that uncertain window uniformly
-    instead of trusting an ambiguous number verbatim. Tradeoff accepted: a
-    genuine short cause-16 hangup (clean early BYE, no ambiguity) now also
-    reports RTP_TIMEOUT_DELAY_SEC less than it actually lasted.
+    An earlier version subtracted RTP_TIMEOUT_DELAY_SEC from cause 16 as well
+    as cause 44, on the grounds that a full completion and an early hangup near
+    the RTP-timeout boundary were indistinguishable. They are distinguishable:
+    a full completion lands within FULL_PLAYBACK_TOLERANCE_SEC of
+    audio_duration, an early hangup lands well short of it. That blanket
+    subtraction under-reported every completed call by 6s and reported 0.00 for
+    any message shorter than 6s - which is most TTS clips.
 
-    Not capped to the audio file's length. Dialplan overhead between Playback
-    finishing and Hangup means a full completion can show slightly more than
-    audio_duration - RTP_TIMEOUT_DELAY_SEC; that overshoot is left as-is
-    rather than masked.
-
-    audio_duration is accepted for signature compatibility with existing
-    callers but is no longer used.
+    For cause 44 (RTP timeout) the subtraction stays: the callee's audio
+    genuinely stopped that many seconds before Asterisk declared the timeout,
+    so that tail is measured detection lag, not listening. A cause 16 BYE is
+    immediate and needs no such adjustment.
     """
     if not answered_at or not ended_at:
         return 0
@@ -152,13 +150,23 @@ def calculate_duration_sec(answered_at, ended_at, cause_code: int, audio_duratio
     if raw_duration <= 0:
         return 0
 
+    audio = float(audio_duration or 0)
+
+    # Ran to the end of the file: everything was heard.
+    if audio > 0 and raw_duration >= audio - FULL_PLAYBACK_TOLERANCE_SEC:
+        return round(audio, 2)
+
     listened = raw_duration
 
-    if cause_code in (RTP_TIMEOUT_CAUSE, NORMAL_CLEARING_CAUSE):
+    if cause_code == RTP_TIMEOUT_CAUSE:
         listened -= RTP_TIMEOUT_DELAY_SEC
 
     if listened <= 0:
         return 0
+
+    # Cannot have heard more of the message than the message contains.
+    if audio > 0:
+        listened = min(listened, audio)
 
     return round(listened, 2)
 

@@ -4,9 +4,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Upload Audio | Voicebro</title>
+  <title>Audio Library | Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/voicecrm.css?v=20260808-ux-1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260824-audio-2">
 </head>
 
 <body>
@@ -18,9 +18,9 @@
   <div class="page-header">
     <div>
       <p class="page-eyebrow">Audio Library</p>
-      <h1>Upload Audio</h1>
+      <h1>Audio</h1>
       <p class="muted">
-        Upload campaign audio. The system converts it to 8kHz mono WAV for Asterisk playback.
+        Record your own voice, upload a file, or generate speech from text.
       </p>
     </div>
 
@@ -35,9 +35,15 @@
     </div>
   {% endif %}
 
+  {% if notice %}
+    <div class="alert alert-success">
+      {{ notice }}
+    </div>
+  {% endif %}
+
   {% if result %}
     <div class="card result">
-      <h2>Upload Result</h2>
+      <h2>Saved</h2>
 
       <div class="grid grid-4">
         <div class="stat">
@@ -46,7 +52,7 @@
         </div>
 
         <div class="stat">
-          <div>Filename</div>
+          <div>Name</div>
           <b class="small-text">{{ result.filename }}</b>
         </div>
 
@@ -56,20 +62,56 @@
           <span class="muted small-text">seconds</span>
         </div>
 
-        <div class="stat">
-          <div>Playback</div>
-          <code>{{ result.playback_name }}</code>
-        </div>
       </div>
     </div>
   {% endif %}
+
+  <div class="card">
+    <h2>Record Your Voice</h2>
+
+    <div class="alert alert-info">
+      Your browser will ask for microphone permission the first time.
+      Maximum length: <b>5 minutes</b>.
+    </div>
+
+    <div id="recorderUnsupported" class="alert alert-error" style="display:none">
+      This browser cannot record audio on this page. You can still upload a file below.
+    </div>
+
+    <div id="recorderBox">
+      <div class="audio-recorder">
+        <button class="btn" type="button" id="recStart">● Start recording</button>
+        <button class="btn btn-danger" type="button" id="recStop" disabled>■ Stop</button>
+        <span class="rec-timer" id="recTimer">00:00</span>
+        <span class="rec-dot" id="recDot" aria-hidden="true"></span>
+      </div>
+
+      <div id="recStatus" class="small-text muted" style="margin-top:10px"></div>
+
+      <div class="soft-panel" id="recPreview" style="display:none; margin-top:14px">
+        <label>Listen back before saving</label>
+        <audio id="recPlayer" controls class="audio-player"></audio>
+
+        <div class="form-grid" style="margin-top:12px">
+          <div>
+            <label for="recName">Name this recording</label>
+            <input type="text" id="recName" maxlength="200" placeholder="Morning promo message">
+          </div>
+
+          <div class="actions">
+            <button class="btn" type="button" id="recSave">Save to library</button>
+            <button class="btn btn-secondary" type="button" id="recDiscard">Discard</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="card">
     <h2>Upload New Audio</h2>
 
     <div class="alert alert-info">
       Supported formats: <b>mp3, wav, m4a, ogg, flac, gsm</b>.
-      Output format: <b>8kHz mono WAV</b>.
       Maximum duration: <b>5 minutes</b>.
     </div>
 
@@ -91,8 +133,7 @@
     <h2>Generate from Text (Text-to-Speech)</h2>
 
     <div class="alert alert-info">
-      Type the message text below. The system generates speech audio and converts
-      it to 8kHz mono WAV for Asterisk playback, same as an upload.
+      Type the message text below and choose a voice.
     </div>
 
     <form class="form-grid" method="post" action="/web/audio/tts">
@@ -122,7 +163,7 @@
       <div>
         <h2>Audio Files</h2>
         <p class="muted small-text">
-          Only active audio files are shown. Deleted audio will not be used for future campaigns.
+          Play any file, rename it, or cut a section out of it.
         </p>
       </div>
     </div>
@@ -132,20 +173,21 @@
         <thead>
           <tr>
             <th>No.</th>
-            <th>Filename</th>
+            <th>Name</th>
             <th>Duration</th>
-            <th>Playback Name</th>
+            <th>Listen</th>
             <th>Action</th>
           </tr>
         </thead>
 
         <tbody>
           {% for audio in audio_files %}
-            {% set playback_name = audio.filename.rsplit('.', 1)[0] if '.' in audio.filename else audio.filename %}
-
             <tr>
               <td>{{ loop.index }}</td>
-              <td>{{ audio.filename }}</td>
+              <td>
+                <b>{{ audio.label }}</b>
+                <div class="muted small-text">{{ audio.filename }}</div>
+              </td>
               <td>
                 {% if audio.duration_sec %}
                   {{ audio.duration_sec }} sec
@@ -153,23 +195,125 @@
                   -
                 {% endif %}
               </td>
-              <td><code>custom/{{ playback_name }}</code></td>
               <td>
-                <form class="inline-form"
-                      method="post"
-                      action="/web/audio/{{ audio.id }}/delete"
-                      onsubmit="return confirm('Delete this audio from future campaigns? Old reports will remain.');">
-                  <button type="submit" class="btn btn-danger">
-                    Delete
+                <audio class="audio-player"
+                       id="player-{{ audio.id }}"
+                       controls
+                       preload="none"
+                       src="/web/audio/{{ audio.id }}/stream"></audio>
+              </td>
+              <td>
+                <div class="row-actions">
+                  <button class="btn btn-secondary btn-sm"
+                          type="button"
+                          data-toggle-panel="panel-{{ audio.id }}">
+                    Edit
                   </button>
-                </form>
+
+                  <a class="btn btn-secondary btn-sm"
+                     href="/web/audio/{{ audio.id }}/stream"
+                     download>
+                    Download
+                  </a>
+
+                  <form class="inline-form"
+                        method="post"
+                        action="/web/audio/{{ audio.id }}/delete"
+                        onsubmit="return confirm('Delete this audio from future campaigns? Old reports will remain.');">
+                    <button type="submit" class="btn btn-danger btn-sm">
+                      Delete
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+
+            <tr class="audio-panel-row" id="panel-{{ audio.id }}" style="display:none">
+              <td colspan="5">
+                <div class="audio-panel">
+
+                  <form class="audio-panel-block"
+                        method="post"
+                        action="/web/audio/{{ audio.id }}/rename">
+                    <label for="rename-{{ audio.id }}">Rename</label>
+
+                    <div class="rename-row">
+                      <input type="text"
+                             id="rename-{{ audio.id }}"
+                             name="display_name"
+                             maxlength="200"
+                             value="{{ audio.display_name or '' }}"
+                             placeholder="{{ audio.filename }}">
+                      <button class="btn btn-sm" type="submit">Save name</button>
+                    </div>
+                  </form>
+
+                  <form class="audio-panel-block trim-form"
+                        method="post"
+                        action="/web/audio/{{ audio.id }}/trim"
+                        data-audio-id="{{ audio.id }}"
+                        data-duration="{{ audio.duration_sec or 0 }}">
+                    <label>Trim</label>
+
+                    <div class="trim-grid">
+                      <div>
+                        <label class="small-text" for="trim-start-{{ audio.id }}">
+                          Start — <span class="trim-readout" data-readout="start">0:00.0</span>
+                        </label>
+                        <input type="range"
+                               id="trim-start-{{ audio.id }}"
+                               class="trim-range"
+                               data-role="start"
+                               min="0"
+                               max="{{ audio.duration_sec or 0 }}"
+                               step="0.1"
+                               value="0">
+                      </div>
+
+                      <div>
+                        <label class="small-text" for="trim-end-{{ audio.id }}">
+                          End — <span class="trim-readout" data-readout="end">0:00.0</span>
+                        </label>
+                        <input type="range"
+                               id="trim-end-{{ audio.id }}"
+                               class="trim-range"
+                               data-role="end"
+                               min="0"
+                               max="{{ audio.duration_sec or 0 }}"
+                               step="0.1"
+                               value="{{ audio.duration_sec or 0 }}">
+                      </div>
+                    </div>
+
+                    <input type="hidden" name="start_sec" data-field="start" value="0">
+                    <input type="hidden" name="end_sec" data-field="end" value="{{ audio.duration_sec or 0 }}">
+
+                    <div class="trim-actions">
+                      <button class="btn btn-secondary btn-sm" type="button" data-action="preview">
+                        ▶ Preview selection
+                      </button>
+
+                      <span class="muted small-text">
+                        Keeps <b class="trim-readout" data-readout="length">0:00.0</b>
+                      </span>
+
+                      <label class="checkbox-inline">
+                        <input type="checkbox" name="replace_original" value="1">
+                        Replace the original
+                      </label>
+
+                      <button class="btn btn-sm" type="submit">Save trimmed copy</button>
+                    </div>
+                  </form>
+
+                </div>
               </td>
             </tr>
           {% else %}
             <tr>
               <td colspan="5">
                 <div class="empty-state">
-                  No audio files uploaded yet.
+                  No audio files yet. Record your voice, upload a file, or generate one from text.
                 </div>
               </td>
             </tr>
@@ -180,6 +324,306 @@
   </div>
 
 </div>
+
+<script>
+(function () {
+  "use strict";
+
+  var MAX_RECORD_SEC = 300;
+
+  function formatTime(seconds) {
+    var value = Math.max(0, Number(seconds) || 0);
+    var mins = Math.floor(value / 60);
+    var secs = value % 60;
+    return mins + ":" + (secs < 10 ? "0" : "") + secs.toFixed(1);
+  }
+
+  function formatClock(seconds) {
+    var value = Math.max(0, Math.floor(Number(seconds) || 0));
+    var mins = String(Math.floor(value / 60)).padStart(2, "0");
+    var secs = String(value % 60).padStart(2, "0");
+    return mins + ":" + secs;
+  }
+
+  /* ---------- Edit panel toggle ---------- */
+
+  document.querySelectorAll("[data-toggle-panel]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var panel = document.getElementById(button.getAttribute("data-toggle-panel"));
+      if (!panel) return;
+
+      var isHidden = panel.style.display === "none";
+      panel.style.display = isHidden ? "table-row" : "none";
+      button.textContent = isHidden ? "Close" : "Edit";
+    });
+  });
+
+  /* ---------- Trim controls ---------- */
+
+  document.querySelectorAll(".trim-form").forEach(function (form) {
+    var audioId = form.getAttribute("data-audio-id");
+    var player = document.getElementById("player-" + audioId);
+    var startRange = form.querySelector('[data-role="start"]');
+    var endRange = form.querySelector('[data-role="end"]');
+    var startField = form.querySelector('[data-field="start"]');
+    var endField = form.querySelector('[data-field="end"]');
+    var readouts = {
+      start: form.querySelector('[data-readout="start"]'),
+      end: form.querySelector('[data-readout="end"]'),
+      length: form.querySelector('[data-readout="length"]')
+    };
+
+    // The stored duration is a rounded estimate; once the browser has decoded
+    // the file its own duration is exact, so the sliders adopt it.
+    if (player) {
+      player.addEventListener("loadedmetadata", function () {
+        if (!isFinite(player.duration) || player.duration <= 0) return;
+
+        var wasAtEnd = Number(endRange.value) >= Number(endRange.max);
+        startRange.max = player.duration;
+        endRange.max = player.duration;
+        if (wasAtEnd) endRange.value = player.duration;
+        sync();
+      });
+    }
+
+    function sync() {
+      var start = Number(startRange.value) || 0;
+      var end = Number(endRange.value) || 0;
+
+      if (start > end) {
+        // Whichever handle the user is dragging wins; the other follows it.
+        if (document.activeElement === startRange) {
+          end = start;
+          endRange.value = end;
+        } else {
+          start = end;
+          startRange.value = start;
+        }
+      }
+
+      startField.value = start.toFixed(2);
+      endField.value = end.toFixed(2);
+
+      readouts.start.textContent = formatTime(start);
+      readouts.end.textContent = formatTime(end);
+      readouts.length.textContent = formatTime(end - start);
+    }
+
+    startRange.addEventListener("input", sync);
+    endRange.addEventListener("input", sync);
+    sync();
+
+    form.querySelector('[data-action="preview"]').addEventListener("click", function () {
+      if (!player) return;
+
+      var start = Number(startField.value) || 0;
+      var end = Number(endField.value) || 0;
+
+      if (end <= start) return;
+
+      function stopAtEnd() {
+        if (player.currentTime >= end) {
+          player.pause();
+          player.removeEventListener("timeupdate", stopAtEnd);
+        }
+      }
+
+      player.pause();
+      player.currentTime = start;
+      player.addEventListener("timeupdate", stopAtEnd);
+      player.play();
+    });
+
+    form.addEventListener("submit", function (event) {
+      var length = (Number(endField.value) || 0) - (Number(startField.value) || 0);
+
+      if (length < 0.5) {
+        event.preventDefault();
+        alert("The selected section is too short. Please keep at least 0.5 seconds.");
+      }
+    });
+  });
+
+  /* ---------- Microphone recorder ---------- */
+
+  var startBtn = document.getElementById("recStart");
+  var stopBtn = document.getElementById("recStop");
+  var timerEl = document.getElementById("recTimer");
+  var dotEl = document.getElementById("recDot");
+  var statusEl = document.getElementById("recStatus");
+  var previewEl = document.getElementById("recPreview");
+  var playerEl = document.getElementById("recPlayer");
+  var nameEl = document.getElementById("recName");
+  var saveBtn = document.getElementById("recSave");
+  var discardBtn = document.getElementById("recDiscard");
+
+  var canRecord = !!(navigator.mediaDevices &&
+                     navigator.mediaDevices.getUserMedia &&
+                     window.MediaRecorder);
+
+  if (!canRecord) {
+    document.getElementById("recorderUnsupported").style.display = "block";
+    document.getElementById("recorderBox").style.display = "none";
+    return;
+  }
+
+  var recorder = null;
+  var stream = null;
+  var chunks = [];
+  var recordedBlob = null;
+  var tickHandle = null;
+  var elapsed = 0;
+
+  function setStatus(text, kind) {
+    statusEl.className = kind ? "alert alert-" + kind : "small-text muted";
+    statusEl.textContent = text || "";
+  }
+
+  function releaseStream() {
+    if (stream) {
+      stream.getTracks().forEach(function (track) { track.stop(); });
+      stream = null;
+    }
+  }
+
+  function stopTimer() {
+    if (tickHandle) {
+      clearInterval(tickHandle);
+      tickHandle = null;
+    }
+    dotEl.classList.remove("is-live");
+  }
+
+  function pickMimeType() {
+    var candidates = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/ogg;codecs=opus",
+      "audio/mp4"
+    ];
+
+    for (var i = 0; i < candidates.length; i++) {
+      if (MediaRecorder.isTypeSupported(candidates[i])) return candidates[i];
+    }
+
+    return "";
+  }
+
+  function extensionFor(mimeType) {
+    if (mimeType.indexOf("ogg") !== -1) return ".ogg";
+    if (mimeType.indexOf("mp4") !== -1) return ".mp4";
+    return ".webm";
+  }
+
+  startBtn.addEventListener("click", async function () {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      setStatus("Microphone access was blocked: " + err.message, "error");
+      return;
+    }
+
+    var mimeType = pickMimeType();
+    chunks = [];
+    recordedBlob = null;
+    previewEl.style.display = "none";
+
+    try {
+      recorder = mimeType ? new MediaRecorder(stream, { mimeType: mimeType })
+                          : new MediaRecorder(stream);
+    } catch (err) {
+      releaseStream();
+      setStatus("Could not start the recorder: " + err.message, "error");
+      return;
+    }
+
+    recorder.addEventListener("dataavailable", function (event) {
+      if (event.data && event.data.size > 0) chunks.push(event.data);
+    });
+
+    recorder.addEventListener("stop", function () {
+      stopTimer();
+      releaseStream();
+
+      recordedBlob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+
+      if (playerEl.src) URL.revokeObjectURL(playerEl.src);
+      playerEl.src = URL.createObjectURL(recordedBlob);
+
+      previewEl.style.display = "block";
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      setStatus("Recorded " + formatClock(elapsed) + ". Listen back, then save it.");
+    });
+
+    elapsed = 0;
+    timerEl.textContent = "00:00";
+    dotEl.classList.add("is-live");
+
+    tickHandle = setInterval(function () {
+      elapsed += 1;
+      timerEl.textContent = formatClock(elapsed);
+
+      if (elapsed >= MAX_RECORD_SEC) {
+        setStatus("Reached the 5 minute limit, stopped automatically.");
+        if (recorder && recorder.state === "recording") recorder.stop();
+      }
+    }, 1000);
+
+    recorder.start();
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    setStatus("Recording...");
+  });
+
+  stopBtn.addEventListener("click", function () {
+    if (recorder && recorder.state === "recording") recorder.stop();
+  });
+
+  discardBtn.addEventListener("click", function () {
+    recordedBlob = null;
+    chunks = [];
+    previewEl.style.display = "none";
+    if (playerEl.src) URL.revokeObjectURL(playerEl.src);
+    playerEl.removeAttribute("src");
+    timerEl.textContent = "00:00";
+    setStatus("Recording discarded.");
+  });
+
+  saveBtn.addEventListener("click", async function () {
+    if (!recordedBlob) {
+      setStatus("Record something first.", "error");
+      return;
+    }
+
+    var mimeType = recordedBlob.type || "audio/webm";
+    var body = new FormData();
+    body.append("file", recordedBlob, "recording" + extensionFor(mimeType));
+    body.append("name", nameEl.value || "");
+
+    saveBtn.disabled = true;
+    setStatus("Saving and converting...", "info");
+
+    try {
+      var response = await fetch("/web/audio/record", { method: "POST", body: body });
+      var data = await response.json();
+
+      if (!response.ok) {
+        setStatus(data.detail || "Saving the recording failed.", "error");
+        saveBtn.disabled = false;
+        return;
+      }
+
+      window.location.href = data.redirect;
+
+    } catch (err) {
+      setStatus("Saving the recording failed: " + err.message, "error");
+      saveBtn.disabled = false;
+    }
+  });
+})();
+</script>
 
 </body>
 </html>

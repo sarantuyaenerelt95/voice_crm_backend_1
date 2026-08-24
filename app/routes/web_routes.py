@@ -18,7 +18,13 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request, Depends, HTTPException, Form, UploadFile, File, Query
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    StreamingResponse,
+)
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
@@ -61,11 +67,131 @@ templates = Jinja2Templates(directory="app/templates")
 ASTERISK_SOUNDS_DIR = settings.ASTERISK_SOUNDS_DIR
 ALLOWED_EXTENSIONS = {".mp3", ".wav", ".m4a", ".ogg", ".flac", ".gsm"}
 
+# What MediaRecorder can hand us: Chrome/Edge produce webm/opus, Firefox ogg,
+# Safari mp4/aac. The container is irrelevant after ffmpeg converts it.
+RECORDING_EXTENSIONS = {".webm", ".ogg", ".oga", ".mp4", ".m4a", ".wav", ".mp3"}
+
+RECORDING_MIME_EXTENSIONS = {
+    "audio/webm": ".webm",
+    "video/webm": ".webm",
+    "audio/ogg": ".ogg",
+    "audio/mp4": ".mp4",
+    "video/mp4": ".mp4",
+    "audio/mpeg": ".mp3",
+    "audio/wav": ".wav",
+    "audio/x-wav": ".wav",
+    "audio/wave": ".wav",
+}
+
+# A trim shorter than this is almost always a mis-drag rather than an edit.
+MIN_TRIM_DURATION_SEC = 0.5
+
+# Fixed codes instead of free text so nothing a caller puts in the query
+# string ends up rendered back on the page.
+AUDIO_PAGE_NOTICES = {
+    "renamed": "Audio name updated.",
+    "trimmed": "Trimmed copy saved, and the original was removed from the library.",
+    "trimmed_kept": (
+        "Trimmed copy saved. The original is still attached to a campaign, "
+        "so it was kept in the library."
+    ),
+    "trimmed_new": "Trimmed copy saved as a new audio file.",
+}
+
 
 def safe_audio_name(filename: str) -> str:
     base = Path(filename).stem.lower()
     base = re.sub(r"[^a-z0-9_]+", "_", base)
     return base.strip("_") or "audio"
+
+
+def active_audio_files(db: Session, company_id: int):
+    return db.query(AudioFile).filter(
+        AudioFile.company_id == company_id,
+        AudioFile.is_active == True,
+    ).order_by(
+        AudioFile.created_at.asc(),
+        AudioFile.id.asc(),
+    ).all()
+
+
+def get_company_audio(
+    db: Session,
+    company_id: int,
+    audio_id: int,
+    active_only: bool = True,
+) -> AudioFile:
+    query = db.query(AudioFile).filter(
+        AudioFile.id == audio_id,
+        AudioFile.company_id == company_id,
+    )
+
+    if active_only:
+        query = query.filter(AudioFile.is_active == True)
+
+    audio = query.first()
+
+    if not audio:
+        raise HTTPException(status_code=404, detail="Audio file not found")
+
+    return audio
+
+
+def register_audio_file(
+    db: Session,
+    company_id: int,
+    unique_name: str,
+    output_path: str,
+    source: AudioSource,
+    tts_text: Optional[str] = None,
+    display_name: Optional[str] = None,
+) -> AudioFile:
+    """Measure a freshly converted WAV, enforce the quotas, and store the row.
+
+    Shared by upload, text-to-speech, recording and trimming so all four apply
+    the same duration and storage limits.
+    """
+    os.chmod(output_path, 0o644)
+
+    duration_sec = AudioConverter.get_duration_sec(output_path)
+    check_audio_duration(duration_sec)
+
+    file_size_bytes = os.path.getsize(output_path)
+    check_audio_storage_capacity(db, company_id, file_size_bytes)
+
+    audio = AudioFile(
+        company_id=company_id,
+        filename=unique_name,
+        display_name=(display_name or None),
+        file_path=output_path,
+        source=source,
+        tts_text=tts_text,
+        duration_sec=duration_sec,
+        file_size_bytes=file_size_bytes,
+        is_active=True,
+    )
+
+    db.add(audio)
+    db.commit()
+    db.refresh(audio)
+
+    return audio
+
+
+def audio_result_payload(db: Session, company_id: int, audio: AudioFile) -> dict:
+    """The "here is what you just saved" banner data for the audio page."""
+    display_map = {
+        audio_item.id: index
+        for index, audio_item in enumerate(active_audio_files(db, company_id), start=1)
+    }
+
+    return {
+        "id": audio.id,
+        "display_id": display_map.get(audio.id, 0),
+        "filename": audio.label,
+        "duration_sec": audio.duration_sec,
+        "playback_name": audio.playback_name,
+    }
 
 
 def has_model_column(model, column_name: str) -> bool:
@@ -550,13 +676,7 @@ def web_new_campaign(
 ):
     user = get_current_web_user(request, db)
 
-    audio_files = db.query(AudioFile).filter(
-        AudioFile.company_id == user.company_id,
-        AudioFile.is_active == True,
-    ).order_by(
-        AudioFile.created_at.asc(),
-        AudioFile.id.asc(),
-    ).all()
+    audio_files = active_audio_files(db, user.company_id)
 
     active_contacts_count = db.query(Contact).filter(
         Contact.company_id == user.company_id,
@@ -1691,17 +1811,24 @@ def web_contact_group_detail(
 @router.get("/audio/upload", response_class=HTMLResponse)
 def web_upload_audio_page(
     request: Request,
+    saved: Optional[int] = Query(None),
+    msg: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
     user = get_current_web_user(request, db)
 
-    audio_files = db.query(AudioFile).filter(
-        AudioFile.company_id == user.company_id,
-        AudioFile.is_active == True,
-    ).order_by(
-        AudioFile.created_at.asc(),
-        AudioFile.id.asc(),
-    ).all()
+    audio_files = active_audio_files(db, user.company_id)
+
+    result = None
+
+    if saved:
+        saved_audio = next(
+            (item for item in audio_files if item.id == saved),
+            None,
+        )
+
+        if saved_audio:
+            result = audio_result_payload(db, user.company_id, saved_audio)
 
     return templates.TemplateResponse(
         "audio_upload.html",
@@ -1709,7 +1836,8 @@ def web_upload_audio_page(
             "request": request,
             "user": user,
             "audio_files": audio_files,
-            "result": None,
+            "result": result,
+            "notice": AUDIO_PAGE_NOTICES.get(msg or ""),
             "error": None,
         },
     )
@@ -1724,21 +1852,14 @@ def web_upload_audio(
     user = get_current_web_user(request, db)
 
     def render(error: str | None, result: dict | None = None):
-        audio_files = db.query(AudioFile).filter(
-            AudioFile.company_id == user.company_id,
-            AudioFile.is_active == True,
-        ).order_by(
-            AudioFile.created_at.asc(),
-            AudioFile.id.asc(),
-        ).all()
-
         return templates.TemplateResponse(
             "audio_upload.html",
             {
                 "request": request,
                 "user": user,
-                "audio_files": audio_files,
+                "audio_files": active_audio_files(db, user.company_id),
                 "result": result,
+                "notice": None,
                 "error": error,
             },
         )
@@ -1775,50 +1896,15 @@ def web_upload_audio(
                 ) from exc
             raise
 
-        os.chmod(output_path, 0o644)
-
-        duration_sec = AudioConverter.get_duration_sec(output_path)
-        check_audio_duration(duration_sec)
-
-        file_size_bytes = os.path.getsize(output_path)
-        check_audio_storage_capacity(db, user.company_id, file_size_bytes)
-
-        audio = AudioFile(
+        audio = register_audio_file(
+            db=db,
             company_id=user.company_id,
-            filename=unique_name,
-            file_path=output_path,
+            unique_name=unique_name,
+            output_path=output_path,
             source=AudioSource.upload,
-            duration_sec=duration_sec,
-            file_size_bytes=file_size_bytes,
-            is_active=True,
         )
 
-        db.add(audio)
-        db.commit()
-        db.refresh(audio)
-
-        audio_files_for_display = db.query(AudioFile).filter(
-            AudioFile.company_id == user.company_id,
-            AudioFile.is_active == True,
-        ).order_by(
-            AudioFile.created_at.asc(),
-            AudioFile.id.asc(),
-        ).all()
-
-        audio_display_map = {
-            audio_item.id: index
-            for index, audio_item in enumerate(audio_files_for_display)
-        }
-
-        result = {
-            "id": audio.id,
-            "display_id": audio_display_map.get(audio.id, 0),
-            "filename": audio.filename,
-            "duration_sec": audio.duration_sec,
-            "playback_name": f"custom/{audio.filename}",
-        }
-
-        return render(None, result)
+        return render(None, audio_result_payload(db, user.company_id, audio))
 
     except HTTPException as exc:
         db.rollback()
@@ -1842,20 +1928,273 @@ def web_delete_audio(
 ):
     user = get_current_web_user(request, db)
 
-    audio = db.query(AudioFile).filter(
-        AudioFile.id == audio_id,
-        AudioFile.company_id == user.company_id,
-        AudioFile.is_active == True,
-    ).first()
-
-    if not audio:
-        raise HTTPException(status_code=404, detail="Audio file not found")
+    audio = get_company_audio(db, user.company_id, audio_id)
 
     audio.is_active = False
     db.commit()
 
     return RedirectResponse(
         url="/web/audio/upload",
+        status_code=303,
+    )
+
+
+@router.get("/audio/{audio_id}/stream")
+def web_stream_audio(
+    audio_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Serve one company's audio back to the browser so it can be played.
+
+    Inactive audio is served too: a deleted file stays attached to the reports
+    of campaigns that already used it, and those still need to be listenable.
+    """
+    user = get_current_web_user(request, db)
+
+    audio = get_company_audio(db, user.company_id, audio_id, active_only=False)
+
+    audio_path = Path(audio.file_path)
+
+    if not audio_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="The audio file is missing from the server's sounds folder.",
+        )
+
+    return FileResponse(
+        path=str(audio_path),
+        media_type="audio/wav",
+        filename=f"{audio.label}.wav",
+        content_disposition_type="inline",
+    )
+
+
+@router.post("/audio/record")
+async def web_record_audio(
+    request: Request,
+    file: UploadFile = File(...),
+    name: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    """Store a microphone recording made in the browser.
+
+    The browser posts whatever container MediaRecorder gave it (webm/ogg/mp4);
+    ffmpeg turns that into the same 8kHz mono WAV an upload produces, so a
+    recording is interchangeable with an uploaded file everywhere else.
+    """
+    user = get_current_web_user(request, db)
+
+    ext = Path(file.filename or "").suffix.lower()
+
+    if ext not in RECORDING_EXTENSIONS:
+        ext = RECORDING_MIME_EXTENSIONS.get(
+            (file.content_type or "").split(";")[0].strip().lower(),
+            "",
+        )
+
+    if not ext:
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "That recording format is not supported by this browser."},
+        )
+
+    os.makedirs(ASTERISK_SOUNDS_DIR, exist_ok=True)
+
+    display_name = (name or "").strip()[:200]
+    safe_name = safe_audio_name(display_name or "recording")
+    unique_name = f"rec_{safe_name}_{int(time.time())}"
+
+    temp_input_path = os.path.join(settings.AUDIO_TEMP_DIR, f"{unique_name}{ext}")
+    output_path = os.path.join(ASTERISK_SOUNDS_DIR, f"{unique_name}.wav")
+
+    try:
+        recording_bytes = await file.read()
+
+        if not recording_bytes:
+            return JSONResponse(
+                status_code=400,
+                content={"detail": "The recording was empty. Please record again."},
+            )
+
+        with open(temp_input_path, "wb") as buffer:
+            buffer.write(recording_bytes)
+
+        try:
+            AudioConverter.convert_to_wav_8k_mono(
+                input_path=temp_input_path,
+                output_path=output_path,
+            )
+        except RuntimeError as exc:
+            if "Permission denied" in str(exc):
+                raise RuntimeError(
+                    "The server could not save the recording because of a "
+                    "permissions problem on the Asterisk sounds directory. "
+                    "Please contact your administrator to fix folder permissions."
+                ) from exc
+            raise
+
+        audio = register_audio_file(
+            db=db,
+            company_id=user.company_id,
+            unique_name=unique_name,
+            output_path=output_path,
+            source=AudioSource.record,
+            display_name=display_name,
+        )
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "id": audio.id,
+                "redirect": f"/web/audio/upload?saved={audio.id}",
+            },
+        )
+
+    except HTTPException as exc:
+        db.rollback()
+        safe_remove_file(output_path)
+        return JSONResponse(status_code=exc.status_code, content={"detail": str(exc.detail)})
+
+    except Exception as exc:
+        db.rollback()
+        safe_remove_file(output_path)
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"Saving the recording failed: {exc}"},
+        )
+
+    finally:
+        safe_remove_file(temp_input_path)
+
+
+@router.post("/audio/{audio_id}/rename")
+def web_rename_audio(
+    audio_id: int,
+    request: Request,
+    display_name: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    """Rename the label only.
+
+    `filename` is what Asterisk plays back and what queued campaigns already
+    point at, so it is deliberately left alone.
+    """
+    user = get_current_web_user(request, db)
+
+    audio = get_company_audio(db, user.company_id, audio_id)
+
+    new_name = (display_name or "").strip()
+
+    if len(new_name) > 200:
+        raise HTTPException(
+            status_code=400,
+            detail="Audio name is too long. Please keep it under 200 characters.",
+        )
+
+    # Clearing the field falls back to the stored filename.
+    audio.display_name = new_name or None
+    db.commit()
+
+    return RedirectResponse(
+        url="/web/audio/upload?msg=renamed",
+        status_code=303,
+    )
+
+
+@router.post("/audio/{audio_id}/trim")
+def web_trim_audio(
+    audio_id: int,
+    request: Request,
+    start_sec: float = Form(0.0),
+    end_sec: float = Form(...),
+    replace_original: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    """Cut a section out of an audio file and save it as a new library entry.
+
+    Trimming never edits the original in place: campaigns that already ran with
+    it, and their reports, have to keep pointing at the audio that was actually
+    played. When the original is unused and the user asked to replace it, it is
+    deactivated afterwards so the library does not fill up with near-duplicates.
+    """
+    user = get_current_web_user(request, db)
+
+    audio = get_company_audio(db, user.company_id, audio_id)
+
+    start = max(0.0, float(start_sec or 0.0))
+    end = float(end_sec or 0.0)
+    duration = float(audio.duration_sec or 0.0)
+
+    if duration and end > duration:
+        end = duration
+
+    if end - start < MIN_TRIM_DURATION_SEC:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"The selected section is too short. "
+                f"Please keep at least {MIN_TRIM_DURATION_SEC} seconds."
+            ),
+        )
+
+    if not Path(audio.file_path).exists():
+        raise HTTPException(
+            status_code=404,
+            detail="The audio file is missing from the server's sounds folder.",
+        )
+
+    os.makedirs(ASTERISK_SOUNDS_DIR, exist_ok=True)
+
+    # Room for the "_trim_<timestamp>" suffix inside filename's 200 chars.
+    base_name = safe_audio_name(audio.filename)[:150]
+    unique_name = f"{base_name}_trim_{int(time.time())}"
+    output_path = os.path.join(ASTERISK_SOUNDS_DIR, f"{unique_name}.wav")
+
+    try:
+        AudioConverter.trim_to_wav_8k_mono(
+            input_path=audio.file_path,
+            output_path=output_path,
+            start_sec=start,
+            end_sec=end,
+        )
+
+        trimmed = register_audio_file(
+            db=db,
+            company_id=user.company_id,
+            unique_name=unique_name,
+            output_path=output_path,
+            source=audio.source,
+            tts_text=audio.tts_text,
+            display_name=f"{audio.label} (trimmed)"[:200],
+        )
+
+    except HTTPException:
+        db.rollback()
+        safe_remove_file(output_path)
+        raise
+
+    except Exception as exc:
+        db.rollback()
+        safe_remove_file(output_path)
+        raise HTTPException(status_code=400, detail=f"Trimming failed: {exc}")
+
+    message = "trimmed_new"
+
+    if replace_original:
+        used_by_campaign = db.query(Campaign).filter(
+            Campaign.audio_file_id == audio.id,
+        ).count()
+
+        if used_by_campaign:
+            message = "trimmed_kept"
+        else:
+            audio.is_active = False
+            db.commit()
+            message = "trimmed"
+
+    return RedirectResponse(
+        url=f"/web/audio/upload?saved={trimmed.id}&msg={message}",
         status_code=303,
     )
 
@@ -1869,21 +2208,14 @@ def web_generate_tts_audio(
     user = get_current_web_user(request, db)
 
     def render(error: str | None, result: dict | None = None):
-        audio_files = db.query(AudioFile).filter(
-            AudioFile.company_id == user.company_id,
-            AudioFile.is_active == True,
-        ).order_by(
-            AudioFile.created_at.asc(),
-            AudioFile.id.asc(),
-        ).all()
-
         return templates.TemplateResponse(
             "audio_upload.html",
             {
                 "request": request,
                 "user": user,
-                "audio_files": audio_files,
+                "audio_files": active_audio_files(db, user.company_id),
                 "result": result,
+                "notice": None,
                 "error": error,
             },
         )
@@ -1914,51 +2246,16 @@ def web_generate_tts_audio(
             output_path=output_path,
         )
 
-        os.chmod(output_path, 0o644)
-
-        duration_sec = AudioConverter.get_duration_sec(output_path)
-        check_audio_duration(duration_sec)
-
-        file_size_bytes = os.path.getsize(output_path)
-        check_audio_storage_capacity(db, user.company_id, file_size_bytes)
-
-        audio = AudioFile(
+        audio = register_audio_file(
+            db=db,
             company_id=user.company_id,
-            filename=unique_name,
-            file_path=output_path,
+            unique_name=unique_name,
+            output_path=output_path,
             source=AudioSource.tts,
             tts_text=text,
-            duration_sec=duration_sec,
-            file_size_bytes=file_size_bytes,
-            is_active=True,
         )
 
-        db.add(audio)
-        db.commit()
-        db.refresh(audio)
-
-        audio_files_for_display = db.query(AudioFile).filter(
-            AudioFile.company_id == user.company_id,
-            AudioFile.is_active == True,
-        ).order_by(
-            AudioFile.created_at.asc(),
-            AudioFile.id.asc(),
-        ).all()
-
-        audio_display_map = {
-            audio_item.id: index
-            for index, audio_item in enumerate(audio_files_for_display)
-        }
-
-        result = {
-            "id": audio.id,
-            "display_id": audio_display_map.get(audio.id, 0),
-            "filename": audio.filename,
-            "duration_sec": audio.duration_sec,
-            "playback_name": f"custom/{audio.filename}",
-        }
-
-        return render(None, result)
+        return render(None, audio_result_payload(db, user.company_id, audio))
 
     except HTTPException as exc:
         db.rollback()

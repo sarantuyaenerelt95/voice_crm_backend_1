@@ -6,7 +6,7 @@
   <meta charset="UTF-8">
   <title>Voicebro Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/voicecrm.css?v=20260808-ux-1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260824-audio-2">
 </head>
 
 <body>
@@ -18,7 +18,6 @@
     <div>
       <p class="page-eyebrow">{{ company_name }}</p>
       <h1>Broadcast workspace</h1>
-      <p class="muted">Create safe draft campaigns, manage contacts, upload audio, and review results from one clean control room.</p>
     </div>
 
     <div class="actions dashboard-hero-actions">
@@ -50,7 +49,7 @@
     <a class="feature-card action-card" href="/web/campaigns/new">
       <div class="feature-icon">01</div>
       <h3>New campaign</h3>
-      <p>Build a frozen target list and preview it before any real start.</p>
+      <p>Build a target list and preview it before any real start.</p>
     </a>
     <a class="feature-card action-card" href="/web/contacts/import">
       <div class="feature-icon">02</div>
@@ -67,19 +66,6 @@
       <h3>Cleanup</h3>
       <p>Find campaigns that were created but never executed.</p>
     </a>
-  </section>
-
-  <section class="card">
-    <div class="section-title-row">
-      <div>
-        <h2>Quick status</h2>
-        <p class="muted small-text">Use the readiness endpoint when something feels off.</p>
-      </div>
-      <div class="actions">
-        <a class="btn btn-secondary" href="/health/ready" target="_blank">System readiness JSON</a>
-        <a class="btn btn-secondary" href="/docs" target="_blank">API docs</a>
-      </div>
-    </div>
   </section>
 </main>
 

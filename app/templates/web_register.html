@@ -6,7 +6,7 @@
   <meta charset="UTF-8">
   <title>Create Account | Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/voicecrm.css?v=20260808-ux-1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260824-audio-2">
 </head>
 
 <body>
@@ -14,7 +14,7 @@
 <nav class="public-nav">
   <div class="top-nav-inner">
     <a class="brand" href="/">
-      <span class="brand-mark">VC</span>
+      <span class="brand-mark">VB</span>
       <span class="brand-text">Voicebro</span>
     </a>
 
@@ -67,7 +67,10 @@
 
         <div>
           <label for="password">Password</label>
-          <input type="password" id="password" name="password" autocomplete="new-password" minlength="6" required>
+          <div class="password-field">
+            <input type="password" id="password" name="password" autocomplete="new-password" minlength="6" required>
+            <button type="button" class="password-toggle" data-password-toggle="password" aria-label="Show password">Show</button>
+          </div>
           <p class="muted small-text">
             Minimum 6 characters. Maximum 72 bytes.
           </p>
@@ -75,7 +78,10 @@
 
         <div>
           <label for="confirm_password">Confirm password</label>
-          <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password" minlength="6" required>
+          <div class="password-field">
+            <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password" minlength="6" required>
+            <button type="button" class="password-toggle" data-password-toggle="confirm_password" aria-label="Show password">Show</button>
+          </div>
           <p class="muted small-text" id="passwordMismatch" style="display: none; color: var(--danger);">
             Passwords do not match.
           </p>
@@ -119,6 +125,8 @@
     confirm.addEventListener("input", check);
   })();
 </script>
+
+{% include "_password_toggle.html" %}
 
 </body>
 </html>

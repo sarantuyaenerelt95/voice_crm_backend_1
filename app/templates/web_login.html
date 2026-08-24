@@ -6,7 +6,7 @@
   <meta charset="UTF-8">
   <title>Login | Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/voicecrm.css?v=20260808-ux-1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260824-audio-2">
 </head>
 
 <body>
@@ -14,7 +14,7 @@
 <nav class="public-nav">
   <div class="top-nav-inner">
     <a class="brand" href="/">
-      <span class="brand-mark">VC</span>
+      <span class="brand-mark">VB</span>
       <span class="brand-text">Voicebro</span>
     </a>
 
@@ -56,8 +56,11 @@
         </div>
 
         <div>
-          <label>Password</label>
-          <input type="password" name="password" autocomplete="current-password" required>
+          <label for="password">Password</label>
+          <div class="password-field">
+            <input type="password" id="password" name="password" autocomplete="current-password" required>
+            <button type="button" class="password-toggle" data-password-toggle="password" aria-label="Show password">Show</button>
+          </div>
         </div>
         
         <div style="text-align: right; margin-top: -8px;">
@@ -78,6 +81,8 @@
   </div>
 
 </main>
+
+{% include "_password_toggle.html" %}
 
 </body>
 </html>

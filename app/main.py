@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.exception_handlers import http_exception_handler
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -60,6 +61,8 @@ async def require_web_login(request: Request, call_next):
         "/health",
         "/docs",
         "/openapi.json",
+        "/robots.txt",
+        "/sitemap.xml",
         "/web",
         "/web/",
         "/web/login",
@@ -160,12 +163,16 @@ def custom_swagger_ui_html():
     )
 
 
+PUBLIC_BASE_URL = settings.PUBLIC_BASE_URL.rstrip("/")
+
+
 @app.get("/", response_class=HTMLResponse)
 def public_home(request: Request):
     return templates.TemplateResponse(
         "home.html",
         {
             "request": request,
+            "public_base_url": PUBLIC_BASE_URL,
         },
     )
 
@@ -176,8 +183,66 @@ def public_home_alias(request: Request):
         "home.html",
         {
             "request": request,
+            "public_base_url": PUBLIC_BASE_URL,
         },
     )
+
+
+@app.get("/robots.txt", response_class=PlainTextResponse, include_in_schema=False)
+def robots_txt():
+    """Let crawlers index the marketing page, and nothing else.
+
+    Everything under /web and /admin needs a session and only redirects to the
+    login page, and /auth, /campaigns, /docs and /health are API surface: none
+    of it belongs in search results.
+    """
+    return "\n".join([
+        "User-agent: *",
+        "Disallow: /web/",
+        "Disallow: /admin/",
+        "Disallow: /auth/",
+        "Disallow: /campaigns/",
+        "Disallow: /docs",
+        "Disallow: /openapi.json",
+        "Disallow: /health",
+        "",
+        f"Sitemap: {PUBLIC_BASE_URL}/sitemap.xml",
+        "",
+    ])
+
+
+@app.get("/sitemap.xml", include_in_schema=False)
+def sitemap_xml():
+    """The one page worth indexing, with the homepage's own last edit date.
+
+    /home renders the same template, so it is left out on purpose: it is a
+    duplicate of / and the canonical tag already points search engines here.
+    """
+    home_template = TEMPLATES_DIR / "home.html"
+
+    try:
+        last_modified = datetime.fromtimestamp(
+            home_template.stat().st_mtime,
+            tz=timezone.utc,
+        ).date().isoformat()
+    except OSError:
+        last_modified = None
+
+    lastmod_tag = f"    <lastmod>{last_modified}</lastmod>\n" if last_modified else ""
+
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        "  <url>\n"
+        f"    <loc>{PUBLIC_BASE_URL}/</loc>\n"
+        f"{lastmod_tag}"
+        "    <changefreq>weekly</changefreq>\n"
+        "    <priority>1.0</priority>\n"
+        "  </url>\n"
+        "</urlset>\n"
+    )
+
+    return Response(content=xml, media_type="application/xml")
 
 
 ERROR_TITLES = {

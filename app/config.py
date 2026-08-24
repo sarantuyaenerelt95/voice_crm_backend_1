@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     SMTP_USE_TLS: bool = True
     PASSWORD_RESET_BASE_URL: str = "http://64.119.31.106:8001"
 
+    # The address search engines and link previews should use. Kept separate
+    # from PASSWORD_RESET_BASE_URL so the public canonical URL does not change
+    # if reset links ever have to point somewhere else.
+    PUBLIC_BASE_URL: str = "https://voicebro.mn"
+
     # Debug aid for when outbound email is broken: if the send fails, log the
     # reset code to the container log so an admin with server access can still
     # complete a reset. It is written ONLY to the server log - never to the

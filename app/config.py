@@ -62,6 +62,16 @@ class Settings(BaseSettings):
     # if reset links ever have to point somewhere else.
     PUBLIC_BASE_URL: str = "https://voicebro.mn"
 
+    # QPay V2 merchant API. Credentials come from the merchant onboarding mail
+    # and live only in .env, which is gitignored.
+    QPAY_BASE_URL: str = "https://merchant.qpay.mn"
+    QPAY_CLIENT_ID: str = ""
+    QPAY_CLIENT_SECRET: str = ""
+    QPAY_INVOICE_CODE: str = ""
+    # Where QPay sends the "this invoice was paid" ping. Must be reachable
+    # from the public internet and must not sit behind the login redirect.
+    QPAY_CALLBACK_BASE: str = "https://voicebro.mn"
+
     # Debug aid for when outbound email is broken: if the send fails, log the
     # reset code to the container log so an admin with server access can still
     # complete a reset. It is written ONLY to the server log - never to the

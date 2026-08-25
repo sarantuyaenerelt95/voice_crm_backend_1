@@ -1,0 +1,201 @@
+<!-- app/templates/payment_qpay.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Төлбөр төлөх | Voicebro</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260825-qpay-1">
+</head>
+
+<body>
+
+{% include "_web_nav.html" %}
+
+<div class="page-shell" id="main-content">
+
+  <div class="page-header">
+    <div>
+      <p class="page-eyebrow">Дуудлагын эрх / Call tokens</p>
+      <h1>Төлбөр төлөх</h1>
+      <p class="muted">
+        {{ purchase.call_count }} дуудлагын эрх — <b>{{ "{:,}".format(purchase.amount_mnt) }}₮</b>
+        <br>
+        <span class="small-text">Захиалга #{{ purchase.id }}</span>
+      </p>
+    </div>
+
+    <div class="actions">
+      <a class="btn btn-secondary" href="/web/profile">← Профайл руу буцах</a>
+    </div>
+  </div>
+
+  {% if is_paid %}
+
+    <div class="card result">
+      <h2>Төлбөр амжилттай төлөгдлөө</h2>
+      <p>
+        {{ purchase.call_count }} дуудлагын эрх таны дансанд нэмэгдлээ.
+        <br>
+        <span class="muted small-text">
+          {{ purchase.call_count }} call tokens have been added to your balance.
+        </span>
+      </p>
+
+      <div class="actions">
+        <a class="btn" href="/web/profile">Үлдэгдэл харах</a>
+      </div>
+    </div>
+
+  {% else %}
+
+    <div class="payment-layout">
+
+      <div class="card">
+        <h2>QR кодоор төлөх</h2>
+
+        <p class="muted small-text">
+          Банкны аппликейшнээ нээж QR кодыг уншуулна уу. Төлбөр төлөгдмөгц
+          энэ хуудас автоматаар шинэчлэгдэнэ.
+        </p>
+
+        <div class="qr-frame">
+          <img class="qr-image"
+               src="/web/payments/{{ purchase.id }}/qr.svg"
+               alt="QPay төлбөрийн QR код"
+               width="260"
+               height="260">
+        </div>
+
+        <div id="paymentStatus" class="alert alert-info">
+          Төлбөр хүлээгдэж байна...
+        </div>
+
+        <div class="actions">
+          <button class="btn" type="button" id="checkNow">Төлбөрөө шалгах</button>
+
+          {% if short_url %}
+            <a class="btn btn-secondary" href="{{ short_url }}" target="_blank" rel="noopener">
+              QPay холбоос нээх
+            </a>
+          {% endif %}
+
+          <form class="inline-form"
+                method="post"
+                action="/web/payments/{{ purchase.id }}/cancel"
+                onsubmit="return confirm('Энэ захиалгыг цуцлах уу?');">
+            <button class="btn btn-danger" type="submit">Цуцлах</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Банкны апп-аар төлөх</h2>
+
+        <p class="muted small-text">
+          Утаснаасаа орсон бол доорх банкаа сонгоход апп шууд нээгдэнэ.
+        </p>
+
+        {% if bank_urls %}
+          <div class="bank-grid">
+            {% for bank in bank_urls %}
+              <a class="bank-card" href="{{ bank.link }}">
+                {% if bank.logo %}
+                  <img class="bank-logo" src="{{ bank.logo }}" alt="" loading="lazy">
+                {% endif %}
+                <span>{{ bank.description or bank.name }}</span>
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state">
+            Банкны холбоос ирсэнгүй. QR кодыг ашиглана уу.
+          </div>
+        {% endif %}
+      </div>
+
+    </div>
+
+  {% endif %}
+
+</div>
+
+{% if not is_paid %}
+<script>
+(function () {
+  "use strict";
+
+  var statusEl = document.getElementById("paymentStatus");
+  var checkBtn = document.getElementById("checkNow");
+  var statusUrl = "/web/payments/{{ purchase.id }}/status";
+
+  var stopped = false;
+  // The buyer pays in a separate app, so this tab has no other way to learn
+  // that the money landed. Polling stops once paid, or after 15 minutes so an
+  // abandoned tab does not keep calling QPay forever.
+  var deadline = Date.now() + 15 * 60 * 1000;
+
+  function setStatus(text, kind) {
+    statusEl.className = "alert alert-" + kind;
+    statusEl.textContent = text;
+  }
+
+  async function check(manual) {
+    if (stopped) return;
+
+    if (manual) {
+      checkBtn.disabled = true;
+      setStatus("Шалгаж байна...", "info");
+    }
+
+    try {
+      var response = await fetch(statusUrl, { headers: { "Accept": "application/json" } });
+      var data = await response.json();
+
+      if (data.status === "paid") {
+        stopped = true;
+        setStatus("Төлбөр амжилттай! Хуудсыг шинэчилж байна...", "success");
+        window.location.reload();
+        return;
+      }
+
+      if (data.status === "cancelled" || data.status === "failed") {
+        stopped = true;
+        setStatus("Энэ захиалга " + data.status + " төлөвтэй байна.", "error");
+        return;
+      }
+
+      if (manual) {
+        setStatus("Төлбөр хараахан ирээгүй байна. Түр хүлээгээд дахин шалгана уу.", "info");
+      }
+
+    } catch (err) {
+      if (manual) setStatus("Шалгахад алдаа гарлаа: " + err.message, "error");
+
+    } finally {
+      if (manual) checkBtn.disabled = false;
+    }
+  }
+
+  checkBtn.addEventListener("click", function () { check(true); });
+
+  var timer = setInterval(function () {
+    if (stopped || Date.now() > deadline) {
+      clearInterval(timer);
+
+      if (!stopped) {
+        setStatus("Хүлээх хугацаа дууслаа. Төлсөн бол «Төлбөрөө шалгах» дарна уу.", "info");
+      }
+
+      return;
+    }
+
+    check(false);
+  }, 5000);
+})();
+</script>
+{% endif %}
+
+</body>
+</html>

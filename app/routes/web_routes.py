@@ -5,11 +5,14 @@ from __future__ import annotations
 from typing import Optional
 import csv
 import io
+import json
 import re
 import os
 import time
 import shutil
 
+import qrcode
+import qrcode.image.svg
 import requests
 
 from app.services.tts_service import TTSService, DEFAULT_TTS_VOICE
@@ -17,7 +20,7 @@ from app.services.tts_service import TTSService, DEFAULT_TTS_VOICE
 from pathlib import Path
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Request, Depends, HTTPException, Form, UploadFile, File, Query
+from fastapi import APIRouter, Request, Depends, HTTPException, Form, Response, UploadFile, File, Query
 from fastapi.responses import (
     FileResponse,
     HTMLResponse,
@@ -40,9 +43,9 @@ from app.models.company import Company
 
 from app.models.campaign_target import CampaignTarget
 from app.models.contact_group import ContactGroup, ContactGroupMember, CampaignContactGroup
-from app.models.billing import TokenPackage, TokenPurchase
+from app.models.billing import PurchaseStatus, TokenPackage, TokenPurchase
 
-from app.services import billing_service
+from app.services import billing_service, qpay_service
 from app.services.audio_converter import AudioConverter
 from app.services.sip_availability import get_available_sip_rows
 from app.services.campaign_target_service import sync_campaign_targets_from_contact_ids
@@ -52,6 +55,7 @@ from app.services.audio_capacity import (
     safe_remove_file,
 )
 
+from app.routes import payment_routes
 from app.tasks.campaign_tasks import run_campaign_task
 from app.routes.web_auth_routes import (
     hash_password,
@@ -2795,11 +2799,11 @@ async def web_buy_tokens(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """Create a token purchase order.
+    """Create an unpaid token order and a QPay invoice to pay it with.
 
-    Right now the order is settled immediately so the system is usable before a
-    bank is connected. When a real payment gateway is added, drop the
-    mark_purchase_paid call here and let the gateway callback do it instead.
+    Tokens are NOT credited here. The buyer is sent to the QR page, and the
+    balance only moves once QPay confirms the payment through
+    settle_qpay_purchase.
     """
     user = get_current_web_user(request, db)
 
@@ -2816,28 +2820,189 @@ async def web_buy_tokens(
             package_code=package_code,
             call_count=call_count,
             user_id=user.id,
+            payment_provider="qpay",
         )
 
-        billing_service.mark_purchase_paid(db, purchase.id)
+        # flush() in create_purchase gives the row its id, which the invoice
+        # needs for both sender_invoice_no and the callback URL.
+        invoice = qpay_service.create_invoice(
+            purchase_id=purchase.id,
+            amount_mnt=int(purchase.amount_mnt),
+            description=f"Voicebro {purchase.call_count} call tokens",
+        )
+
+        purchase.provider_ref = str(invoice["invoice_id"])
+        purchase.provider_payload = qpay_service.payload_for_storage(invoice)
+
         db.commit()
 
     except HTTPException as exc:
         db.rollback()
         return render_profile(request, user, db, error=str(exc.detail), status_code=400)
 
+    except qpay_service.QPayError as exc:
+        db.rollback()
+        return render_profile(
+            request,
+            user,
+            db,
+            error=f"Could not start the payment: {exc}",
+        )
+
     except Exception as exc:
         db.rollback()
         return render_profile(request, user, db, error=f"Purchase failed: {exc}")
 
-    return render_profile(
-        request,
-        user,
-        db,
-        message=(
-            f"Added {purchase.call_count} call tokens "
-            f"for {purchase.amount_mnt:,} MNT."
-        ),
+    return RedirectResponse(
+        url=f"/web/payments/{purchase.id}",
+        status_code=303,
     )
+
+
+def get_company_purchase(db: Session, company_id: int, purchase_id: int) -> TokenPurchase:
+    purchase = db.query(TokenPurchase).filter(
+        TokenPurchase.id == purchase_id,
+        TokenPurchase.company_id == company_id,
+    ).first()
+
+    if not purchase:
+        raise HTTPException(status_code=404, detail="Purchase not found")
+
+    return purchase
+
+
+@router.get("/payments/{purchase_id}", response_class=HTMLResponse)
+def web_payment_page(
+    purchase_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Show the QPay QR and bank links for one order."""
+    user = get_current_web_user(request, db)
+
+    purchase = get_company_purchase(db, user.company_id, purchase_id)
+
+    invoice = {}
+
+    if purchase.provider_payload:
+        try:
+            invoice = json.loads(purchase.provider_payload)
+        except ValueError:
+            invoice = {}
+
+    # qr_image is deliberately not stored on the row, so the page draws the QR
+    # from qr_text instead of a 10KB base64 blob per order.
+    return templates.TemplateResponse(
+        "payment_qpay.html",
+        {
+            "request": request,
+            "user": user,
+            "purchase": purchase,
+            "is_paid": purchase.status == PurchaseStatus.paid,
+            "qr_text": invoice.get("qr_text") or "",
+            "short_url": invoice.get("qPay_shortUrl") or "",
+            "bank_urls": invoice.get("urls") or [],
+        },
+    )
+
+
+@router.get("/payments/{purchase_id}/qr.svg")
+def web_payment_qr(
+    purchase_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Draw the QPay QR from the stored qr_text.
+
+    QPay also returns a ready-made PNG, but it is a ~10KB base64 blob that
+    would sit on every purchase row forever. qr_text is 252 characters and
+    encodes exactly the same thing, so the image is drawn on demand instead.
+    """
+    user = get_current_web_user(request, db)
+
+    purchase = get_company_purchase(db, user.company_id, purchase_id)
+
+    qr_text = ""
+
+    if purchase.provider_payload:
+        try:
+            qr_text = json.loads(purchase.provider_payload).get("qr_text") or ""
+        except ValueError:
+            qr_text = ""
+
+    if not qr_text:
+        raise HTTPException(status_code=404, detail="This order has no payment QR.")
+
+    qr = qrcode.QRCode(
+        box_size=10,
+        border=2,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+    )
+    qr.add_data(qr_text)
+    qr.make(fit=True)
+
+    buffer = io.BytesIO()
+    qr.make_image(image_factory=qrcode.image.svg.SvgPathImage).save(buffer)
+
+    return Response(
+        content=buffer.getvalue(),
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "private, max-age=600"},
+    )
+
+
+@router.get("/payments/{purchase_id}/status")
+def web_payment_status(
+    purchase_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Poll target for the payment page.
+
+    The buyer pays in a banking app, so nothing tells this browser tab that the
+    money arrived. QPay's callback usually lands first and this just reports
+    it; when the callback is late or lost, the check here settles the order
+    instead, so a paying customer is never left stuck on the QR.
+    """
+    user = get_current_web_user(request, db)
+
+    purchase = get_company_purchase(db, user.company_id, purchase_id)
+
+    if purchase.status == PurchaseStatus.paid:
+        return JSONResponse({"status": "paid", "call_count": purchase.call_count})
+
+    try:
+        result = payment_routes.settle_qpay_purchase(db, purchase)
+
+    except qpay_service.QPayError as exc:
+        db.rollback()
+        return JSONResponse({"status": "pending", "detail": str(exc)})
+
+    except Exception as exc:
+        db.rollback()
+        return JSONResponse({"status": "pending", "detail": f"Check failed: {exc}"})
+
+    return JSONResponse({
+        "status": result["status"],
+        "call_count": purchase.call_count,
+    })
+
+
+@router.post("/payments/{purchase_id}/cancel")
+def web_cancel_payment(
+    purchase_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = get_current_web_user(request, db)
+
+    purchase = get_company_purchase(db, user.company_id, purchase_id)
+
+    if purchase.status == PurchaseStatus.pending:
+        purchase.status = PurchaseStatus.cancelled
+        db.commit()
+
+    return RedirectResponse(url="/web/profile", status_code=303)
 
 
 @router.get("/stt", response_class=HTMLResponse)

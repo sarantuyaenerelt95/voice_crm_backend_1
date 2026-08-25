@@ -18,6 +18,7 @@ from app.config import settings
 from app.routes import (
     auth_routes,
     campaign_routes,
+    payment_routes,
     web_routes,
     web_auth_routes,
     admin_routes,
@@ -77,6 +78,7 @@ async def require_web_login(request: Request, call_next):
         or path.startswith("/static")
         or path.startswith("/auth")
         or path.startswith("/campaigns")
+        or path.startswith("/payments")
     ):
         return await call_next(request)
 
@@ -299,3 +301,4 @@ app.include_router(campaign_routes.router)
 app.include_router(web_auth_routes.router)
 app.include_router(web_routes.router)
 app.include_router(admin_routes.router)
+app.include_router(payment_routes.router)

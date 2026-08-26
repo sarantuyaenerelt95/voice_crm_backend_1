@@ -7,6 +7,7 @@ from typing import Optional
 
 from fastapi import HTTPException
 
+from app import i18n
 from app.models.billing import (
     LedgerEntryType,
     PurchaseStatus,
@@ -266,7 +267,7 @@ def quote_package(db, package_code: str, call_count: Optional[int] = None) -> di
         if requested < minimum:
             raise HTTPException(
                 status_code=400,
-                detail=f"This package needs at least {minimum} calls.",
+                detail=i18n.Message("This package needs at least {minimum} calls.", minimum=minimum),
             )
 
         return {
@@ -372,7 +373,7 @@ def mark_purchase_paid(
     if purchase.status in (PurchaseStatus.cancelled, PurchaseStatus.failed):
         raise HTTPException(
             status_code=400,
-            detail=f"Purchase is {purchase.status.value} and cannot be paid.",
+            detail=i18n.Message("Purchase is {status} and cannot be paid.", status=purchase.status.value),
         )
 
     company = lock_company(db, purchase.company_id)

@@ -32,6 +32,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 
+from app import i18n
 from app.config import settings
 from app.database import get_db
 from app.i18n import templating as i18n_templating
@@ -2194,7 +2195,7 @@ def web_trim_audio(
     except Exception as exc:
         db.rollback()
         safe_remove_file(output_path)
-        raise HTTPException(status_code=400, detail=f"Trimming failed: {exc}")
+        raise HTTPException(status_code=400, detail=i18n.Message("Trimming failed: {reason}", reason=str(exc)))
 
     message = "trimmed_new"
 
@@ -3140,7 +3141,7 @@ async def web_stt_transcribe(
     except requests.exceptions.RequestException as exc:
         raise HTTPException(
             status_code=502,
-            detail=f"Could not reach the STT service: {exc}",
+            detail=i18n.Message("Could not reach the STT service: {reason}", reason=str(exc)),
         )
 
     try:

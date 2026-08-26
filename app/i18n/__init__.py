@@ -100,6 +100,30 @@ def resolve_language(
     return DEFAULT_LANGUAGE
 
 
+class Message(str):
+    """An English message that remembers the key and values it was built from.
+
+    Server-side messages are raised far from any request, so they cannot know
+    the reader's language. Subclassing str means the message behaves as plain
+    English everywhere it already flows - logs, API responses, f-strings - while
+    the template layer can still recover the key and translate it.
+
+        raise HTTPException(400, detail=Message("This package needs at least {minimum} calls.", minimum=10))
+    """
+
+    def __new__(cls, key: str, **params):
+        text = key
+        if params:
+            try:
+                text = key.format(**params)
+            except (KeyError, IndexError, ValueError):
+                text = key
+        obj = super().__new__(cls, text)
+        obj.key = key
+        obj.params = params
+        return obj
+
+
 def translate(text: str, language: str) -> str:
     """Look up one string. Unknown text falls back to the English key."""
     if language == "en":
@@ -115,8 +139,13 @@ def translate(text: str, language: str) -> str:
 
 def translator(language: str):
     """A `t` bound to one language, for putting in the template globals."""
-    def t(text: str, **kwargs) -> str:
-        rendered = translate(text, language)
+    def t(text, **kwargs) -> str:
+        # A Message carries the untranslated key and its values; a plain string
+        # is its own key.
+        key = getattr(text, "key", text)
+        kwargs = {**getattr(text, "params", {}), **kwargs}
+
+        rendered = translate(key, language)
 
         # Only format when asked, so a stray brace in ordinary copy is safe.
         if kwargs:

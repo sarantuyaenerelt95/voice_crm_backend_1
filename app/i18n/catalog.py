@@ -27,7 +27,7 @@ _add("nav", {
     "Dashboard": "Хянах самбар",
     "Campaigns": "Кампанит ажил",
     "Contacts": "Харилцагч",
-    "Audio": "Дуу хоолой",
+    "Audio": "Аудио",
     "STT": "Яриа таних",
     "Profile": "Профайл",
     "Logout": "Гарах",
@@ -76,7 +76,7 @@ _add("auth", {
     "Forgot password?": "Нууц үгээ мартсан уу?",
     "Secure workspace": "Хамгаалагдсан ажлын талбар",
     "Open your broadcast dashboard, contacts, audio files, and campaign reports.":
-        "Кампанит ажил, харилцагч, дуу хоолой, тайлангийн самбар руу нэвтэрнэ үү.",
+        "Кампанит ажил, харилцагч, аудио, тайлангийн самбар руу нэвтэрнэ үү.",
     "Company workspace": "Байгууллагын ажлын талбар",
     "Company name": "Байгууллагын нэр",
     "Your name": "Таны нэр",
@@ -113,7 +113,7 @@ _add("dashboard", {
     "View campaigns": "Кампанит ажил харах",
     "New campaign": "Шинэ кампанит ажил",
     "Import contacts": "Харилцагч импортлох",
-    "Audio library": "Дуу хоолойн сан",
+    "Audio library": "Аудио сан",
     "Cleanup": "Цэвэрлэгээ",
     "Draft": "Ноорог",
     "Queued / Running": "Дараалалд / Явагдаж буй",
@@ -127,7 +127,7 @@ _add("dashboard", {
     # Placeholders keep the number out of the translated text, so word order
     # can differ between languages without concatenating fragments.
     "Manage reusable broadcast audio files. Current files: {count}.":
-        "Дахин ашиглах дуу хоолойн сан. Одоогийн файл: {count}.",
+        "Дахин ашиглах аудио сан. Одоогийн файл: {count}.",
 })
 
 # -------------------------------------------------------------------- errors
@@ -191,7 +191,7 @@ _add("campaigns", {
     "No not-executed campaigns.": "Эхлүүлээгүй кампанит ажил алга.",
     "Remove Selected From Campaign": "Сонгосныг кампанит ажлаас хасах",
     "Contacts and audio files will not be deleted when deleting a not-executed campaign.":
-        "Эхлүүлээгүй кампанит ажлыг устгахад харилцагч болон дуу хоолой устахгүй.",
+        "Эхлүүлээгүй кампанит ажлыг устгахад харилцагч болон аудио устахгүй.",
     "These campaigns are still editable. You can manage or remove numbers before execution.":
         "Эдгээр кампанит ажлыг засах боломжтой. Эхлүүлэхээс өмнө дугаарыг нэмэх, хасах боломжтой.",
     "This campaign has not been executed yet. You can remove selected numbers from this campaign.":
@@ -311,18 +311,18 @@ _add("contacts", {
 # ---------------------------------------------------------------------- audio
 
 _add("audio", {
-    "Audio": "Дуу хоолой",
-    "Audio Library": "Дуу хоолойн сан",
-    "Audio File": "Дуу хоолой",
-    "Audio Files": "Дуу хоолой",
-    "Audio file": "Дуу хоолойн файл",
+    "Audio": "Аудио",
+    "Audio Library": "Аудио сан",
+    "Audio File": "Аудио",
+    "Audio Files": "Аудио",
+    "Audio file": "Аудио файл",
     "Audio No.": "Дугаар",
-    "Audio length": "Дуу хоолойн урт",
-    "Upload Audio": "Дуу хоолой оруулах",
-    "Upload New Audio": "Шинэ дуу хоолой оруулах",
-    "Record Your Voice": "Дуу хоолойгоо бичих",
+    "Audio length": "Аудионы урт",
+    "Upload Audio": "Аудио оруулах",
+    "Upload New Audio": "Шинэ аудио оруулах",
+    "Record Your Voice": "Аудиогоо бичих",
     "Record your own voice, upload a file, or generate speech from text.":
-        "Өөрийн дуу хоолойгоо бичих, файл оруулах, эсвэл бичвэрээс дуу үүсгэх.",
+        "Өөрийн аудиогоо бичих, файл оруулах, эсвэл бичвэрээс дуу үүсгэх.",
     "Your browser will ask for microphone permission the first time. Maximum length: {limit}.":
         "Эхний удаад хөтөч микрофон ашиглах зөвшөөрөл асууна. Дээд урт: {limit}.",
     "This browser cannot record audio on this page. You can still upload a file below.":
@@ -342,7 +342,7 @@ _add("audio", {
     "Play any file, rename it, or cut a section out of it.":
         "Файлаа сонсох, нэрийг өөрчлөх, эсвэл хэсэглэн тайрах боломжтой.",
     "No audio files yet. Record your voice, upload a file, or generate one from text.":
-        "Дуу хоолой алга байна. Бичих, файл оруулах, эсвэл бичвэрээс үүсгэнэ үү.",
+        "Аудио алга байна. Бичих, файл оруулах, эсвэл бичвэрээс үүсгэнэ үү.",
     "Listen": "Сонсох",
     "Listen back before saving": "Хадгалахаасаа өмнө сонсоно уу",
     "Name this recording": "Бичлэгийн нэр",
@@ -369,7 +369,7 @@ _add("stt", {
     "Speech to Text": "Яриа таних",
     "Voicebro STT": "Voicebro яриа таних",
     "Upload audio and get a Mongolian transcript. Processing takes roughly\n        1-3x the audio's length, so a 1 minute file can take a few minutes.":
-        "Дуу хоолой оруулж монгол бичвэр авна. Боловсруулалт нь дуу хоолойн уртаас 1-3 дахин их хугацаа авдаг тул 1 минутын файл хэдэн минут болно.",
+        "Аудио оруулж монгол бичвэр авна. Боловсруулалт нь аудионы уртаас 1-3 дахин их хугацаа авдаг тул 1 минутын файл хэдэн минут болно.",
     "Transcribe": "Бичвэр болгох",
     "Processing time": "Боловсруулсан хугацаа",
     "Speed": "Хурд",
@@ -539,14 +539,14 @@ _add("chrome", {
 _add("home", {
     "Enterprise voice broadcast workspace": "Байгууллагын дуут мэдээллийн систем",
     "One calm command center for campaigns, contacts, audio, and reports.":
-        "Кампанит ажил, харилцагч, дуу хоолой, тайланг нэг дороос.",
+        "Кампанит ажил, харилцагч, аудио, тайланг нэг дороос.",
     "Build targeted voice campaigns, preview unique numbers before launch,\n        monitor outcomes, and keep company data separated in one practical\n        communication platform.":
         "Зорилтот дуут кампанит ажил үүсгэж, эхлүүлэхийн өмнө дугаараа шалгаж, үр дүнг хянаж, байгууллагынхаа мэдээллийг тусад нь хадгална.",
     "Campaign Control": "Кампанит ажлын удирдлага",
     "Create campaigns from frozen contact lists and review targets before real start.":
         "Бэлдсэн жагсаалтаас кампанит ажил үүсгэж, эхлүүлэхийн өмнө шалгана.",
     "Upload reusable broadcast audio and track duration for reporting.":
-        "Дахин ашиглах дуу хоолой оруулж, урт хугацааг тайланд бүртгэнэ.",
+        "Дахин ашиглах аудио оруулж, урт хугацааг тайланд бүртгэнэ.",
     "See call status, duration, and export campaign result CSV files.":
         "Дуудлагын төлөв, хугацааг харж, үр дүнг CSV болгон татна.",
     "Example report": "Жишээ тайлан",
@@ -613,4 +613,148 @@ _add("billing", {
     "Could not check the payment:": "Шалгахад алдаа гарлаа:",
     "Waiting timed out. If you have paid, press Check payment.":
         "Хүлээх хугацаа дууслаа. Төлсөн бол «Төлбөрөө шалгах» дарна уу.",
+})
+
+# ----------------------------------------------------- server-side messages
+#
+# Raised as English deep in routes and services, where no request - and so no
+# language - is available. The English text is what reaches logs and API
+# clients; these entries are applied at render time by t() in the template.
+
+_add("server.auth", {
+    "Not logged in": "Нэвтрээгүй байна",
+    "Invalid session": "Хүчингүй холболт",
+    "Inactive user": "Идэвхгүй хэрэглэгч",
+    "Incorrect email or password": "И-мэйл эсвэл нууц үг буруу",
+    "Could not validate credentials": "Нэвтрэх мэдээллийг баталгаажуулж чадсангүй",
+    "User not found or inactive": "Хэрэглэгч олдсонгүй эсвэл идэвхгүй",
+    "Email already registered": "И-мэйл бүртгэлтэй байна",
+    "Email is required": "И-мэйл оруулна уу",
+    "Password is required": "Нууц үг оруулна уу",
+    "Password is too long. Maximum is 72 bytes.": "Нууц үг хэт урт байна. Дээд хэмжээ 72 байт.",
+    "Company or email already exists": "Байгууллага эсвэл и-мэйл бүртгэлтэй байна",
+    "Company name is required": "Байгууллагын нэр оруулна уу",
+    "Owner only": "Зөвхөн эзэмшигч",
+    "Owner can only manage SIP numbers": "Эзэмшигч зөвхөн SIP дугаар удирдана",
+    "Failed to create account: {reason}": "Бүртгэл үүсгэж чадсангүй: {reason}",
+})
+
+_add("server.campaigns", {
+    "Campaign not found": "Кампанит ажил олдсонгүй",
+    "Campaign name is required": "Кампанит ажлын нэр оруулна уу",
+    "Campaign has no audio file.": "Кампанит ажилд аудио алга.",
+    "Campaign has no frozen target_contact_ids": "Кампанит ажилд дуудах жагсаалт алга",
+    "Campaign has no target contacts. Create a new campaign first.":
+        "Кампанит ажилд дуудах харилцагч алга. Шинээр үүсгэнэ үү.",
+    "No active contacts found for campaign": "Кампанит ажилд идэвхтэй харилцагч олдсонгүй",
+    "No active frozen target contacts found for campaign":
+        "Кампанит ажилд идэвхтэй дуудах харилцагч олдсонгүй",
+    "No valid active contacts found for this campaign":
+        "Энэ кампанит ажилд тохирох идэвхтэй харилцагч олдсонгүй",
+    "Only draft campaigns can be started.": "Зөвхөн ноорог кампанит ажлыг эхлүүлнэ.",
+    "Only running or queued campaigns can be cancelled.":
+        "Зөвхөн явагдаж буй эсвэл дараалалд буй кампанит ажлыг цуцална.",
+    "Only not-executed draft campaigns can be deleted.":
+        "Зөвхөн эхлүүлээгүй ноорог кампанит ажлыг устгана.",
+    "This campaign was already executed. Numbers cannot be removed.":
+        "Энэ кампанит ажил аль хэдийн эхэлсэн тул дугаар хасах боломжгүй.",
+    "Please select, add, paste, or import at least one phone number":
+        "Дор хаяж нэг дугаар сонгох, нэмэх, буулгах эсвэл импортлоно уу",
+    "Dry-run is disabled in this environment.": "Урьдчилсан горим идэвхгүй байна.",
+    "Simulation is disabled in this environment.": "Туршилтын горим идэвхгүй байна.",
+    "contact_ids must be positive integers": "contact_ids эерэг бүхэл тоо байх ёстой",
+    "contact_limit must be greater than 0": "contact_limit 0-оос их байх ёстой",
+})
+
+_add("server.contacts", {
+    "Contact not found": "Харилцагч олдсонгүй",
+    "Contact group not found": "Харилцагчийн бүлэг олдсонгүй",
+    "Group name is required": "Бүлгийн нэр оруулна уу",
+    "Group name already exists": "Ийм нэртэй бүлэг байна",
+    "No valid numbers found for this group": "Энэ бүлэгт тохирох дугаар олдсонгүй",
+    "Duplicate contact found during import": "Импортлох үед давхардсан харилцагч илэрлээ",
+    "Phone already exists for this company": "Энэ дугаар байгууллагад бүртгэлтэй байна",
+    "Contact file must be UTF-8 encoded": "Файл UTF-8 кодлолтой байх ёстой",
+    "File must be UTF-8 encoded": "Файл UTF-8 кодлолтой байх ёстой",
+    "Only CSV or TXT contact files are allowed": "Зөвхөн CSV эсвэл TXT файл зөвшөөрнө",
+    "Only CSV or TXT file allowed": "Зөвхөн CSV эсвэл TXT файл зөвшөөрнө",
+    "Contacts not found or inactive: {missing_ids}":
+        "Харилцагч олдсонгүй эсвэл идэвхгүй: {missing_ids}",
+})
+
+_add("server.audio", {
+    "Audio file not found": "Аудио олдсонгүй",
+    "Audio name is too long. Please keep it under 200 characters.":
+        "Аудионы нэр хэт урт байна. 200 тэмдэгтээс богино байх ёстой.",
+    "No audio file provided.": "Аудио файл оруулаагүй байна.",
+    "Uploaded file is empty.": "Оруулсан файл хоосон байна.",
+    "Only mp3, wav, m4a, ogg, flac files are allowed":
+        "Зөвхөн mp3, wav, m4a, ogg, flac файл зөвшөөрнө",
+    "The audio file is missing from the server's sounds folder.":
+        "Аудио файл серверийн хавтаснаас олдсонгүй.",
+    "Trimming failed: {reason}": "Тайрахад алдаа гарлаа: {reason}",
+    "Could not reach the STT service: {reason}": "Яриа таних үйлчилгээнд холбогдож чадсангүй: {reason}",
+})
+
+_add("server.sip", {
+    "SIP trunk not found": "SIP суваг олдсонгүй",
+    "SIP trunk already exists": "SIP суваг бүртгэлтэй байна",
+    "SIP number is required": "SIP дугаар оруулна уу",
+    "SIP username is required": "SIP хэрэглэгчийн нэр оруулна уу",
+    "SIP password is required": "SIP нууц үг оруулна уу",
+    "SIP host is required": "SIP хост оруулна уу",
+    "Selected SIP number is not available.": "Сонгосон SIP дугаар боломжгүй байна.",
+    "No registered available SIP number.": "Бүртгэгдсэн, боломжтой SIP дугаар алга.",
+    "No available SIP number. Check SIP registration and active calls.":
+        "Боломжтой SIP дугаар алга. Бүртгэл болон идэвхтэй дуудлагаа шалгана уу.",
+    "No active SIP trunk found for simulation CallLog trunk_id":
+        "Туршилтад идэвхтэй SIP суваг олдсонгүй",
+    "This SIP number is already active in CRM. Remove it first before adding again.":
+        "Энэ SIP дугаар системд идэвхтэй байна. Дахин нэмэхийн өмнө устгана уу.",
+})
+
+_add("server.billing", {
+    "Company not found.": "Байгууллага олдсонгүй.",
+    "Package not found.": "Багц олдсонгүй.",
+    "Purchase not found": "Захиалга олдсонгүй",
+    "Purchase not found.": "Захиалга олдсонгүй.",
+    "Cannot remove more tokens than the company has available.":
+        "Байгууллагад байгаагаас илүү эрх хасах боломжгүй.",
+    "This package needs at least {minimum} calls.":
+        "Энэ багц хамгийн багадаа {minimum} дуудлага шаардана.",
+    "Purchase is {status} and cannot be paid.":
+        "Захиалгын төлөв {status} тул төлөх боломжгүй.",
+    "This order has no payment QR.": "Энэ захиалгад төлбөрийн QR алга.",
+    "Test purchases are not enabled.": "Тест захиалга идэвхгүй байна.",
+    "Only an admin can run a test purchase.": "Зөвхөн админ тест захиалга үүсгэнэ.",
+    "Test purchase amount and call count must both be positive.":
+        "Тест захиалгын дүн болон дуудлагын тоо эерэг байх ёстой.",
+})
+
+_add("server.flash", {
+    "Invalid email or password": "И-мэйл эсвэл нууц үг буруу",
+    "User is inactive": "Хэрэглэгч идэвхгүй байна",
+    "Passwords do not match": "Нууц үг таарахгүй байна",
+    "Password must be at least 6 characters": "Нууц үг дор хаяж 6 тэмдэгт байх ёстой",
+    "Password is too long. Please use 72 bytes or less.":
+        "Нууц үг хэт урт байна. 72 байтаас бага байх ёстой.",
+    "Campaign queued": "Кампанит ажил дараалалд орлоо",
+    "Campaign cancelled": "Кампанит ажил цуцлагдлаа",
+
+    "Profile updated.": "Профайл шинэчлэгдлээ.",
+    "Password changed.": "Нууц үг солигдлоо.",
+    "Company information updated.": "Байгууллагын мэдээлэл шинэчлэгдлээ.",
+    "Company record was not found.": "Байгууллагын бүртгэл олдсонгүй.",
+    "Company name is required.": "Байгууллагын нэр оруулна уу.",
+    "Company email is required.": "Байгууллагын и-мэйл оруулна уу.",
+    "Email is required.": "И-мэйл оруулна уу.",
+    "Current password is incorrect.": "Одоогийн нууц үг буруу байна.",
+    "New password and confirmation do not match.": "Шинэ нууц үг давталттай таарахгүй байна.",
+    "New password must be at least 6 characters.": "Шинэ нууц үг дор хаяж 6 тэмдэгт байх ёстой.",
+    "Only company admins can update company information.":
+        "Зөвхөн байгууллагын админ мэдээллийг засна.",
+    "That email is already used by another account.":
+        "Энэ и-мэйлийг өөр хэрэглэгч ашиглаж байна.",
+    "That company email is already used by another company.":
+        "Энэ и-мэйлийг өөр байгууллага ашиглаж байна.",
 })

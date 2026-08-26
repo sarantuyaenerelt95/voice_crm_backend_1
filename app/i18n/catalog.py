@@ -108,7 +108,7 @@ _add("auth", {
 # ---------------------------------------------------------------- dashboard
 
 _add("dashboard", {
-    "Broadcast workspace": "Ажлын талбар",
+    "Broadcast workspace": "Байгууллагын войсэброадкастинг мэдээллийн систем",
     "Create campaign": "Кампанит ажил үүсгэх",
     "View campaigns": "Кампанит ажил харах",
     "New campaign": "Шинэ кампанит ажил",
@@ -163,8 +163,8 @@ _add("campaigns", {
     "Create draft campaign": "Ноорог кампанит ажил үүсгэх",
     "Create Campaign and Open Dry-run": "Үүсгээд урьдчилсан харагдацыг нээх",
     "Cancel Campaign": "Кампанит ажлыг цуцлах",
-    "Real Start Campaign": "Жинхэнэ эхлүүлэх",
-    "Real Start Disabled": "Жинхэнэ эхлүүлэх боломжгүй",
+    "Real Start Campaign": "Эхлүүлэх",
+    "Real Start Disabled": "Эхлүүлэх боломжгүй",
     "Simulate This Campaign": "Туршилтаар ажиллуулах",
     "Open Campaign Detail": "Дэлгэрэнгүй харах",
     "Draft campaigns": "Ноорог кампанит ажил",
@@ -200,16 +200,16 @@ _add("campaigns", {
         "Энэ кампанит ажил эхэлсэн буюу дуудлагын бүртгэлтэй тул дугаар хасах боломжгүй.",
     "Showing first 300 targets only. Use Manage Numbers to view more.":
         "Зөвхөн эхний 300 дугаарыг харуулж байна. Бүгдийг харахын тулд «Дугаар удирдах» руу орно уу.",
-    "This page creates only a draft campaign and frozen target list.\n    It will not call anyone. After create, dry-run opens automatically.":
-        "Энэ хуудас зөвхөн ноорог кампанит ажил болон дуудах жагсаалт үүсгэнэ. Хэнд ч залгахгүй. Үүсгэсний дараа урьдчилсан харагдац нээгдэнэ.",
+    "This page creates only a draft campaign and frozen target list.\n    After create, dry-run opens automatically.":
+        "Энэ хуудас зөвхөн ноорог кампанит ажил болон дуудах жагсаалт үүсгэнэ. Үүсгэсний дараа урьдчилсан харагдац нээгдэнэ.",
     "Confirm target count before running simulation or real campaign start.":
-        "Туршилт эсвэл жинхэнэ эхлүүлэхээс өмнө дуудах тоогоо шалгана уу.",
+        "Туршилт эсвэл эхлүүлэхээс өмнө дуудах тоогоо шалгана уу.",
     "Selected groups, pasted numbers, imported file contacts, and selected existing contacts will be frozen into this campaign.":
         "Сонгосон бүлэг, буулгасан дугаар, импортолсон файл, сонгосон харилцагчид энэ кампанит ажилд бүртгэгдэнэ.",
     "Dry-run preview": "Урьдчилсан харагдац",
     "Preview Summary": "Урьдчилсан дүн",
     "This preview shows the frozen target list. No real calls will be made from this page.":
-        "Энэ хуудас дуудах жагсаалтыг харуулна. Эндээс жинхэнэ дуудлага хийгдэхгүй.",
+        "Энэ хуудас дуудах жагсаалтыг харуулна. Эндээс дуудлага хийгдэхгүй.",
     "No frozen target contacts found. Do not start or simulate this campaign.":
         "Дуудах харилцагч олдсонгүй. Энэ кампанит ажлыг эхлүүлэх шаардлагагүй.",
     "These contacts are already frozen into this campaign target list.":
@@ -500,7 +500,7 @@ _add("admin", {
     "No SIP number is configured or visible for this campaign.":
         "Энэ кампанит ажилд SIP дугаар тохируулаагүй байна.",
     "Only registered SIP numbers with free slots are available for real start.":
-        "Зөвхөн бүртгэгдсэн, сул сувагтай SIP дугаар жинхэнэ эхлүүлэхэд ашиглагдана.",
+        "Зөвхөн бүртгэгдсэн, сул сувагтай SIP дугаар эхлүүлэхэд ашиглагдана.",
     "Registered means Asterisk currently has successful SIP registration.":
         "Бүртгэгдсэн гэдэг нь SIP бүртгэл амжилттай хийгдсэн гэсэн үг.",
     "Add, enable, disable, and check Asterisk registration status for outbound SIP trunks.":
@@ -580,7 +580,7 @@ _add("billing", {
     "{count} calls ({price}₮ per call)": "{count} дуудлага ({price}₮ / дуудлага)",
     "QPay integration test": "QPay холболтын тест",
     "Creates a real {amount}₮ order to check the QPay connection. If it is paid, {count} call tokens are added.":
-        "QPay холболтыг шалгахаар {amount}₮-ийн жинхэнэ захиалга үүсгэнэ. Төлөгдвөл {count} дуудлагын эрх нэмэгдэнэ.",
+        "QPay холболтыг шалгахаар {amount}₮-ийн захиалга үүсгэнэ. Төлөгдвөл {count} дуудлагын эрх нэмэгдэнэ.",
     "Create a {amount}₮ test payment": "{amount}₮ тест төлбөр үүсгэх",
 
     "Pay": "Төлбөр төлөх",

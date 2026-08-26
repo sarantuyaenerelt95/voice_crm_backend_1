@@ -819,3 +819,35 @@ _add("misc", {
     "5 minutes": "5 минут",
     "25MB": "25МБ",
 })
+
+# ------------------------------------------------- campaign_detail.html sweep
+#
+# A manual read (the automated audit only catches confirm()/alert(), not
+# arbitrary JS string literals or raw enum values dropped straight into a
+# badge) turned up: status badges rendering the raw enum word instead of a
+# translation, a whole monitor-status sentence built in JavaScript, and two
+# short sentences that were never wrapped at all.
+
+_add("status", {
+    "Queued": "Дараалалд",
+    "Running": "Явагдаж байна",
+    "Register": "Бүртгэл",  # SIP registration-state column, distinct from the "Register" auth-flow key
+    "Free": "Сул",
+})
+
+_add("campaigns", {
+    "Campaign #{id}: {name}": "Кампанит ажил #{id}: {name}",
+    "Shows all frozen campaign numbers, including pending and cancelled numbers. Total targets: {count}":
+        "Кампанит ажлын бүх дугаарыг харуулна, үүнд хүлээгдэж буй болон цуцлагдсан дугаарууд орно. Нийт дугаар: {count}",
+    "Showing page {page} / {total_pages} — call logs: {count}":
+        "Хуудас {page} / {total_pages} — дуудлагын бүртгэл: {count}",
+    "| cancelled: {count}": "| цуцлагдсан: {count}",
+})
+
+_add("monitor", {
+    "Auto-refreshing every 5 seconds": "5 секунд тутамд шинэчлэгдэж байна",
+    "Manual refresh mode": "Гараар шинэчлэх горим",
+    "{status} - showing {count} visible rows on this page.":
+        "{status} - энэ хуудсанд {count} мөр харагдаж байна.",
+    "Auto-refresh 5s on": "5 секундын автомат шинэчлэлт идэвхтэй",
+})

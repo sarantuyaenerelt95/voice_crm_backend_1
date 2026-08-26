@@ -21,8 +21,8 @@
     <div>
       <a class="back-link" href="/web/dashboard">{{ t("← Back to dashboard") }}</a>
       <p class="page-eyebrow">{{ t("Campaign detail") }}</p>
-      <h1>Campaign #{{ campaign_display_id }}: {{ campaign.name }}</h1>
-      <span class="badge badge-{{ campaign_status }}">{{ campaign_status }}</span>
+      <h1>{{ t("Campaign #{id}: {name}", id=campaign_display_id, name=campaign.name) }}</h1>
+      <span class="badge badge-{{ campaign_status }}">{{ t(campaign_status.replace("_", " ")|capitalize) }}</span>
     </div>
 
     <div class="actions">
@@ -79,7 +79,7 @@
               {% for row in sip_rows %}
                 {% if row.available %}
                   <option value="{{ row.id }}">
-                    {{ row.number }} / {{ row.endpoint }} / Free {{ row.free_slots }}
+                    {{ row.number }} / {{ row.endpoint }} / {{ t("Free") }} {{ row.free_slots }}
                   </option>
                 {% endif %}
               {% endfor %}
@@ -95,7 +95,7 @@
           </button>
 
           <p class="muted small-text">
-            {{ start_disabled_reason }}
+            {{ t(start_disabled_reason) }}
           </p>
         {% endif %}
       </div>
@@ -149,7 +149,7 @@
                   {% elif sip.register_status == "Unregistered" %}
                     <span class="badge badge-unregistered">{{ t("Unregistered") }}</span>
                   {% else %}
-                    <span class="badge badge-unknown">{{ sip.register_status }}</span>
+                    <span class="badge badge-unknown">{{ t(sip.register_status) }}</span>
                   {% endif %}
                 </td>
 
@@ -233,8 +233,7 @@
       <div>
         <h2>{{ t("Target Number Status") }}</h2>
         <p class="muted">
-          Shows all frozen campaign numbers, including pending and cancelled numbers.
-          Total targets: {{ target_status_total or 0 }}
+          {{ t("Shows all frozen campaign numbers, including pending and cancelled numbers. Total targets: {count}", count=target_status_total or 0) }}
         </p>
       </div>
     </div>
@@ -258,7 +257,7 @@
               <td>{{ target.phone }}</td>
               <td>
                 <span class="badge badge-{{ target.status }}">
-                  {{ target.status }}
+                  {{ t(target.status.replace("_", " ")|capitalize) }}
                 </span>
               </td>
               <td>{{ target.attempts or 0 }}</td>
@@ -327,11 +326,10 @@
 
     <div class="tool-row">
       <div>
-        Showing page {{ page }} / {{ total_pages }}
-        — call logs: {{ total_call_logs }}
+        {{ t("Showing page {page} / {total_pages} — call logs: {count}", page=page, total_pages=total_pages, count=total_call_logs) }}
 
         {% if cancelled_result_total %}
-          | cancelled: {{ cancelled_result_total }}
+          {{ t("| cancelled: {count}", count=cancelled_result_total) }}
         {% endif %}
       </div>
 
@@ -374,13 +372,13 @@
               <td>{{ call.phone }}</td>
               <td>
                 <span class="badge badge-{{ status }}">
-                  {{ status }}
+                  {{ t(status.replace("_", " ")|capitalize) }}
                 </span>
               </td>
               <td>{{ call.duration_sec if call.duration_sec is not none else '' }}</td>
               <td>{{ call.hangup_cause if call.hangup_cause is not none else '' }}</td>
               <td>{{ call.started_at | dt(lang) }}</td>
-              <td>{{ call.answered_at or '' }}</td>
+              <td>{{ (call.answered_at | dt(lang)) if call.answered_at else '' }}</td>
               <td>{{ (call.ended_at | dt(lang)) if call.ended_at else '' }}</td>
             </tr>
           {% endfor %}
@@ -419,6 +417,18 @@
 
 <script>
 (function () {
+  // Rendered in from the server rather than written here: a string hardcoded
+  // in this script is invisible to the translation catalog and would show
+  // English regardless of page language, the same bug the password toggle
+  // and the register page both had before.
+  const LABELS = {
+    autoOn: {{ t("Auto-refreshing every 5 seconds") | tojson }},
+    manual: {{ t("Manual refresh mode") | tojson }},
+    visibleRows: {{ t("{status} - showing {count} visible rows on this page.") | tojson }},
+    autoToggleOn: {{ t("Auto-refresh 5s on") | tojson }},
+    autoToggleOff: {{ t("Auto-refresh off") | tojson }}
+  };
+
   const campaignId = "{{ campaign.id }}";
   const autoKey = "voicecrm:auto-refresh:" + campaignId;
   const filterKey = "voicecrm:call-filter:" + campaignId;
@@ -447,11 +457,9 @@
           return row.style.display !== "none";
         }).length;
 
-    status.textContent = (
-      enabled
-        ? "Auto-refreshing every 5 seconds"
-        : "Manual refresh mode"
-    ) + " - showing " + visible + " visible rows on this page.";
+    status.textContent = LABELS.visibleRows
+      .replace("{status}", enabled ? LABELS.autoOn : LABELS.manual)
+      .replace("{count}", visible);
   }
 
   function applyFilter() {
@@ -484,7 +492,7 @@
     localStorage.setItem(autoKey, enabled ? "1" : "0");
 
     if (toggle) {
-      toggle.textContent = enabled ? "Auto-refresh 5s on" : "Auto-refresh off";
+      toggle.textContent = enabled ? LABELS.autoToggleOn : LABELS.autoToggleOff;
       toggle.classList.toggle("btn-success", enabled);
       toggle.classList.toggle("btn-secondary", !enabled);
     }

@@ -58,7 +58,7 @@
 
     <div class="stat">
       <div>{{ t("Created") }}</div>
-      <b class="small-text">{{ group.created_at }}</b>
+      <b class="small-text">{{ group.created_at | dt(lang) }}</b>
     </div>
   </div>
 

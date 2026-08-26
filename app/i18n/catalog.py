@@ -758,3 +758,15 @@ _add("server.flash", {
     "That company email is already used by another company.":
         "Энэ и-мэйлийг өөр байгууллага ашиглаж байна.",
 })
+
+_add("dates", {
+    "Not completed": "Дуусаагүй",
+})
+
+_add("billing", {
+    "1 call ({price}₮)": "1 дуудлага ({price}₮)",
+})
+
+_add("status", {
+    "Paid": "Төлөгдсөн",
+})

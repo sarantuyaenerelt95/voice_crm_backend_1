@@ -117,7 +117,11 @@
           {% else %}
             <div><b>{{ "{:,}".format(package.price_mnt) }}₮</b></div>
             <div class="muted small-text">
-              {{ t("{count} calls ({price}₮ per call)", count=package.call_count, price=(package.price_mnt / package.call_count) | round(0) | int) }}
+              {% if package.call_count == 1 %}
+                {{ t("1 call ({price}₮)", price=(package.price_mnt / package.call_count) | round(0) | int) }}
+              {% else %}
+                {{ t("{count} calls ({price}₮ per call)", count=package.call_count, price=(package.price_mnt / package.call_count) | round(0) | int) }}
+              {% endif %}
             </div>
 
             <form method="post" action="/web/profile/tokens/buy">
@@ -129,22 +133,6 @@
       {% endfor %}
     </div>
   </section>
-
-  {% if qpay_test_enabled and role_value == "admin" %}
-    <section class="card">
-      <h2>{{ t("QPay integration test") }}</h2>
-
-      <div class="alert alert-info">
-        {{ t("Creates a real {amount}₮ order to check the QPay connection. If it is paid, {count} call tokens are added.", amount="{:,}".format(qpay_test_amount), count=qpay_test_calls) }}
-      </div>
-
-      <form method="post" action="/web/profile/tokens/test-buy">
-        <button class="btn btn-warning" type="submit">
-          {{ t("Create a {amount}₮ test payment", amount="{:,}".format(qpay_test_amount)) }}
-        </button>
-      </form>
-    </section>
-  {% endif %}
 
   {% if recent_purchases %}
     <section class="card">
@@ -168,8 +156,8 @@
                 <td>{{ purchase.id }}</td>
                 <td>{{ purchase.call_count }}</td>
                 <td>{{ "{:,}".format(purchase.amount_mnt) }}₮</td>
-                <td>{{ purchase.status.value if purchase.status else "" }}</td>
-                <td>{{ purchase.paid_at or purchase.created_at }}</td>
+                <td>{{ t(purchase.status.value|capitalize) if purchase.status else "" }}</td>
+                <td>{{ (purchase.paid_at or purchase.created_at) | dt(lang) }}</td>
               </tr>
             {% endfor %}
           </tbody>

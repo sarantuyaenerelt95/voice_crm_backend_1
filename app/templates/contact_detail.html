@@ -52,7 +52,7 @@
 
         <div>
           <strong>{{ t("Created") }}</strong><br>
-          <span class="muted">{{ contact.created_at }}</span>
+          <span class="muted">{{ contact.created_at | dt(lang) }}</span>
         </div>
       </div>
 
@@ -135,7 +135,7 @@
               </td>
 
               <td>
-                {{ call.ended_at or '-' }}
+                {{ (call.ended_at | dt(lang)) if call.ended_at else '-' }}
               </td>
             </tr>
           {% else %}

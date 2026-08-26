@@ -16,6 +16,8 @@ from passlib.context import CryptContext
 from app.config import settings
 from app.database import get_db
 from app.i18n import templating as i18n_templating
+from app.i18n import dates as i18n_dates
+from app.i18n.templating import request_language
 from app.models.user import User
 from app.models.company import Company
 from app.services.email_service import send_password_reset_email
@@ -26,6 +28,7 @@ templates = Jinja2Templates(directory="app/templates")
 
 # Gives every template t(), lang and languages.
 i18n_templating.install(templates)
+i18n_dates.install(templates)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -446,7 +449,12 @@ def web_forgot_password(
         user.reset_attempts = 0
         db.commit()
 
-        sent = send_password_reset_email(email, code)
+        sent = send_password_reset_email(
+            email,
+            code,
+            expiry_minutes=RESET_CODE_EXPIRY_MINUTES,
+            language=request_language(request),
+        )
 
         # Temporary bridge while the SMTP provider isn't activated yet. Logs
         # server-side only (journalctl), never in the HTTP response - showing

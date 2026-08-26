@@ -104,12 +104,12 @@
     <div class="grid grid-2">
       <div>
         <strong>{{ t("Created") }}</strong><br>
-        <span class="muted">{{ campaign.created_at }}</span>
+        <span class="muted">{{ campaign.created_at | dt(lang) }}</span>
       </div>
 
       <div>
         <strong>{{ t("Completed At") }}</strong><br>
-        <span class="muted">{{ campaign.completed_at or 'Not completed' }}</span>
+        <span class="muted">{{ (campaign.completed_at | dt(lang)) if campaign.completed_at else t("Not completed") }}</span>
       </div>
     </div>
   </div>
@@ -379,9 +379,9 @@
               </td>
               <td>{{ call.duration_sec if call.duration_sec is not none else '' }}</td>
               <td>{{ call.hangup_cause if call.hangup_cause is not none else '' }}</td>
-              <td>{{ call.started_at }}</td>
+              <td>{{ call.started_at | dt(lang) }}</td>
               <td>{{ call.answered_at or '' }}</td>
-              <td>{{ call.ended_at or '' }}</td>
+              <td>{{ (call.ended_at | dt(lang)) if call.ended_at else '' }}</td>
             </tr>
           {% endfor %}
 

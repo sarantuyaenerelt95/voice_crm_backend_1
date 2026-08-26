@@ -310,42 +310,6 @@ def create_purchase(
     return purchase
 
 
-def create_test_purchase(
-    db,
-    company_id: int,
-    call_count: int,
-    amount_mnt: int,
-    user_id: Optional[int] = None,
-) -> TokenPurchase:
-    """An unpaid order that belongs to no package, for testing a real payment.
-
-    package_id is nullable, so this needs no TokenPackage row - which keeps a
-    cheap test price out of the list customers actually see. Everything after
-    this point is the normal path: it is settled by QPay like any other order.
-    """
-    if int(amount_mnt) <= 0 or int(call_count) <= 0:
-        raise HTTPException(
-            status_code=400,
-            detail="Test purchase amount and call count must both be positive.",
-        )
-
-    purchase = TokenPurchase(
-        company_id=company_id,
-        package_id=None,
-        call_count=int(call_count),
-        amount_mnt=int(amount_mnt),
-        status=PurchaseStatus.pending,
-        payment_provider="qpay",
-        created_by_user_id=user_id,
-        note="QPay integration test purchase",
-    )
-
-    db.add(purchase)
-    db.flush()
-
-    return purchase
-
-
 def mark_purchase_paid(
     db,
     purchase_id: int,

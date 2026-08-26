@@ -36,6 +36,7 @@ from app import i18n
 from app.config import settings
 from app.database import get_db
 from app.i18n import templating as i18n_templating
+from app.i18n import dates as i18n_dates
 from app.models.campaign import Campaign, CampaignStatus
 from app.models.call_log import CallLog, CallStatus
 from app.models.audio_file import AudioFile, AudioSource
@@ -72,6 +73,7 @@ templates = Jinja2Templates(directory="app/templates")
 
 # Gives every template t(), lang and languages.
 i18n_templating.install(templates)
+i18n_dates.install(templates)
 
 ASTERISK_SOUNDS_DIR = settings.ASTERISK_SOUNDS_DIR
 ALLOWED_EXTENSIONS = {".mp3", ".wav", ".m4a", ".ogg", ".flac", ".gsm"}
@@ -279,9 +281,6 @@ def profile_context(
         "token_balance": token_balance,
         "token_packages": token_packages,
         "recent_purchases": recent_purchases,
-        "qpay_test_enabled": settings.QPAY_TEST_PURCHASE_ENABLED,
-        "qpay_test_amount": settings.QPAY_TEST_AMOUNT_MNT,
-        "qpay_test_calls": settings.QPAY_TEST_CALL_COUNT,
         "can_edit_company": role_value == "admin",
         "user_has_phone": has_model_column(User, "phone"),
         "message": message,
@@ -2866,62 +2865,6 @@ async def web_buy_tokens(
     except Exception as exc:
         db.rollback()
         return render_profile(request, user, db, error=f"Purchase failed: {exc}")
-
-    return RedirectResponse(
-        url=f"/web/payments/{purchase.id}",
-        status_code=303,
-    )
-
-
-@router.post("/profile/tokens/test-buy")
-def web_buy_test_tokens(
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    """Buy the smallest possible real order, to prove the QPay round trip.
-
-    Guarded by QPAY_TEST_PURCHASE_ENABLED because this bypasses the price list:
-    while it is on, an admin can buy tokens for the test price.
-    """
-    user = get_current_web_user(request, db)
-
-    if not settings.QPAY_TEST_PURCHASE_ENABLED:
-        raise HTTPException(status_code=404, detail="Test purchases are not enabled.")
-
-    if normalized_role(user) != "admin":
-        raise HTTPException(status_code=403, detail="Only an admin can run a test purchase.")
-
-    try:
-        purchase = billing_service.create_test_purchase(
-            db=db,
-            company_id=user.company_id,
-            call_count=settings.QPAY_TEST_CALL_COUNT,
-            amount_mnt=settings.QPAY_TEST_AMOUNT_MNT,
-            user_id=user.id,
-        )
-
-        invoice = qpay_service.create_invoice(
-            purchase_id=purchase.id,
-            amount_mnt=int(purchase.amount_mnt),
-            description=f"Voicebro QPay test - {purchase.call_count} token",
-        )
-
-        purchase.provider_ref = str(invoice["invoice_id"])
-        purchase.provider_payload = qpay_service.payload_for_storage(invoice)
-
-        db.commit()
-
-    except HTTPException as exc:
-        db.rollback()
-        return render_profile(request, user, db, error=str(exc.detail), status_code=400)
-
-    except qpay_service.QPayError as exc:
-        db.rollback()
-        return render_profile(request, user, db, error=f"Could not start the test payment: {exc}")
-
-    except Exception as exc:
-        db.rollback()
-        return render_profile(request, user, db, error=f"Test purchase failed: {exc}")
 
     return RedirectResponse(
         url=f"/web/payments/{purchase.id}",

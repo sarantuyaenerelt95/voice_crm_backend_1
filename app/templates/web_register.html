@@ -32,18 +32,18 @@
   <div class="login-wrap">
     <section class="login-panel">
       <span class="badge badge-active">
-        Company workspace
+        {{ t("Company workspace") }}
       </span>
 
-      <h1>Create Account</h1>
+      <h1>{{ t("Create Account") }}</h1>
 
       <p class="muted">
-        Create one company workspace and your first admin account.
+        {{ t("Create one company workspace and your first admin account.") }}
       </p>
     </section>
 
     <section class="card">
-      <h2>Register</h2>
+      <h2>{{ t("Register") }}</h2>
 
       {% if error %}
         <div class="alert alert-error">
@@ -53,52 +53,52 @@
 
       <form method="post" action="/web/register" class="form-grid">
         <div>
-          <label>Company name</label>
+          <label>{{ t("Company name") }}</label>
           <input type="text" name="company_name" required>
         </div>
 
         <div>
-          <label>Your name</label>
+          <label>{{ t("Your name") }}</label>
           <input type="text" name="full_name" required>
         </div>
 
         <div>
-          <label>Email</label>
+          <label>{{ t("Email") }}</label>
           <input type="email" name="email" autocomplete="email" required>
         </div>
 
         <div>
-          <label for="password">Password</label>
+          <label for="password">{{ t("Password") }}</label>
           <div class="password-field">
             <input type="password" id="password" name="password" autocomplete="new-password" minlength="6" required>
             <button type="button" class="password-toggle" data-password-toggle="password" aria-label="{{ t('Show password') }}">{{ t("Show") }}</button>
           </div>
           <p class="muted small-text">
-            Minimum 6 characters. Maximum 72 bytes.
+            {{ t("Minimum 6 characters. Maximum 72 bytes.") }}
           </p>
         </div>
 
         <div>
-          <label for="confirm_password">Confirm password</label>
+          <label for="confirm_password">{{ t("Confirm password") }}</label>
           <div class="password-field">
             <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password" minlength="6" required>
             <button type="button" class="password-toggle" data-password-toggle="confirm_password" aria-label="{{ t('Show password') }}">{{ t("Show") }}</button>
           </div>
           <p class="muted small-text" id="passwordMismatch" style="display: none; color: var(--danger);">
-            Passwords do not match.
+            {{ t("Passwords do not match.") }}
           </p>
         </div>
 
         <div class="actions">
           <button class="btn" type="submit">
-            Create Account
+            {{ t("Create Account") }}
           </button>
         </div>
       </form>
 
       <p class="muted">
-        Already have an account?
-        <a href="/web/login">Login</a>.
+        {{ t("Already have an account?") }}
+        <a href="/web/login">{{ t("Login") }}</a>.
       </p>
     </section>
   </div>
@@ -108,7 +108,14 @@
 <script>
   // Convenience only - the authoritative check is server-side in
   // web_register(), which rejects a mismatch before creating anything.
+  //
+  // The mismatch message is rendered in from the server rather than written
+  // here, because a string hardcoded in JavaScript is invisible to the
+  // translation catalog - it would show translated on page load and flip
+  // back to English the moment this check ever fires.
   (function () {
+    var MISMATCH_MESSAGE = {{ t("Passwords do not match.") | tojson }};
+
     var pw = document.getElementById("password");
     var confirm = document.getElementById("confirm_password");
     var hint = document.getElementById("passwordMismatch");
@@ -120,7 +127,7 @@
     function check() {
       var mismatch = confirm.value !== "" && pw.value !== confirm.value;
       hint.style.display = mismatch ? "block" : "none";
-      confirm.setCustomValidity(mismatch ? "Passwords do not match." : "");
+      confirm.setCustomValidity(mismatch ? MISMATCH_MESSAGE : "");
     }
 
     pw.addEventListener("input", check);

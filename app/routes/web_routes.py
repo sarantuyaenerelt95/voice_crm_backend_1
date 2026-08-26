@@ -462,8 +462,8 @@ def web_campaigns(
     )
 
     campaigns = without_archived_campaigns(campaign_query).order_by(
-        Campaign.created_at.asc(),
-        Campaign.id.asc(),
+        Campaign.created_at.desc(),
+        Campaign.id.desc(),
     ).all()
 
     return templates.TemplateResponse(
@@ -1769,8 +1769,8 @@ def web_contact_group_detail(
             Campaign.id.in_(campaign_ids),
             Campaign.company_id == user.company_id,
         ).order_by(
-            Campaign.created_at.asc(),
-            Campaign.id.asc(),
+            Campaign.created_at.desc(),
+            Campaign.id.desc(),
         ).all()
 
         for campaign in campaign_list:
@@ -2499,8 +2499,8 @@ def web_not_executed_campaigns(
         Campaign.company_id == user.company_id,
         Campaign.status == CampaignStatus.draft,
     ).order_by(
-        Campaign.created_at.asc(),
-        Campaign.id.asc(),
+        Campaign.created_at.desc(),
+        Campaign.id.desc(),
     ).all()
 
     rows = []

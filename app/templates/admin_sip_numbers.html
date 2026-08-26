@@ -1,12 +1,12 @@
 <!-- app/templates/admin_sip_numbers.html -->
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
   <title>SIP Numbers | Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/voicecrm.css?v=20260825-qpay-1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260826-i18n-1">
 </head>
 
 <body>
@@ -15,14 +15,14 @@
   <div class="top-nav-inner">
     <a class="brand" href="/admin/sip-numbers">
       <span class="brand-mark">VB</span>
-      <span class="brand-text">Voicebro Admin</span>
+      <span class="brand-text">{{ t("Voicebro Admin") }}</span>
     </a>
 
     <div class="nav-links">
-      <a href="/admin/sip-numbers" class="active">SIP Numbers</a>
+      <a href="/admin/sip-numbers" class="active">{{ t("SIP Numbers") }}</a>
 
       <form class="nav-logout" method="post" action="/web/logout">
-        <button type="submit">Logout</button>
+        <button type="submit">{{ t("Logout") }}</button>
       </form>
     </div>
   </div>
@@ -32,10 +32,10 @@
 
   <div class="page-header">
     <div>
-      <p class="page-eyebrow">Platform Admin</p>
-      <h1>SIP Trunks / SIP Numbers</h1>
+      <p class="page-eyebrow">{{ t("Platform Admin") }}</p>
+      <h1>{{ t("SIP Trunks / SIP Numbers") }}</h1>
       <p class="muted">
-        Add, enable, disable, and check Asterisk registration status for outbound SIP trunks.
+        {{ t("Add, enable, disable, and check Asterisk registration status for outbound SIP trunks.") }}
       </p>
     </div>
   </div>
@@ -48,57 +48,56 @@
   {% endif %}
 
   <div class="card">
-    <h2>Add SIP Number</h2>
+    <h2>{{ t("Add SIP Number") }}</h2>
 
     <form class="form-grid" method="post" action="/admin/sip-numbers/add-apply">
       <div class="grid grid-2">
         <div>
-          <label>Provider</label>
-          <input type="text" name="provider" placeholder="Example: cally or mobinet" required>
+          <label>{{ t("Provider") }}</label>
+          <input type="text" name="provider" placeholder="{{ t('Example: cally or mobinet') }}" required>
         </div>
 
         <div>
-          <label>SIP Number</label>
-          <input type="text" name="number" placeholder="Example: 77090909" required>
-        </div>
-      </div>
-
-      <div class="grid grid-2">
-        <div>
-          <label>SIP Host / Server IP</label>
-          <input type="text" name="sip_host" placeholder="Example: 202.55.178.100 or portal.cally.mn" required>
-        </div>
-
-        <div>
-          <label>SIP Domain / Realm</label>
-          <input type="text" name="sip_domain" placeholder="Example: portal.cally.mn">
+          <label>{{ t("SIP Number") }}</label>
+          <input type="text" name="number" placeholder="{{ t('Example: 77090909') }}" required>
         </div>
       </div>
 
       <div class="grid grid-2">
         <div>
-          <label>SIP Username</label>
-          <input type="text" name="sip_username" placeholder="SIP username" required>
+          <label>{{ t("SIP Host / Server IP") }}</label>
+          <input type="text" name="sip_host" placeholder="{{ t('Example: 202.55.178.100 or portal.cally.mn') }}" required>
         </div>
 
         <div>
-          <label>SIP Password</label>
-          <input type="password" name="sip_password" placeholder="SIP password" required>
+          <label>{{ t("SIP Domain / Realm") }}</label>
+          <input type="text" name="sip_domain" placeholder="{{ t('Example: portal.cally.mn') }}">
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <div>
+          <label>{{ t("SIP Username") }}</label>
+          <input type="text" name="sip_username" placeholder="{{ t('SIP username') }}" required>
+        </div>
+
+        <div>
+          <label>{{ t("SIP Password") }}</label>
+          <input type="password" name="sip_password" placeholder="{{ t('SIP password') }}" required>
         </div>
       </div>
 
       <div>
-        <label>Max Concurrent Calls</label>
+        <label>{{ t("Max Concurrent Calls") }}</label>
         <input type="number" name="max_concurrent" value="3" min="1">
       </div>
 
       <div class="alert alert-info">
-        Asterisk endpoint is generated automatically from provider and SIP number.
-        Example: <b>vc_cally_77090909</b>
+        {{ t("The endpoint is generated automatically from the provider and SIP number. Example: {example}", example="<b>vc_cally_77090909</b>") | safe }}
       </div>
 
       <div class="actions">
-        <button class="btn" type="submit">Add & Apply to Asterisk</button>
+        <button class="btn" type="submit">{{ t("Add & Apply to Asterisk") }}</button>
       </div>
     </form>
   </div>
@@ -106,9 +105,9 @@
   <div class="card">
     <div class="section-title-row">
       <div>
-        <h2>Current SIP Numbers</h2>
+        <h2>{{ t("Current SIP Numbers") }}</h2>
         <p class="muted small-text">
-          Registered means Asterisk currently has successful SIP registration.
+          {{ t("Registered means Asterisk currently has successful SIP registration.") }}
         </p>
       </div>
     </div>
@@ -117,18 +116,18 @@
       <table>
         <thead>
           <tr>
-            <th>No.</th>
-            <th>Provider</th>
-            <th>SIP Number</th>
-            <th>Host</th>
-            <th>Domain</th>
-            <th>Username</th>
-            <th>Endpoint</th>
-            <th>DB Status</th>
-            <th>Applied</th>
-            <th>Register Status</th>
-            <th>Max</th>
-            <th>Action</th>
+            <th>{{ t("No.") }}</th>
+            <th>{{ t("Provider") }}</th>
+            <th>{{ t("SIP Number") }}</th>
+            <th>{{ t("Host") }}</th>
+            <th>{{ t("Domain") }}</th>
+            <th>{{ t("Username") }}</th>
+            <th>{{ t("Endpoint") }}</th>
+            <th>{{ t("DB Status") }}</th>
+            <th>{{ t("Applied") }}</th>
+            <th>{{ t("Register Status") }}</th>
+            <th>{{ t("Max") }}</th>
+            <th>{{ t("Action") }}</th>
           </tr>
         </thead>
 
@@ -152,31 +151,31 @@
 
               <td>
                 {% if trunk.is_active %}
-                  <span class="badge badge-active">Active</span>
+                  <span class="badge badge-active">{{ t("Active") }}</span>
                 {% else %}
-                  <span class="badge badge-disabled">Disabled</span>
+                  <span class="badge badge-disabled">{{ t("Disabled") }}</span>
                 {% endif %}
               </td>
 
               <td>
                 {% if trunk.is_applied is defined and trunk.is_applied %}
-                  <span class="badge badge-active">Applied</span>
+                  <span class="badge badge-active">{{ t("Applied") }}</span>
                 {% elif trunk.is_applied is defined %}
-                  <span class="badge badge-disabled">Not Applied</span>
+                  <span class="badge badge-disabled">{{ t("Not Applied") }}</span>
                 {% else %}
-                  <span class="badge badge-unknown">Manual</span>
+                  <span class="badge badge-unknown">{{ t("Manual") }}</span>
                 {% endif %}
               </td>
 
               <td>
                 {% if not trunk.is_active %}
-                  <span class="badge badge-unknown">Not Active</span>
+                  <span class="badge badge-unknown">{{ t("Not Active") }}</span>
                 {% elif reg_status == "Registered" %}
-                  <span class="badge badge-registered">Registered</span>
+                  <span class="badge badge-registered">{{ t("Registered") }}</span>
                 {% elif reg_status == "Rejected" %}
-                  <span class="badge badge-rejected">Rejected</span>
+                  <span class="badge badge-rejected">{{ t("Rejected") }}</span>
                 {% elif reg_status == "Unregistered" %}
-                  <span class="badge badge-unregistered">Unregistered</span>
+                  <span class="badge badge-unregistered">{{ t("Unregistered") }}</span>
                 {% else %}
                   <span class="badge badge-unknown">{{ reg_status }}</span>
                 {% endif %}
@@ -188,13 +187,13 @@
                 {% if trunk.is_active %}
                   <form class="inline-form" method="post" action="/admin/sip-numbers/{{ trunk.id }}/disable">
                     <button type="submit" class="btn btn-warning">
-                      Disable
+                      {{ t("Disable") }}
                     </button>
                   </form>
                 {% else %}
                   <form class="inline-form" method="post" action="/admin/sip-numbers/{{ trunk.id }}/enable">
                     <button type="submit" class="btn btn-success">
-                      Enable & Apply
+                      {{ t("Enable & Apply") }}
                     </button>
                   </form>
                 {% endif %}
@@ -204,7 +203,7 @@
             <tr>
               <td colspan="12">
                 <div class="empty-state">
-                  No SIP numbers configured yet.
+                  {{ t("No SIP numbers configured yet.") }}
                 </div>
               </td>
             </tr>

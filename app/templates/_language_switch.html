@@ -1,0 +1,20 @@
+<!-- app/templates/_language_switch.html -->
+
+<!--
+  One small button that flips to the other language. It shows the language you
+  would switch TO, which is what makes a single-button toggle readable: an
+  "EN" badge while you are reading Mongolian is an offer, not a status.
+
+  A plain link, so it works without JavaScript, and `next` is the current path
+  so the switch keeps you on the page you were reading.
+-->
+
+{% set other = "en" if lang == "mn" else "mn" %}
+
+<a class="lang-toggle"
+   href="/lang/{{ other }}?next={{ request.url.path | urlencode }}"
+   hreflang="{{ other }}"
+   lang="{{ other }}"
+   title="{{ t('Language') }}: {{ languages | selectattr('code', 'equalto', other) | map(attribute='name') | first }}">
+  {{ "EN" if other == "en" else "МН" }}
+</a>

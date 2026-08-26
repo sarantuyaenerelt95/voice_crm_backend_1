@@ -1,12 +1,12 @@
 <!-- app/templates/campaign_detail.html -->
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
   <title>Campaign Detail - Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/voicecrm.css?v=20260825-qpay-1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260826-i18n-1">
 </head>
 
 <body>
@@ -19,41 +19,41 @@
 
   <div class="page-header">
     <div>
-      <a class="back-link" href="/web/dashboard">← Back to dashboard</a>
-      <p class="page-eyebrow">Campaign detail</p>
+      <a class="back-link" href="/web/dashboard">{{ t("← Back to dashboard") }}</a>
+      <p class="page-eyebrow">{{ t("Campaign detail") }}</p>
       <h1>Campaign #{{ campaign_display_id }}: {{ campaign.name }}</h1>
       <span class="badge badge-{{ campaign_status }}">{{ campaign_status }}</span>
     </div>
 
     <div class="actions">
       <a class="btn btn-secondary" href="/web/campaigns/{{ campaign.id }}/contacts">
-        Manage Numbers
+        {{ t("Manage Numbers") }}
       </a>
 
       <a class="btn btn-secondary" href="/web/campaigns/{{ campaign.id }}/report.csv">
-        Download CSV
+        {{ t("Download CSV") }}
       </a>
     </div>
   </div>
 
   <div class="grid grid-4">
     <div class="stat">
-      <div class="stat-label">Total</div>
+      <div class="stat-label">{{ t("Total") }}</div>
       <div class="stat-value">{{ campaign.total_contacts or 0 }}</div>
     </div>
 
     <div class="stat">
-      <div class="stat-label">Completed</div>
+      <div class="stat-label">{{ t("Completed") }}</div>
       <div class="stat-value">{{ campaign.completed_calls or 0 }}</div>
     </div>
 
     <div class="stat">
-      <div class="stat-label">Busy</div>
+      <div class="stat-label">{{ t("Busy") }}</div>
       <div class="stat-value">{{ campaign.busy_calls or 0 }}</div>
     </div>
 
     <div class="stat">
-      <div class="stat-label">Failed</div>
+      <div class="stat-label">{{ t("Failed") }}</div>
       <div class="stat-value">{{ campaign.failed_calls or 0 }}</div>
     </div>
   </div>
@@ -61,9 +61,9 @@
   <div class="card">
     <div class="page-header compact-header">
       <div>
-        <h2>Start Readiness</h2>
+        <h2>{{ t("Start Readiness") }}</h2>
         <p class="muted">
-          Only registered SIP numbers with free slots are available for real start.
+          {{ t("Only registered SIP numbers with free slots are available for real start.") }}
         </p>
       </div>
 
@@ -73,7 +73,7 @@
                 action="/web/campaigns/{{ campaign.id }}/real-start"
                 class="start-form"
                 id="realStartForm">
-            <label for="sip_trunk_id">SIP Number</label>
+            <label for="sip_trunk_id">{{ t("SIP Number") }}</label>
 
             <select id="sip_trunk_id" name="sip_trunk_id" required>
               {% for row in sip_rows %}
@@ -86,12 +86,12 @@
             </select>
 
             <button class="btn btn-success" type="submit">
-              Real Start Campaign
+              {{ t("Real Start Campaign") }}
             </button>
           </form>
         {% else %}
           <button class="btn btn-disabled" disabled>
-            Real Start Disabled
+            {{ t("Real Start Disabled") }}
           </button>
 
           <p class="muted small-text">
@@ -103,33 +103,33 @@
 
     <div class="grid grid-2">
       <div>
-        <strong>Created</strong><br>
+        <strong>{{ t("Created") }}</strong><br>
         <span class="muted">{{ campaign.created_at }}</span>
       </div>
 
       <div>
-        <strong>Completed At</strong><br>
+        <strong>{{ t("Completed At") }}</strong><br>
         <span class="muted">{{ campaign.completed_at or 'Not completed' }}</span>
       </div>
     </div>
   </div>
 
   <div class="card">
-    <h2>SIP Numbers</h2>
+    <h2>{{ t("SIP Numbers") }}</h2>
 
     {% if sip_rows and sip_rows|length > 0 %}
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>No.</th>
-              <th>SIP Number</th>
-              <th>Provider</th>
-              <th>Endpoint</th>
-              <th>Register</th>
-              <th>Active Calls</th>
-              <th>Free Slots</th>
-              <th>Status</th>
+              <th>{{ t("No.") }}</th>
+              <th>{{ t("SIP Number") }}</th>
+              <th>{{ t("Provider") }}</th>
+              <th>{{ t("Endpoint") }}</th>
+              <th>{{ t("Register") }}</th>
+              <th>{{ t("Active Calls") }}</th>
+              <th>{{ t("Free Slots") }}</th>
+              <th>{{ t("Status") }}</th>
             </tr>
           </thead>
 
@@ -143,11 +143,11 @@
 
                 <td>
                   {% if sip.register_status == "Registered" %}
-                    <span class="badge badge-registered">Registered</span>
+                    <span class="badge badge-registered">{{ t("Registered") }}</span>
                   {% elif sip.register_status == "Rejected" %}
-                    <span class="badge badge-rejected">Rejected</span>
+                    <span class="badge badge-rejected">{{ t("Rejected") }}</span>
                   {% elif sip.register_status == "Unregistered" %}
-                    <span class="badge badge-unregistered">Unregistered</span>
+                    <span class="badge badge-unregistered">{{ t("Unregistered") }}</span>
                   {% else %}
                     <span class="badge badge-unknown">{{ sip.register_status }}</span>
                   {% endif %}
@@ -158,9 +158,9 @@
 
                 <td>
                   {% if sip.available %}
-                    <span class="badge badge-available">Available</span>
+                    <span class="badge badge-available">{{ t("Available") }}</span>
                   {% else %}
-                    <span class="badge badge-not-available">Not Available</span>
+                    <span class="badge badge-not-available">{{ t("Not Available") }}</span>
                   {% endif %}
                 </td>
               </tr>
@@ -170,28 +170,28 @@
       </div>
     {% else %}
       <div class="alert alert-error">
-        No SIP number is configured or visible for this campaign.
+        {{ t("No SIP number is configured or visible for this campaign.") }}
       </div>
     {% endif %}
   </div>
 
   <div class="card">
-    <h2>Groups Used</h2>
+    <h2>{{ t("Groups Used") }}</h2>
 
     {% if campaign_groups %}
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Group</th>
-              <th>Total</th>
-              <th>Progress</th>
-              <th>Calling</th>
-              <th>Completed</th>
-              <th>Busy</th>
-              <th>No Answer</th>
-              <th>Failed</th>
-              <th>Congestion</th>
+              <th>{{ t("Group") }}</th>
+              <th>{{ t("Total") }}</th>
+              <th>{{ t("Progress") }}</th>
+              <th>{{ t("Calling") }}</th>
+              <th>{{ t("Completed") }}</th>
+              <th>{{ t("Busy") }}</th>
+              <th>{{ t("No Answer") }}</th>
+              <th>{{ t("Failed") }}</th>
+              <th>{{ t("Congestion") }}</th>
               <th></th>
             </tr>
           </thead>
@@ -214,7 +214,7 @@
                 <td>{{ row.failed }}</td>
                 <td>{{ row.congestion }}</td>
                 <td>
-                  <a href="/web/contact-groups/{{ row.group.id }}">Open</a>
+                  <a href="/web/contact-groups/{{ row.group.id }}">{{ t("Open") }}</a>
                 </td>
               </tr>
             {% endfor %}
@@ -223,7 +223,7 @@
       </div>
     {% else %}
       <p class="muted">
-        No contact group was linked to this campaign.
+        {{ t("No contact group was linked to this campaign.") }}
       </p>
     {% endif %}
   </div>
@@ -231,7 +231,7 @@
   <div class="card">
     <div class="section-title-row">
       <div>
-        <h2>Target Number Status</h2>
+        <h2>{{ t("Target Number Status") }}</h2>
         <p class="muted">
           Shows all frozen campaign numbers, including pending and cancelled numbers.
           Total targets: {{ target_status_total or 0 }}
@@ -243,11 +243,11 @@
       <table id="targetStatusTable">
         <thead>
           <tr>
-            <th>No.</th>
-            <th>Phone</th>
-            <th>Status</th>
-            <th>Attempts</th>
-            <th>Call Log ID</th>
+            <th>{{ t("No.") }}</th>
+            <th>{{ t("Phone") }}</th>
+            <th>{{ t("Status") }}</th>
+            <th>{{ t("Attempts") }}</th>
+            <th>{{ t("Call Log ID") }}</th>
           </tr>
         </thead>
 
@@ -268,7 +268,7 @@
             <tr>
               <td colspan="5">
                 <div class="empty-state">
-                  No campaign targets found.
+                  {{ t("No campaign targets found.") }}
                 </div>
               </td>
             </tr>
@@ -279,7 +279,7 @@
 
     {% if target_status_total and target_status_total > 300 %}
       <p class="muted small-text">
-        Showing first 300 targets only. Use Manage Numbers to view more.
+        {{ t("Showing first 300 targets only. Use Manage Numbers to view more.") }}
       </p>
     {% endif %}
   </div>
@@ -287,29 +287,29 @@
   <div class="card">
     <div class="section-title-row">
       <div>
-        <h2>Call Results</h2>
-        <p class="muted" id="monitorStatus">Manual refresh mode.</p>
+        <h2>{{ t("Call Results") }}</h2>
+        <p class="muted" id="monitorStatus">{{ t("Manual refresh mode.") }}</p>
       </div>
 
       <div class="monitor-controls">
         <select id="callStatusFilter" class="status-filter" aria-label="Filter call results by status">
-          <option value="all">All statuses</option>
-          <option value="pending">Pending</option>
-          <option value="calling">Calling</option>
-          <option value="completed">Completed</option>
-          <option value="busy">Busy</option>
-          <option value="no_answer">No answer</option>
-          <option value="failed">Failed</option>
-          <option value="congestion">Congestion</option>
-          <option value="cancelled">Cancelled</option>
+          <option value="all">{{ t("All statuses") }}</option>
+          <option value="pending">{{ t("Pending") }}</option>
+          <option value="calling">{{ t("Calling") }}</option>
+          <option value="completed">{{ t("Completed") }}</option>
+          <option value="busy">{{ t("Busy") }}</option>
+          <option value="no_answer">{{ t("No answer") }}</option>
+          <option value="failed">{{ t("Failed") }}</option>
+          <option value="congestion">{{ t("Congestion") }}</option>
+          <option value="cancelled">{{ t("Cancelled") }}</option>
         </select>
 
         <button class="btn btn-secondary" type="button" id="autoRefreshToggle">
-          Auto-refresh off
+          {{ t("Auto-refresh off") }}
         </button>
 
         <a class="btn btn-secondary" href="/web/campaigns/{{ campaign.id }}">
-          Refresh
+          {{ t("Refresh") }}
         </a>
 
         {% if campaign_status in ["running", "queued"] %}
@@ -318,7 +318,7 @@
                 class="inline-form"
                 id="cancelCampaignForm">
             <button class="btn btn-danger" type="submit">
-              Cancel Campaign
+              {{ t("Cancel Campaign") }}
             </button>
           </form>
         {% endif %}
@@ -338,13 +338,13 @@
       <div class="actions">
         {% if page > 1 %}
           <a class="btn btn-secondary" href="/web/campaigns/{{ campaign.id }}?page={{ page - 1 }}">
-            Previous
+            {{ t("Previous") }}
           </a>
         {% endif %}
 
         {% if page < total_pages %}
           <a class="btn btn-secondary" href="/web/campaigns/{{ campaign.id }}?page={{ page + 1 }}">
-            Next
+            {{ t("Next") }}
           </a>
         {% endif %}
       </div>
@@ -354,14 +354,14 @@
       <table id="callResultsTable">
         <thead>
           <tr>
-            <th>No.</th>
-            <th>Phone</th>
-            <th>Status</th>
-            <th>Duration</th>
-            <th>Cause</th>
-            <th>Started</th>
-            <th>Answered</th>
-            <th>Ended</th>
+            <th>{{ t("No.") }}</th>
+            <th>{{ t("Phone") }}</th>
+            <th>{{ t("Status") }}</th>
+            <th>{{ t("Duration") }}</th>
+            <th>{{ t("Cause") }}</th>
+            <th>{{ t("Started") }}</th>
+            <th>{{ t("Answered") }}</th>
+            <th>{{ t("Ended") }}</th>
           </tr>
         </thead>
 
@@ -391,7 +391,7 @@
                 <td>{{ calls|length + loop.index }}</td>
                 <td>{{ target.phone }}</td>
                 <td>
-                  <span class="badge badge-cancelled">cancelled</span>
+                  <span class="badge badge-cancelled">{{ t("cancelled") }}</span>
                 </td>
                 <td></td>
                 <td></td>
@@ -406,7 +406,7 @@
             <tr>
               <td colspan="8">
                 <div class="empty-state">
-                  No calls recorded yet.
+                  {{ t("No calls recorded yet.") }}
                 </div>
               </td>
             </tr>

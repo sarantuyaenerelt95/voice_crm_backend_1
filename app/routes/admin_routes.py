@@ -11,6 +11,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.i18n import templating as i18n_templating
 from app.models.user import User
 from app.models.sip_trunk import SIPTrunk
 from app.models.call_log import CallLog, CallStatus
@@ -20,6 +21,9 @@ from app.services.asterisk_status import get_pjsip_registration_status
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
+
+# Gives every template t(), lang and languages.
+i18n_templating.install(templates)
 
 
 def utc_now():

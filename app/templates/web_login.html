@@ -1,13 +1,13 @@
 <!-- app/templates/web_login.html -->
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
   <title>Login | Voicebro</title>
   <meta name="description" content="Sign in to Voicebro to manage your voice broadcast campaigns, contacts, audio library and call reports.">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/voicecrm.css?v=20260825-qpay-1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260826-i18n-1">
 </head>
 
 <body>
@@ -20,8 +20,9 @@
     </a>
 
     <div class="nav-links">
-      <a class="active" href="/web/login">Login</a>
-      <a href="/web/register">Create account</a>
+      <a class="active" href="/web/login">{{ t("Login") }}</a>
+      <a href="/web/register">{{ t("Create account") }}</a>
+      {% include "_language_switch.html" %}
     </div>
   </div>
 </nav>
@@ -31,18 +32,18 @@
   <div class="login-wrap">
     <section class="login-panel">
       <span class="badge badge-active">
-        Secure workspace
+        {{ t("Secure workspace") }}
       </span>
 
-      <h1>Login</h1>
+      <h1>{{ t("Login") }}</h1>
 
       <p class="muted">
-        Open your broadcast dashboard, contacts, audio files, and campaign reports.
+        {{ t("Open your broadcast dashboard, contacts, audio files, and campaign reports.") }}
       </p>
     </section>
 
     <section class="card">
-      <h2>Sign in</h2>
+      <h2>{{ t("Sign in") }}</h2>
 
       {% if error %}
         <div class="alert alert-error">
@@ -52,31 +53,31 @@
 
       <form method="post" action="/web/login" class="form-grid">
         <div>
-          <label>Email</label>
+          <label>{{ t("Email") }}</label>
           <input type="email" name="email" autocomplete="email" required>
         </div>
 
         <div>
-          <label for="password">Password</label>
+          <label for="password">{{ t("Password") }}</label>
           <div class="password-field">
             <input type="password" id="password" name="password" autocomplete="current-password" required>
-            <button type="button" class="password-toggle" data-password-toggle="password" aria-label="Show password">Show</button>
+            <button type="button" class="password-toggle" data-password-toggle="password" aria-label="{{ t('Show password') }}">{{ t("Show") }}</button>
           </div>
         </div>
         
         <div style="text-align: right; margin-top: -8px;">
-          <a href="/web/forgot-password" class="muted small-text">Forgot password?</a>
+          <a href="/web/forgot-password" class="muted small-text">{{ t("Forgot password?") }}</a>
         </div>
         <div class="actions">
           <button class="btn" type="submit">
-            Login
+            {{ t("Login") }}
           </button>
         </div>
       </form>
 
       <p class="muted">
-        New here?
-        <a href="/web/register">Create an account</a>.
+        {{ t("New here?") }}
+        <a href="/web/register">{{ t("Create an account") }}</a>.
       </p>
     </section>
   </div>

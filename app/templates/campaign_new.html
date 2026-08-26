@@ -1,12 +1,12 @@
 <!-- app/templates/campaign_new.html -->
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
   <title>Create Campaign | Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/voicecrm.css?v=20260825-qpay-1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260826-i18n-1">
 </head>
 
 <body>
@@ -17,23 +17,23 @@
 
   <div class="builder-heading">
     <div>
-      <a class="back-link" href="/web/dashboard">← Back to dashboard</a>
-      <p class="page-eyebrow">Campaign builder</p>
-      <h1>Create Campaign</h1>
+      <a class="back-link" href="/web/dashboard">{{ t("← Back to dashboard") }}</a>
+      <p class="page-eyebrow">{{ t("Campaign builder") }}</p>
+      <h1>{{ t("Create Campaign") }}</h1>
       <p class="muted">
-        Active contacts: <strong>{{ active_contacts_count }}</strong>
+        {{ t("Active contacts:") }} <strong>{{ active_contacts_count }}</strong>
       </p>
     </div>
 
     <div class="actions">
-      <a class="btn btn-secondary" href="/web/audio/upload">Upload Audio</a>
-      <a class="btn btn-secondary" href="/web/contact-groups/new">Import Group</a>
+      <a class="btn btn-secondary" href="/web/audio/upload">{{ t("Upload Audio") }}</a>
+      <a class="btn btn-secondary" href="/web/contact-groups/new">{{ t("Import Group") }}</a>
     </div>
   </div>
 
   <div class="alert alert-info">
-    This page creates only a draft campaign and frozen target list.
-    It will not call anyone. After create, dry-run opens automatically.
+    {{ t("This page creates only a draft campaign and frozen target list.
+    It will not call anyone. After create, dry-run opens automatically.") }}
   </div>
 
   <form method="post" action="/web/campaigns/new" enctype="multipart/form-data">
@@ -43,16 +43,16 @@
       <div class="builder-main">
 
         <div class="card builder-card">
-          <h2>Campaign Info</h2>
+          <h2>{{ t("Campaign Info") }}</h2>
 
           <div class="form-grid">
             <div>
-              <label>Campaign Name</label>
+              <label>{{ t("Campaign Name") }}</label>
               <input type="text" name="name" value="Web test campaign" required>
             </div>
 
             <div>
-              <label>Audio File</label>
+              <label>{{ t("Audio File") }}</label>
               <select name="audio_file_id" required>
                 {% for audio in audio_files %}
                   <option value="{{ audio.id }}">
@@ -66,11 +66,11 @@
 
         <div class="card builder-card">
           <details open>
-            <summary>1. Select contact groups</summary>
+            <summary>{{ t("1. Select contact groups") }}</summary>
 
             <div class="inside">
               <p class="muted small-text">
-                Select one or more groups. All numbers inside selected groups will be added to this campaign.
+                {{ t("Select one or more groups. All numbers inside selected groups will be added to this campaign.") }}
               </p>
 
               <div class="choice-grid">
@@ -96,18 +96,18 @@
                   </label>
                 {% else %}
                   <div class="empty-state">
-                    No contact groups yet.
+                    {{ t("No contact groups yet.") }}
                   </div>
                 {% endfor %}
               </div>
 
               <div class="actions" style="margin-top:14px;">
                 <a class="btn btn-secondary" href="/web/contact-groups/new">
-                  + Import new group
+                  {{ t("+ Import new group") }}
                 </a>
 
                 <a class="btn btn-secondary" href="/web/contact-groups">
-                  Monitor groups
+                  {{ t("Monitor groups") }}
                 </a>
               </div>
             </div>
@@ -116,18 +116,18 @@
 
         <div class="card builder-card">
           <details>
-            <summary>2. Add one number</summary>
+            <summary>{{ t("2. Add one number") }}</summary>
 
             <div class="inside">
               <div class="grid grid-2">
                 <div>
-                  <label>Phone number</label>
+                  <label>{{ t("Phone number") }}</label>
                   <input type="text" name="single_phone" placeholder="90300226">
                 </div>
 
                 <div>
-                  <label>Name</label>
-                  <input type="text" name="single_name" placeholder="Optional name">
+                  <label>{{ t("Name") }}</label>
+                  <input type="text" name="single_name" placeholder="{{ t('Optional name') }}">
                 </div>
               </div>
             </div>
@@ -136,11 +136,11 @@
 
         <div class="card builder-card">
           <details>
-            <summary>3. Paste many numbers</summary>
+            <summary>{{ t("3. Paste many numbers") }}</summary>
 
             <div class="inside">
               <p class="muted small-text">
-                One number per line, or separated by comma/space.
+                {{ t("One number per line, or separated by comma/space.") }}
               </p>
 
               <textarea name="bulk_numbers" placeholder="90300226&#10;99112233&#10;88001122"></textarea>
@@ -150,11 +150,11 @@
 
         <div class="card builder-card">
           <details>
-            <summary>4. Import CSV/TXT contacts</summary>
+            <summary>{{ t("4. Import CSV/TXT contacts") }}</summary>
 
             <div class="inside">
               <p class="muted small-text">
-                TXT: one phone per line. CSV: <code>phone,full_name,notes</code>
+                {{ t("TXT: one phone per line. CSV:") }} <code>phone,full_name,notes</code>
               </p>
 
               <input type="file" name="contact_file" accept=".csv,.txt">
@@ -164,20 +164,20 @@
 
         <div class="card builder-card">
           <details open>
-            <summary>5. Select existing contacts like gallery</summary>
+            <summary>{{ t("5. Select existing contacts like gallery") }}</summary>
 
             <div class="inside">
               <p class="muted small-text">
-                Click one card to select. Hold mouse and drag over cards to select many.
+                {{ t("Click one card to select. Hold mouse and drag over cards to select many.") }}
               </p>
 
               <div class="selection-tools">
                 <button class="btn btn-secondary" type="button" id="clearSelectedContactsBtn">
-                  Clear selected
+                  {{ t("Clear selected") }}
                 </button>
 
                 <span id="selectedCount" class="selection-count">
-                  0 selected
+                  {{ t("0 selected") }}
                 </span>
               </div>
 
@@ -200,7 +200,7 @@
                   </div>
                 {% else %}
                   <div class="empty-state">
-                    No active contacts found.
+                    {{ t("No active contacts found.") }}
                   </div>
                 {% endfor %}
               </div>
@@ -212,25 +212,25 @@
 
       <aside class="preview-panel">
         <div class="card preview-card sticky-card">
-          <p class="card-kicker">Ready</p>
-          <h2>Create draft campaign</h2>
+          <p class="card-kicker">{{ t("Ready") }}</p>
+          <h2>{{ t("Create draft campaign") }}</h2>
 
           <p class="muted">
-            Selected groups, pasted numbers, imported file contacts, and selected existing contacts will be frozen into this campaign.
+            {{ t("Selected groups, pasted numbers, imported file contacts, and selected existing contacts will be frozen into this campaign.") }}
           </p>
 
           <div class="preview-stat">
-            <span class="muted">Estimated unique targets</span>
+            <span class="muted">{{ t("Estimated unique targets") }}</span>
             <strong id="selectedPreviewCount">0</strong>
           </div>
 
           <div class="preview-grid-mini">
             <div>
-              <span class="muted">Selected contacts</span>
+              <span class="muted">{{ t("Selected contacts") }}</span>
               <strong id="selectedExistingCount">0</strong>
             </div>
             <div>
-              <span class="muted">Groups</span>
+              <span class="muted">{{ t("Groups") }}</span>
               <strong id="selectedGroupCount">0</strong>
             </div>
           </div>
@@ -239,19 +239,19 @@
           <div class="alert alert-error preview-message" id="invalidMessage" hidden></div>
 
           <div class="preview-block">
-            <h3>Selected groups</h3>
-            <div class="preview-chip-row" id="previewGroups">No groups selected.</div>
+            <h3>{{ t("Selected groups") }}</h3>
+            <div class="preview-chip-row" id="previewGroups">{{ t("No groups selected.") }}</div>
           </div>
 
           <div class="preview-block">
-            <h3>Unique selected numbers</h3>
-            <p class="muted small-text" id="previewLimitMessage">No numbers selected yet.</p>
+            <h3>{{ t("Unique selected numbers") }}</h3>
+            <p class="muted small-text" id="previewLimitMessage">{{ t("No numbers selected yet.") }}</p>
             <div class="preview-number-list" id="previewNumbers"></div>
           </div>
 
           <div class="preview-actions actions">
             <button class="btn btn-success" type="submit">
-              Create Campaign and Open Dry-run
+              {{ t("Create Campaign and Open Dry-run") }}
             </button>
           </div>
         </div>

@@ -1,12 +1,12 @@
 <!-- app/templates/stt.html -->
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
   <title>Speech to Text | Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/voicecrm.css?v=20260825-qpay-1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260826-i18n-1">
 </head>
 
 <body>
@@ -17,30 +17,30 @@
 
   <div class="page-header">
     <div>
-      <p class="page-eyebrow">Voicebro STT</p>
-      <h1>Speech to Text</h1>
+      <p class="page-eyebrow">{{ t("Voicebro STT") }}</p>
+      <h1>{{ t("Speech to Text") }}</h1>
       <p class="muted">
-        Upload audio and get a Mongolian transcript. Processing takes roughly
-        1-3x the audio's length, so a 1 minute file can take a few minutes.
+        {{ t("Upload audio and get a Mongolian transcript. Processing takes roughly
+        1-3x the audio's length, so a 1 minute file can take a few minutes.") }}
       </p>
     </div>
   </div>
 
   <div class="card">
-    <h2>Upload Audio</h2>
+    <h2>{{ t("Upload Audio") }}</h2>
 
     <div class="alert alert-info">
-      Supported formats: <b>wav, mp3, m4a, ogg, flac, gsm, webm</b>. Max 25MB.
+      {{ t("Supported formats: {formats}. Max {size}.", formats="<b>wav, mp3, m4a, ogg, flac, gsm, webm</b>", size="<b>25MB</b>") | safe }}
     </div>
 
     <div class="form-grid">
       <div>
-        <label>Audio file</label>
+        <label>{{ t("Audio file") }}</label>
         <input type="file" id="sttFile" accept=".wav,.mp3,.m4a,.ogg,.flac,.gsm,.webm">
       </div>
 
       <div class="actions">
-        <button class="btn" type="button" id="sttGo">Transcribe</button>
+        <button class="btn" type="button" id="sttGo">{{ t("Transcribe") }}</button>
       </div>
     </div>
 
@@ -48,23 +48,23 @@
   </div>
 
   <div class="card" id="sttResult" style="display:none">
-    <h2>Result</h2>
+    <h2>{{ t("Result") }}</h2>
 
     <div class="grid grid-4">
       <div class="stat">
-        <div>Audio length</div>
+        <div>{{ t("Audio length") }}</div>
         <b id="sttAudioLen"></b>
-        <span class="muted small-text">seconds</span>
+        <span class="muted small-text">{{ t("seconds") }}</span>
       </div>
 
       <div class="stat">
-        <div>Processing time</div>
+        <div>{{ t("Processing time") }}</div>
         <b id="sttProcTime"></b>
-        <span class="muted small-text">seconds</span>
+        <span class="muted small-text">{{ t("seconds") }}</span>
       </div>
 
       <div class="stat">
-        <div>Speed</div>
+        <div>{{ t("Speed") }}</div>
         <b id="sttRtf"></b>
       </div>
     </div>
@@ -72,14 +72,14 @@
     <div id="sttText" style="margin-top: 16px; font-size: 16px; line-height: 1.7; white-space: pre-wrap;"></div>
 
     <details style="margin-top: 16px;">
-      <summary class="muted small-text" style="cursor: pointer;">Segments</summary>
+      <summary class="muted small-text" style="cursor: pointer;">{{ t("Segments") }}</summary>
 
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Time</th>
-              <th>Text</th>
+              <th>{{ t("Time") }}</th>
+              <th>{{ t("Text") }}</th>
             </tr>
           </thead>
           <tbody id="sttSegs"></tbody>

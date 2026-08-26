@@ -1,12 +1,12 @@
 <!-- app/templates/contacts.html -->
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
   <title>Contacts | Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/voicecrm.css?v=20260825-qpay-1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260826-i18n-1">
 </head>
 
 <body>
@@ -17,11 +17,11 @@
 
   <div class="page-header">
     <div>
-      <a class="back-link" href="/web/dashboard">← Back to dashboard</a>
-      <p class="page-eyebrow">Contacts</p>
-      <h1>Contacts</h1>
+      <a class="back-link" href="/web/dashboard">{{ t("← Back to dashboard") }}</a>
+      <p class="page-eyebrow">{{ t("Contacts") }}</p>
+      <h1>{{ t("Contacts") }}</h1>
       <p class="muted">
-        Active: <strong>{{ total_active }}</strong>
+        {{ t("Active:") }} <strong>{{ total_active }}</strong>
         &nbsp; | &nbsp;
         Inactive: <strong>{{ total_inactive }}</strong>
       </p>
@@ -29,39 +29,39 @@
 
     <div class="actions">
       <a class="btn btn-secondary" href="/web/contacts/import">
-        Import Contacts
+        {{ t("Import Contacts") }}
       </a>
       <a class="btn btn-secondary" href="/web/contact-groups">
-        Contact Groups
+        {{ t("Contact Groups") }}
       </a>
     </div>
   </div>
 
   <section class="card">
-    <h2>Search Contacts</h2>
+    <h2>{{ t("Search Contacts") }}</h2>
 
     <form method="get" action="/web/contacts" class="tool-row">
       <div style="flex:1; min-width:220px;">
-        <label>Search</label>
-        <input type="text" name="q" placeholder="Search phone or name" value="{{ q }}">
+        <label>{{ t("Search") }}</label>
+        <input type="text" name="q" placeholder="{{ t('Search phone or name') }}" value="{{ q }}">
       </div>
 
       <div style="min-width:180px;">
-        <label>Status</label>
+        <label>{{ t("Status") }}</label>
         <select name="status">
-          <option value="all" {% if status == "all" %}selected{% endif %}>All</option>
-          <option value="active" {% if status == "active" %}selected{% endif %}>Active</option>
-          <option value="inactive" {% if status == "inactive" %}selected{% endif %}>Inactive</option>
+          <option value="all" {% if status == "all" %}selected{% endif %}>{{ t("All") }}</option>
+          <option value="active" {% if status == "active" %}selected{% endif %}>{{ t("Active") }}</option>
+          <option value="inactive" {% if status == "inactive" %}selected{% endif %}>{{ t("Inactive") }}</option>
         </select>
       </div>
 
       <div class="actions" style="align-self:end;">
         <button class="btn" type="submit">
-          Search
+          {{ t("Search") }}
         </button>
 
         <a class="btn btn-secondary" href="/web/contacts">
-          Clear
+          {{ t("Clear") }}
         </a>
       </div>
     </form>
@@ -70,20 +70,20 @@
   <section class="card">
     <div class="section-title-row">
       <div>
-        <h2>Contact List</h2>
+        <h2>{{ t("Contact List") }}</h2>
         <p class="muted small-text">
-          Select contacts to deactivate or restore. Call logs and reports will remain.
+          {{ t("Select contacts to deactivate or restore. Call logs and reports will remain.") }}
         </p>
       </div>
     </div>
 
     <div class="actions">
       <button class="btn btn-secondary" type="button" id="selectAllBtn">
-        Select All
+        {{ t("Select All") }}
       </button>
 
       <button class="btn btn-secondary" type="button" id="clearSelectionBtn">
-        Clear
+        {{ t("Clear") }}
       </button>
     </div>
 
@@ -93,14 +93,14 @@
                 type="submit"
                 formaction="/web/contacts/bulk-deactivate"
                 data-confirm-message="Deactivate selected numbers? Logs and reports will remain.">
-          Deactivate Selected
+          {{ t("Deactivate Selected") }}
         </button>
 
         <button class="btn btn-success bulk-action-btn"
                 type="submit"
                 formaction="/web/contacts/bulk-restore"
                 data-confirm-message="Restore selected numbers?">
-          Restore Selected
+          {{ t("Restore Selected") }}
         </button>
       </div>
 
@@ -117,7 +117,7 @@
               <span class="phone-text">{{ contact.phone }}</span>
 
               <a class="history-btn" href="/web/contacts/{{ contact.id }}">
-                History
+                {{ t("History") }}
               </a>
             </div>
 
@@ -127,15 +127,15 @@
 
             <div class="muted small-text">
               {% if contact.is_active %}
-                <span class="badge badge-active">Active</span>
+                <span class="badge badge-active">{{ t("Active") }}</span>
               {% else %}
-                <span class="badge badge-disabled">Inactive</span>
+                <span class="badge badge-disabled">{{ t("Inactive") }}</span>
               {% endif %}
             </div>
           </div>
         {% else %}
           <div class="empty-state">
-            No contacts found.
+            {{ t("No contacts found.") }}
           </div>
         {% endfor %}
       </div>

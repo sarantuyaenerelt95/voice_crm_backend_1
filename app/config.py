@@ -72,6 +72,13 @@ class Settings(BaseSettings):
     # from the public internet and must not sit behind the login redirect.
     QPAY_CALLBACK_BASE: str = "https://voicebro.mn"
 
+    # A cheap real-money order for proving the QPay round trip works end to
+    # end. Off by default: while it is on, any company admin can buy tokens at
+    # this price, so turn it back off once the integration is confirmed.
+    QPAY_TEST_PURCHASE_ENABLED: bool = False
+    QPAY_TEST_AMOUNT_MNT: int = 100
+    QPAY_TEST_CALL_COUNT: int = 1
+
     # Debug aid for when outbound email is broken: if the send fails, log the
     # reset code to the container log so an admin with server access can still
     # complete a reset. It is written ONLY to the server log - never to the

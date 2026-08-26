@@ -34,6 +34,7 @@ from sqlalchemy import func, or_
 
 from app.config import settings
 from app.database import get_db
+from app.i18n import templating as i18n_templating
 from app.models.campaign import Campaign, CampaignStatus
 from app.models.call_log import CallLog, CallStatus
 from app.models.audio_file import AudioFile, AudioSource
@@ -68,6 +69,9 @@ from app.routes.web_auth_routes import (
 router = APIRouter(prefix="/web", tags=["web"])
 templates = Jinja2Templates(directory="app/templates")
 
+# Gives every template t(), lang and languages.
+i18n_templating.install(templates)
+
 ASTERISK_SOUNDS_DIR = settings.ASTERISK_SOUNDS_DIR
 ALLOWED_EXTENSIONS = {".mp3", ".wav", ".m4a", ".ogg", ".flac", ".gsm"}
 
@@ -86,6 +90,12 @@ RECORDING_MIME_EXTENSIONS = {
     "audio/x-wav": ".wav",
     "audio/wave": ".wav",
 }
+
+# How often the payment page may actually ask QPay about one order. QPay's
+# documentation forbids continuously polling payment/check, so the callback is
+# the primary path and these are just the safety net for a lost one.
+AUTO_CHECK_INTERVAL_SEC = 30
+MANUAL_CHECK_INTERVAL_SEC = 8
 
 # A trim shorter than this is almost always a mis-drag rather than an edit.
 MIN_TRIM_DURATION_SEC = 0.5
@@ -268,6 +278,9 @@ def profile_context(
         "token_balance": token_balance,
         "token_packages": token_packages,
         "recent_purchases": recent_purchases,
+        "qpay_test_enabled": settings.QPAY_TEST_PURCHASE_ENABLED,
+        "qpay_test_amount": settings.QPAY_TEST_AMOUNT_MNT,
+        "qpay_test_calls": settings.QPAY_TEST_CALL_COUNT,
         "can_edit_company": role_value == "admin",
         "user_has_phone": has_model_column(User, "phone"),
         "message": message,
@@ -2859,6 +2872,62 @@ async def web_buy_tokens(
     )
 
 
+@router.post("/profile/tokens/test-buy")
+def web_buy_test_tokens(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Buy the smallest possible real order, to prove the QPay round trip.
+
+    Guarded by QPAY_TEST_PURCHASE_ENABLED because this bypasses the price list:
+    while it is on, an admin can buy tokens for the test price.
+    """
+    user = get_current_web_user(request, db)
+
+    if not settings.QPAY_TEST_PURCHASE_ENABLED:
+        raise HTTPException(status_code=404, detail="Test purchases are not enabled.")
+
+    if normalized_role(user) != "admin":
+        raise HTTPException(status_code=403, detail="Only an admin can run a test purchase.")
+
+    try:
+        purchase = billing_service.create_test_purchase(
+            db=db,
+            company_id=user.company_id,
+            call_count=settings.QPAY_TEST_CALL_COUNT,
+            amount_mnt=settings.QPAY_TEST_AMOUNT_MNT,
+            user_id=user.id,
+        )
+
+        invoice = qpay_service.create_invoice(
+            purchase_id=purchase.id,
+            amount_mnt=int(purchase.amount_mnt),
+            description=f"Voicebro QPay test - {purchase.call_count} token",
+        )
+
+        purchase.provider_ref = str(invoice["invoice_id"])
+        purchase.provider_payload = qpay_service.payload_for_storage(invoice)
+
+        db.commit()
+
+    except HTTPException as exc:
+        db.rollback()
+        return render_profile(request, user, db, error=str(exc.detail), status_code=400)
+
+    except qpay_service.QPayError as exc:
+        db.rollback()
+        return render_profile(request, user, db, error=f"Could not start the test payment: {exc}")
+
+    except Exception as exc:
+        db.rollback()
+        return render_profile(request, user, db, error=f"Test purchase failed: {exc}")
+
+    return RedirectResponse(
+        url=f"/web/payments/{purchase.id}",
+        status_code=303,
+    )
+
+
 def get_company_purchase(db: Session, company_id: int, purchase_id: int) -> TokenPurchase:
     purchase = db.query(TokenPurchase).filter(
         TokenPurchase.id == purchase_id,
@@ -2955,14 +3024,20 @@ def web_payment_qr(
 def web_payment_status(
     purchase_id: int,
     request: Request,
+    manual: int = Query(0),
     db: Session = Depends(get_db),
 ):
     """Poll target for the payment page.
 
     The buyer pays in a banking app, so nothing tells this browser tab that the
-    money arrived. QPay's callback usually lands first and this just reports
-    it; when the callback is late or lost, the check here settles the order
-    instead, so a paying customer is never left stuck on the QR.
+    money arrived. The callback is what normally settles the order, and this
+    endpoint mostly just reports what the callback already wrote.
+
+    QPay forbids polling payment/check continuously, so asking them is rate
+    limited per order: a background poll may reach QPay once every
+    AUTO_CHECK_INTERVAL_SEC, and pressing "check now" gets a shorter window.
+    That keeps a lost callback from stranding a buyer without turning the page
+    into the cron job QPay tells integrators not to write.
     """
     user = get_current_web_user(request, db)
 
@@ -2970,6 +3045,14 @@ def web_payment_status(
 
     if purchase.status == PurchaseStatus.paid:
         return JSONResponse({"status": "paid", "call_count": purchase.call_count})
+
+    if purchase.status in (PurchaseStatus.cancelled, PurchaseStatus.failed):
+        return JSONResponse({"status": purchase.status.value, "call_count": purchase.call_count})
+
+    interval = MANUAL_CHECK_INTERVAL_SEC if manual else AUTO_CHECK_INTERVAL_SEC
+
+    if not qpay_service.may_check_payment(purchase.id, interval):
+        return JSONResponse({"status": "pending", "call_count": purchase.call_count})
 
     try:
         result = payment_routes.settle_qpay_purchase(db, purchase)

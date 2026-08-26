@@ -15,6 +15,7 @@ from passlib.context import CryptContext
 
 from app.config import settings
 from app.database import get_db
+from app.i18n import templating as i18n_templating
 from app.models.user import User
 from app.models.company import Company
 from app.services.email_service import send_password_reset_email
@@ -22,6 +23,9 @@ from app.services.email_service import send_password_reset_email
 
 router = APIRouter(prefix="/web", tags=["web-auth"])
 templates = Jinja2Templates(directory="app/templates")
+
+# Gives every template t(), lang and languages.
+i18n_templating.install(templates)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

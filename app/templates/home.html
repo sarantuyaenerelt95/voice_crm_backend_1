@@ -1,7 +1,7 @@
 <!-- app/templates/home.html -->
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -21,7 +21,7 @@
 
   <meta name="theme-color" content="#2457d6">
 
-  <link rel="stylesheet" href="/static/voicecrm.css?v=20260825-qpay-1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260826-i18n-1">
 </head>
 
 <body>
@@ -34,8 +34,9 @@
     </a>
 
     <div class="nav-links">
-      <a href="/web/login">Login</a>
-      <a class="active" href="/web/register">Create account</a>
+      <a href="/web/login">{{ t("Login") }}</a>
+      <a class="active" href="/web/register">{{ t("Create account") }}</a>
+      {% include "_language_switch.html" %}
     </div>
   </div>
 </nav>
@@ -44,94 +45,94 @@
   <div class="page-shell hero-layout">
     <div class="hero-copy">
       <span class="badge badge-active">
-        Enterprise voice broadcast workspace
+        {{ t("Enterprise voice broadcast workspace") }}
       </span>
 
       <h1>
-        One calm command center for campaigns, contacts, audio, and reports.
+        {{ t("One calm command center for campaigns, contacts, audio, and reports.") }}
       </h1>
 
       <p>
-        Build targeted voice campaigns, preview unique numbers before launch,
+        {{ t("Build targeted voice campaigns, preview unique numbers before launch,
         monitor outcomes, and keep company data separated in one practical
-        communication platform.
+        communication platform.") }}
       </p>
 
       <div class="actions">
         <a class="btn" href="/web/login">
-          Login
+          {{ t("Login") }}
         </a>
 
         <a class="btn btn-secondary" href="/web/register">
-          Create account
+          {{ t("Create account") }}
         </a>
       </div>
     </div>
 
     <div class="hero-console">
       <div class="console-topline">
-        <span class="console-title">Example report</span>
-        <span class="badge badge-active">Live-ready</span>
+        <span class="console-title">{{ t("Example report") }}</span>
+        <span class="badge badge-active">{{ t("Live-ready") }}</span>
       </div>
 
       <div class="example-report">
         <div>
-          <span class="example-label">Targets</span>
+          <span class="example-label">{{ t("Targets") }}</span>
           <strong>781</strong>
         </div>
 
         <div>
-          <span class="example-label">Completed</span>
+          <span class="example-label">{{ t("Completed") }}</span>
           <strong>642</strong>
         </div>
 
         <div>
-          <span class="example-label">Audio</span>
+          <span class="example-label">{{ t("Audio") }}</span>
           <strong>5.3s</strong>
         </div>
       </div>
 
       <div class="report-preview-grid">
         <div>
-          <span>Frozen target list</span>
-          <strong>Duplicates removed</strong>
+          <span>{{ t("Frozen target list") }}</span>
+          <strong>{{ t("Duplicates removed") }}</strong>
         </div>
 
         <div>
-          <span>SIP availability</span>
-          <strong>3 free slots</strong>
+          <span>{{ t("SIP availability") }}</span>
+          <strong>{{ t("3 free slots") }}</strong>
         </div>
 
         <div>
-          <span>Report export</span>
-          <strong>CSV ready</strong>
+          <span>{{ t("Report export") }}</span>
+          <strong>{{ t("CSV ready") }}</strong>
         </div>
       </div>
 
       <div class="console-grid">
         <div class="console-metric">
-          <span>Completed</span>
+          <span>{{ t("Completed") }}</span>
           <strong>82%</strong>
         </div>
 
         <div class="console-metric">
-          <span>Busy</span>
+          <span>{{ t("Busy") }}</span>
           <strong>9%</strong>
         </div>
 
         <div class="console-metric">
-          <span>No answer</span>
+          <span>{{ t("No answer") }}</span>
           <strong>7%</strong>
         </div>
       </div>
 
       <div class="console-row">
         <div>
-          <strong>Campaign monitor</strong><br>
-          <span>Live status and duration tracking</span>
+          <strong>{{ t("Campaign monitor") }}</strong><br>
+          <span>{{ t("Live status and duration tracking") }}</span>
         </div>
 
-        <span class="badge badge-running">Ready</span>
+        <span class="badge badge-running">{{ t("Ready") }}</span>
       </div>
     </div>
   </div>
@@ -141,33 +142,33 @@
   <div class="grid grid-4">
     <section class="feature-card">
       <div class="feature-icon">01</div>
-      <h3>Campaign Control</h3>
+      <h3>{{ t("Campaign Control") }}</h3>
       <p>
-        Create campaigns from frozen contact lists and review targets before real start.
+        {{ t("Create campaigns from frozen contact lists and review targets before real start.") }}
       </p>
     </section>
 
     <section class="feature-card">
       <div class="feature-icon">02</div>
-      <h3>Contact Workspace</h3>
+      <h3>{{ t("Contact Workspace") }}</h3>
       <p>
-        Import CSV or TXT files, organize groups, and keep duplicate numbers clean.
+        {{ t("Import CSV or TXT files, organize groups, and keep duplicate numbers clean.") }}
       </p>
     </section>
 
     <section class="feature-card">
       <div class="feature-icon">03</div>
-      <h3>Audio Library</h3>
+      <h3>{{ t("Audio Library") }}</h3>
       <p>
-        Upload reusable broadcast audio and track duration for reporting.
+        {{ t("Upload reusable broadcast audio and track duration for reporting.") }}
       </p>
     </section>
 
     <section class="feature-card">
       <div class="feature-icon">04</div>
-      <h3>Reports</h3>
+      <h3>{{ t("Reports") }}</h3>
       <p>
-        See call status, duration, and export campaign result CSV files.
+        {{ t("See call status, duration, and export campaign result CSV files.") }}
       </p>
     </section>
   </div>

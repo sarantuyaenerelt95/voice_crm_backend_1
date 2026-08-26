@@ -1,12 +1,12 @@
 <!-- app/templates/contact_group_detail.html -->
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
   <title>Contact Group Detail | Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/voicecrm.css?v=20260825-qpay-1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260826-i18n-1">
 </head>
 
 <body>
@@ -17,8 +17,8 @@
 
   <div class="page-header">
     <div>
-      <a class="back-link" href="/web/contact-groups">← Back to groups</a>
-      <p class="page-eyebrow">Contact group</p>
+      <a class="back-link" href="/web/contact-groups">{{ t("← Back to groups") }}</a>
+      <p class="page-eyebrow">{{ t("Contact group") }}</p>
       <h1>{{ group.name }}</h1>
       <p class="muted">
         {{ group.description or "No description" }}
@@ -27,14 +27,14 @@
 
     <div class="actions">
       <a class="btn btn-secondary" href="/web/campaigns/new">
-        Create Campaign
+        {{ t("Create Campaign") }}
       </a>
 
       <form class="inline-form"
             method="post"
             action="/web/contact-groups/{{ group.id }}/delete">
         <button type="submit" class="btn btn-danger" id="deleteGroupBtn">
-          Delete Group
+          {{ t("Delete Group") }}
         </button>
       </form>
     </div>
@@ -42,22 +42,22 @@
 
   <div class="stat-grid">
     <div class="stat">
-      <div>Total Members</div>
+      <div>{{ t("Total Members") }}</div>
       <b>{{ member_count }}</b>
     </div>
 
     <div class="stat">
-      <div>Campaigns Used</div>
+      <div>{{ t("Campaigns Used") }}</div>
       <b>{{ campaigns|length }}</b>
     </div>
 
     <div class="stat">
-      <div>Group No.</div>
+      <div>{{ t("Group No.") }}</div>
       <b>#{{ group_display_id }}</b>
     </div>
 
     <div class="stat">
-      <div>Created</div>
+      <div>{{ t("Created") }}</div>
       <b class="small-text">{{ group.created_at }}</b>
     </div>
   </div>
@@ -65,9 +65,9 @@
   <section class="card">
     <div class="section-title-row">
       <div>
-        <h2>Campaign Results for This Group</h2>
+        <h2>{{ t("Campaign Results for This Group") }}</h2>
         <p class="muted small-text">
-          Campaign performance calculated only for numbers inside this contact group.
+          {{ t("Campaign performance calculated only for numbers inside this contact group.") }}
         </p>
       </div>
     </div>
@@ -76,15 +76,15 @@
       <table>
         <thead>
           <tr>
-            <th>Campaign</th>
-            <th>Status</th>
-            <th>Progress</th>
-            <th>Completed</th>
-            <th>Busy</th>
-            <th>No Answer</th>
-            <th>Failed</th>
-            <th>Congestion</th>
-            <th>Open</th>
+            <th>{{ t("Campaign") }}</th>
+            <th>{{ t("Status") }}</th>
+            <th>{{ t("Progress") }}</th>
+            <th>{{ t("Completed") }}</th>
+            <th>{{ t("Busy") }}</th>
+            <th>{{ t("No Answer") }}</th>
+            <th>{{ t("Failed") }}</th>
+            <th>{{ t("Congestion") }}</th>
+            <th>{{ t("Open") }}</th>
           </tr>
         </thead>
 
@@ -121,7 +121,7 @@
 
               <td>
                 <a class="btn btn-secondary" href="/web/campaigns/{{ row.campaign.id }}">
-                  Open
+                  {{ t("Open") }}
                 </a>
               </td>
             </tr>
@@ -129,7 +129,7 @@
             <tr>
               <td colspan="9">
                 <div class="empty-state">
-                  This group has not been used in any campaign yet.
+                  {{ t("This group has not been used in any campaign yet.") }}
                 </div>
               </td>
             </tr>
@@ -142,9 +142,9 @@
   <section class="card">
     <div class="section-title-row">
       <div>
-        <h2>Members</h2>
+        <h2>{{ t("Members") }}</h2>
         <p class="muted small-text">
-          Active and inactive contacts currently linked to this group.
+          {{ t("Active and inactive contacts currently linked to this group.") }}
         </p>
       </div>
     </div>
@@ -153,10 +153,10 @@
       <table>
         <thead>
           <tr>
-            <th>No.</th>
-            <th>Phone</th>
-            <th>Name</th>
-            <th>Active</th>
+            <th>{{ t("No.") }}</th>
+            <th>{{ t("Phone") }}</th>
+            <th>{{ t("Name") }}</th>
+            <th>{{ t("Active") }}</th>
           </tr>
         </thead>
 
@@ -177,9 +177,9 @@
 
               <td>
                 {% if contact.is_active %}
-                  <span class="badge badge-active">Active</span>
+                  <span class="badge badge-active">{{ t("Active") }}</span>
                 {% else %}
-                  <span class="badge badge-disabled">Inactive</span>
+                  <span class="badge badge-disabled">{{ t("Inactive") }}</span>
                 {% endif %}
               </td>
             </tr>
@@ -187,7 +187,7 @@
             <tr>
               <td colspan="4">
                 <div class="empty-state">
-                  No members in this group.
+                  {{ t("No members in this group.") }}
                 </div>
               </td>
             </tr>

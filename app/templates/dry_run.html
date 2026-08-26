@@ -1,12 +1,12 @@
 <!-- app/templates/dry_run.html -->
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
   <title>Dry-run Preview | Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/voicecrm.css?v=20260825-qpay-1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260826-i18n-1">
 </head>
 
 <body>
@@ -18,20 +18,20 @@
   <div class="page-header">
     <div>
       <a class="back-link" href="/web/campaigns/{{ campaign.id }}">
-        ← Back to campaign
+        {{ t("← Back to campaign") }}
       </a>
 
-      <p class="page-eyebrow">Dry-run preview</p>
+      <p class="page-eyebrow">{{ t("Dry-run preview") }}</p>
       <h1>Campaign #{{ campaign_display_id }} - {{ campaign.name }}</h1>
 
       <p class="muted">
-        This preview shows the frozen target list. No real calls will be made from this page.
+        {{ t("This preview shows the frozen target list. No real calls will be made from this page.") }}
       </p>
     </div>
 
     <div class="actions">
       <a class="btn btn-secondary" href="/web/campaigns/{{ campaign.id }}/contacts">
-        Manage Numbers
+        {{ t("Manage Numbers") }}
       </a>
     </div>
   </div>
@@ -39,26 +39,26 @@
   <section class="card">
     <div class="section-title-row">
       <div>
-        <h2>Preview Summary</h2>
+        <h2>{{ t("Preview Summary") }}</h2>
         <p class="muted small-text">
-          Confirm target count before running simulation or real campaign start.
+          {{ t("Confirm target count before running simulation or real campaign start.") }}
         </p>
       </div>
     </div>
 
     <div class="stat-grid">
       <div class="stat">
-        <div>Target Count</div>
+        <div>{{ t("Target Count") }}</div>
         <b>{{ target_count }}</b>
       </div>
 
       <div class="stat">
-        <div>Campaign No.</div>
+        <div>{{ t("Campaign No.") }}</div>
         <b>#{{ campaign_display_id }}</b>
       </div>
 
       <div class="stat">
-        <div>Status</div>
+        <div>{{ t("Status") }}</div>
         {% set campaign_status = campaign.status.value if campaign.status.value is defined else campaign.status|string %}
         <b class="small-text">
           <span class="badge badge-{{ campaign_status }}">
@@ -68,14 +68,14 @@
       </div>
 
       <div class="stat">
-        <div>Created</div>
+        <div>{{ t("Created") }}</div>
         <b class="small-text">{{ campaign.created_at }}</b>
       </div>
     </div>
 
     {% if target_count == 0 %}
       <div class="alert alert-error" style="margin-top:16px;">
-        No frozen target contacts found. Do not start or simulate this campaign.
+        {{ t("No frozen target contacts found. Do not start or simulate this campaign.") }}
       </div>
     {% endif %}
 
@@ -86,12 +86,12 @@
               class="inline-form"
               id="simulateForm">
           <button class="btn btn-warning" type="submit">
-            Simulate This Campaign
+            {{ t("Simulate This Campaign") }}
           </button>
         </form>
 
         <a class="btn btn-secondary" href="/web/campaigns/{{ campaign.id }}">
-          Open Campaign Detail
+          {{ t("Open Campaign Detail") }}
         </a>
       </div>
     {% endif %}
@@ -100,9 +100,9 @@
   <section class="card">
     <div class="section-title-row">
       <div>
-        <h2>Contacts That Would Be Called</h2>
+        <h2>{{ t("Contacts That Would Be Called") }}</h2>
         <p class="muted small-text">
-          These contacts are already frozen into this campaign target list.
+          {{ t("These contacts are already frozen into this campaign target list.") }}
         </p>
       </div>
     </div>
@@ -111,10 +111,10 @@
       <table>
         <thead>
           <tr>
-            <th>No.</th>
-            <th>Phone</th>
-            <th>Name</th>
-            <th>History</th>
+            <th>{{ t("No.") }}</th>
+            <th>{{ t("Phone") }}</th>
+            <th>{{ t("Name") }}</th>
+            <th>{{ t("History") }}</th>
           </tr>
         </thead>
 
@@ -133,7 +133,7 @@
 
               <td>
                 <a class="btn btn-secondary" href="/web/contacts/{{ contact.id }}">
-                  History
+                  {{ t("History") }}
                 </a>
               </td>
             </tr>
@@ -141,7 +141,7 @@
             <tr>
               <td colspan="4">
                 <div class="empty-state">
-                  No contacts found in this dry-run preview.
+                  {{ t("No contacts found in this dry-run preview.") }}
                 </div>
               </td>
             </tr>

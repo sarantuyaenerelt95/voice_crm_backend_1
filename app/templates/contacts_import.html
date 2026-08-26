@@ -1,12 +1,12 @@
 <!-- app/templates/contacts_import.html -->
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
   <title>Import Contacts | Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/voicecrm.css?v=20260825-qpay-1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260826-i18n-1">
 </head>
 
 <body>
@@ -17,42 +17,42 @@
 
   <div class="page-header">
     <div>
-      <p class="page-eyebrow">Contacts</p>
-      <h1>Import Contacts</h1>
+      <p class="page-eyebrow">{{ t("Contacts") }}</p>
+      <h1>{{ t("Import Contacts") }}</h1>
       <p class="muted">
-        Upload a CSV or TXT file. Existing company numbers are skipped.
+        {{ t("Upload a CSV or TXT file. Existing company numbers are skipped.") }}
       </p>
     </div>
 
     <div class="actions">
       <a class="btn btn-secondary" href="/web/contacts">
-        ← Back to contacts
+        {{ t("← Back to contacts") }}
       </a>
     </div>
   </div>
 
   {% if result %}
     <section class="card result">
-      <h2>Import Result</h2>
+      <h2>{{ t("Import Result") }}</h2>
 
       <div class="stat-grid">
         <div class="stat">
-          <div>Created</div>
+          <div>{{ t("Created") }}</div>
           <b>{{ result.created }}</b>
         </div>
 
         <div class="stat">
-          <div>Skipped</div>
+          <div>{{ t("Skipped") }}</div>
           <b>{{ result.skipped }}</b>
         </div>
 
         <div class="stat">
-          <div>Total Rows</div>
+          <div>{{ t("Total Rows") }}</div>
           <b>{{ result.total_rows }}</b>
         </div>
 
         <div class="stat">
-          <div>File</div>
+          <div>{{ t("File") }}</div>
           <b class="small-text">{{ result.filename }}</b>
         </div>
       </div>
@@ -60,15 +60,15 @@
   {% endif %}
 
   <section class="card">
-    <h2>Upload File</h2>
+    <h2>{{ t("Upload File") }}</h2>
 
     <div class="alert alert-info">
-      TXT: one phone number per line.<br>
-      CSV format: <code>phone,full_name,notes</code>
+      {{ t("TXT: one phone number per line.") }}<br>
+      {{ t("CSV format: {columns}", columns="<code>phone,full_name,notes</code>") | safe }}
     </div>
 
     <p class="muted">
-      Current active contacts:
+      {{ t("Current active contacts:") }}
       <strong>{{ total_contacts }}</strong>
     </p>
 
@@ -78,13 +78,13 @@
           class="form-grid">
 
       <div>
-        <label>CSV or TXT file</label>
+        <label>{{ t("CSV or TXT file") }}</label>
         <input type="file" name="file" accept=".csv,.txt" required>
       </div>
 
       <div class="actions">
         <button class="btn" type="submit">
-          Import Contacts
+          {{ t("Import Contacts") }}
         </button>
       </div>
 

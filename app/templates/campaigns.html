@@ -1,12 +1,12 @@
 <!-- app/templates/campaigns.html -->
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
   <title>Campaigns | Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/voicecrm.css?v=20260825-qpay-1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260826-i18n-1">
 </head>
 
 <body>
@@ -18,19 +18,19 @@
   <div class="page-header">
     <div>
       <p class="page-eyebrow">{{ company_name }}</p>
-      <h1>Campaigns</h1>
+      <h1>{{ t("Campaigns") }}</h1>
       <p class="muted">
-        View campaign history, progress, and call results.
+        {{ t("View campaign history, progress, and call results.") }}
       </p>
     </div>
 
     <div class="actions">
       <a class="btn btn-secondary" href="/web/campaigns/not-executed">
-        Not executed
+        {{ t("Not executed") }}
       </a>
 
       <a class="btn" href="/web/campaigns/new">
-        Create campaign
+        {{ t("Create campaign") }}
       </a>
     </div>
   </div>
@@ -38,9 +38,9 @@
   <section class="card">
     <div class="section-title-row">
       <div>
-        <h2>All Campaigns</h2>
+        <h2>{{ t("All Campaigns") }}</h2>
         <p class="muted small-text">
-          Open a campaign to start calls, monitor progress, or download reports.
+          {{ t("Open a campaign to start calls, monitor progress, or download reports.") }}
         </p>
       </div>
     </div>
@@ -49,16 +49,16 @@
       <table>
         <thead>
           <tr>
-            <th scope="col" class="num">No.</th>
-            <th scope="col">Name</th>
-            <th scope="col">Status</th>
-            <th scope="col" class="num">Total</th>
-            <th scope="col" class="num">Completed</th>
-            <th scope="col" class="num">Busy</th>
-            <th scope="col" class="num">No Answer</th>
-            <th scope="col" class="num">Failed</th>
-            <th scope="col">Created</th>
-            <th scope="col"><span class="sr-only">Actions</span></th>
+            <th scope="col" class="num">{{ t("No.") }}</th>
+            <th scope="col">{{ t("Name") }}</th>
+            <th scope="col">{{ t("Status") }}</th>
+            <th scope="col" class="num">{{ t("Total") }}</th>
+            <th scope="col" class="num">{{ t("Completed") }}</th>
+            <th scope="col" class="num">{{ t("Busy") }}</th>
+            <th scope="col" class="num">{{ t("No Answer") }}</th>
+            <th scope="col" class="num">{{ t("Failed") }}</th>
+            <th scope="col">{{ t("Created") }}</th>
+            <th scope="col"><span class="sr-only">{{ t("Actions") }}</span></th>
           </tr>
         </thead>
 
@@ -91,7 +91,7 @@
 
               <td>
                 <a class="btn btn-secondary" href="/web/campaigns/{{ c.id }}">
-                  Open<span class="sr-only"> campaign {{ c.name }}</span>
+                  {{ t("Open") }}<span class="sr-only"> campaign {{ c.name }}</span>
                 </a>
               </td>
             </tr>
@@ -99,9 +99,9 @@
             <tr>
               <td colspan="10">
                 <div class="empty-state">
-                  <strong>No campaigns yet</strong>
-                  <span>Create your first campaign to start broadcasting.</span>
-                  <a class="btn" href="/web/campaigns/new">Create campaign</a>
+                  <strong>{{ t("No campaigns yet") }}</strong>
+                  <span>{{ t("Create your first campaign to start broadcasting.") }}</span>
+                  <a class="btn" href="/web/campaigns/new">{{ t("Create campaign") }}</a>
                 </div>
               </td>
             </tr>

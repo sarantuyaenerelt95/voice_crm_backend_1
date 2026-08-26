@@ -1,12 +1,12 @@
 <!-- app/templates/profile.html -->
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
   <title>Profile | Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/voicecrm.css?v=20260825-qpay-1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260826-i18n-1">
 </head>
 
 <body>
@@ -17,10 +17,10 @@
 
   <div class="page-header">
     <div>
-      <p class="page-eyebrow">Company profile</p>
-      <h1>Profile</h1>
+      <p class="page-eyebrow">{{ t("Company profile") }}</p>
+      <h1>{{ t("Profile") }}</h1>
       <p class="muted">
-        Manage your account, password, company information, and company users.
+        {{ t("Manage your account, password, company information, and company users.") }}
       </p>
     </div>
   </div>
@@ -39,65 +39,60 @@
 
   <div class="stat-grid">
     <div class="stat">
-      <div>Contacts</div>
+      <div>{{ t("Contacts") }}</div>
       <b>{{ active_contact_count }}</b>
     </div>
 
     <div class="stat">
-      <div>Campaigns</div>
+      <div>{{ t("Campaigns") }}</div>
       <b>{{ campaign_count }}</b>
     </div>
 
     <div class="stat">
-      <div>Audio Files</div>
+      <div>{{ t("Audio Files") }}</div>
       <b>{{ audio_count }}</b>
     </div>
 
     <div class="stat">
-      <div>Role</div>
+      <div>{{ t("Role") }}</div>
       <b class="small-text">{{ role_value }}</b>
     </div>
   </div>
 
   <section class="card">
-    <h2>Дуудлагын эрх / Call Tokens</h2>
+    <h2>{{ t("Call Tokens") }}</h2>
 
     <p class="muted small-text">
-      Нэг токен = нэг холбогдсон дуудлага. Хариулаагүй, завгүй, амжилтгүй
-      дуудлагад токен зарцуулагдахгүй.
-      <br>
-      One token = one answered call. Busy, no-answer and failed calls cost nothing.
+      {{ t("One token = one answered call. Busy, no-answer and failed calls cost nothing.") }}
     </p>
 
     <div class="grid grid-4">
       <div class="stat">
-        <div>Боломжтой / Available</div>
+        <div>{{ t("Available") }}</div>
         <b>{{ token_balance.spendable }}</b>
       </div>
 
       <div class="stat">
-        <div>Нийт / Total owned</div>
+        <div>{{ t("Total owned") }}</div>
         <b>{{ token_balance.tokens }}</b>
       </div>
 
       <div class="stat">
-        <div>Хүлээгдэж буй / Held</div>
+        <div>{{ t("Held") }}</div>
         <b>{{ token_balance.reserved }}</b>
-        <span class="muted small-text">calls in progress</span>
+        <span class="muted small-text">{{ t("calls in progress") }}</span>
       </div>
     </div>
 
     {% if token_balance.spendable < 1 %}
       <div class="alert alert-error">
-        Танд дуудлагын эрх үлдээгүй байна. Кампанит ажил эхлүүлэхийн тулд багц аваарай.
-        <br>
-        No call tokens left. Buy a package below before starting a campaign.
+        {{ t("No call tokens left. Buy a package below before starting a campaign.") }}
       </div>
     {% endif %}
   </section>
 
   <section class="card">
-    <h2>Багц авах / Buy Tokens</h2>
+    <h2>{{ t("Buy Tokens") }}</h2>
 
     <div class="grid grid-4">
       {% for package in token_packages %}
@@ -106,7 +101,7 @@
 
           {% if package.is_custom_quantity %}
             <div class="muted small-text">
-              {{ package.min_call_count }}+ дуудлага, {{ package.per_call_mnt }}₮ / дуудлага
+              {{ t("{min}+ calls, {price}₮ per call", min=package.min_call_count, price=package.per_call_mnt) }}
             </div>
 
             <form method="post" action="/web/profile/tokens/buy">
@@ -115,20 +110,19 @@
                      name="call_count"
                      min="{{ package.min_call_count }}"
                      step="1"
-                     placeholder="Дуудлагын тоо"
+                     placeholder="{{ t('Number of calls') }}"
                      required>
-              <button class="btn" type="submit">Авах</button>
+              <button class="btn" type="submit">{{ t("Buy") }}</button>
             </form>
           {% else %}
             <div><b>{{ "{:,}".format(package.price_mnt) }}₮</b></div>
             <div class="muted small-text">
-              {{ package.call_count }} дуудлага
-              ({{ (package.price_mnt / package.call_count) | round(0) | int }}₮ / дуудлага)
+              {{ t("{count} calls ({price}₮ per call)", count=package.call_count, price=(package.price_mnt / package.call_count) | round(0) | int) }}
             </div>
 
             <form method="post" action="/web/profile/tokens/buy">
               <input type="hidden" name="package_code" value="{{ package.code }}">
-              <button class="btn" type="submit">Авах</button>
+              <button class="btn" type="submit">{{ t("Buy") }}</button>
             </form>
           {% endif %}
         </div>
@@ -136,19 +130,35 @@
     </div>
   </section>
 
+  {% if qpay_test_enabled and role_value == "admin" %}
+    <section class="card">
+      <h2>{{ t("QPay integration test") }}</h2>
+
+      <div class="alert alert-info">
+        {{ t("Creates a real {amount}₮ order to check the QPay connection. If it is paid, {count} call tokens are added.", amount="{:,}".format(qpay_test_amount), count=qpay_test_calls) }}
+      </div>
+
+      <form method="post" action="/web/profile/tokens/test-buy">
+        <button class="btn btn-warning" type="submit">
+          {{ t("Create a {amount}₮ test payment", amount="{:,}".format(qpay_test_amount)) }}
+        </button>
+      </form>
+    </section>
+  {% endif %}
+
   {% if recent_purchases %}
     <section class="card">
-      <h2>Худалдан авалтын түүх / Purchase History</h2>
+      <h2>{{ t("Purchase History") }}</h2>
 
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>No.</th>
-              <th>Дуудлага</th>
-              <th>Дүн</th>
-              <th>Төлөв</th>
-              <th>Огноо</th>
+              <th>{{ t("No.") }}</th>
+              <th>{{ t("Calls") }}</th>
+              <th>{{ t("Amount") }}</th>
+              <th>{{ t("Status") }}</th>
+              <th>{{ t("Date") }}</th>
             </tr>
           </thead>
 
@@ -170,65 +180,65 @@
 
   <div class="profile-grid">
     <section class="card">
-      <h2>Your Account</h2>
+      <h2>{{ t("Your Account") }}</h2>
 
       <form method="post" action="/web/profile" class="form-grid">
         <div>
-          <label>Full name</label>
+          <label>{{ t("Full name") }}</label>
           <input type="text" name="full_name" value="{{ user.full_name or '' }}">
         </div>
 
         <div>
-          <label>Email</label>
+          <label>{{ t("Email") }}</label>
           <input type="email" name="email" value="{{ user.email or '' }}" required>
         </div>
 
         {% if user_has_phone %}
           <div>
-            <label>Phone</label>
+            <label>{{ t("Phone") }}</label>
             <input type="text" name="phone" value="{{ user.phone or '' }}">
           </div>
         {% endif %}
 
         <div class="actions">
           <button class="btn" type="submit">
-            Save Profile
+            {{ t("Save Profile") }}
           </button>
         </div>
       </form>
     </section>
 
     <section class="card">
-      <h2>Password</h2>
+      <h2>{{ t("Password") }}</h2>
 
       <form method="post" action="/web/profile/password" class="form-grid">
         <div>
-          <label for="current_password">Current password</label>
+          <label for="current_password">{{ t("Current password") }}</label>
           <div class="password-field">
             <input type="password" id="current_password" name="current_password" autocomplete="current-password" required>
-            <button type="button" class="password-toggle" data-password-toggle="current_password" aria-label="Show password">Show</button>
+            <button type="button" class="password-toggle" data-password-toggle="current_password" aria-label="{{ t('Show password') }}">{{ t("Show") }}</button>
           </div>
         </div>
 
         <div>
-          <label for="new_password">New password</label>
+          <label for="new_password">{{ t("New password") }}</label>
           <div class="password-field">
             <input type="password" id="new_password" name="new_password" autocomplete="new-password" minlength="6" required>
-            <button type="button" class="password-toggle" data-password-toggle="new_password" aria-label="Show password">Show</button>
+            <button type="button" class="password-toggle" data-password-toggle="new_password" aria-label="{{ t('Show password') }}">{{ t("Show") }}</button>
           </div>
         </div>
 
         <div>
-          <label for="confirm_password">Confirm new password</label>
+          <label for="confirm_password">{{ t("Confirm new password") }}</label>
           <div class="password-field">
             <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password" minlength="6" required>
-            <button type="button" class="password-toggle" data-password-toggle="confirm_password" aria-label="Show password">Show</button>
+            <button type="button" class="password-toggle" data-password-toggle="confirm_password" aria-label="{{ t('Show password') }}">{{ t("Show") }}</button>
           </div>
         </div>
 
         <div class="actions">
           <button class="btn btn-secondary" type="submit">
-            Change Password
+            {{ t("Change Password") }}
           </button>
         </div>
       </form>
@@ -236,17 +246,17 @@
   </div>
 
   <section class="card">
-    <h2>Company</h2>
+    <h2>{{ t("Company") }}</h2>
 
     {% if not can_edit_company %}
       <div class="alert alert-info">
-        Your role can view company information, but cannot edit it.
+        {{ t("Your role can view company information, but cannot edit it.") }}
       </div>
     {% endif %}
 
     <form method="post" action="/web/profile/company" class="form-grid">
       <div>
-        <label>Company name</label>
+        <label>{{ t("Company name") }}</label>
         <input type="text"
                name="company_name"
                value="{{ company.name if company else '' }}"
@@ -255,7 +265,7 @@
       </div>
 
       <div>
-        <label>Company email</label>
+        <label>{{ t("Company email") }}</label>
         <input type="email"
                name="company_email"
                value="{{ company.email if company else '' }}"
@@ -264,7 +274,7 @@
       </div>
 
       <div>
-        <label>Company phone</label>
+        <label>{{ t("Company phone") }}</label>
         <input type="text"
                name="company_phone"
                value="{{ company.phone if company else '' }}"
@@ -274,7 +284,7 @@
       {% if can_edit_company %}
         <div class="actions">
           <button class="btn" type="submit">
-            Save Company
+            {{ t("Save Company") }}
           </button>
         </div>
       {% endif %}
@@ -284,9 +294,9 @@
   <section class="card">
     <div class="section-title-row">
       <div>
-        <h2>Company Users</h2>
+        <h2>{{ t("Company Users") }}</h2>
         <p class="muted small-text">
-          Users registered under this company account.
+          {{ t("Users registered under this company account.") }}
         </p>
       </div>
     </div>
@@ -295,10 +305,10 @@
       <table>
         <thead>
           <tr>
-            <th>Email</th>
-            <th>Name</th>
-            <th>Role</th>
-            <th>Status</th>
+            <th>{{ t("Email") }}</th>
+            <th>{{ t("Name") }}</th>
+            <th>{{ t("Role") }}</th>
+            <th>{{ t("Status") }}</th>
           </tr>
         </thead>
 
@@ -319,9 +329,9 @@
 
               <td>
                 {% if row.is_active %}
-                  <span class="badge badge-active">active</span>
+                  <span class="badge badge-active">{{ t("active") }}</span>
                 {% else %}
-                  <span class="badge badge-disabled">inactive</span>
+                  <span class="badge badge-disabled">{{ t("inactive") }}</span>
                 {% endif %}
               </td>
             </tr>
@@ -329,7 +339,7 @@
             <tr>
               <td colspan="4">
                 <div class="empty-state">
-                  No users found.
+                  {{ t("No users found.") }}
                 </div>
               </td>
             </tr>

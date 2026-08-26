@@ -1,12 +1,12 @@
 <!-- app/templates/payment_qpay.html -->
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
-  <title>Төлбөр төлөх | Voicebro</title>
+  <title>{{ t("Pay") }} | Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/voicecrm.css?v=20260825-qpay-1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260826-i18n-1">
 </head>
 
 <body>
@@ -17,34 +17,30 @@
 
   <div class="page-header">
     <div>
-      <p class="page-eyebrow">Дуудлагын эрх / Call tokens</p>
-      <h1>Төлбөр төлөх</h1>
+      <p class="page-eyebrow">{{ t("Call Tokens") }}</p>
+      <h1>{{ t("Pay") }}</h1>
       <p class="muted">
-        {{ purchase.call_count }} дуудлагын эрх — <b>{{ "{:,}".format(purchase.amount_mnt) }}₮</b>
+        {{ t("{count} call tokens", count=purchase.call_count) }} — <b>{{ "{:,}".format(purchase.amount_mnt) }}₮</b>
         <br>
-        <span class="small-text">Захиалга #{{ purchase.id }}</span>
+        <span class="small-text">{{ t("Order #{id}", id=purchase.id) }}</span>
       </p>
     </div>
 
     <div class="actions">
-      <a class="btn btn-secondary" href="/web/profile">← Профайл руу буцах</a>
+      <a class="btn btn-secondary" href="/web/profile">{{ t("← Back to profile") }}</a>
     </div>
   </div>
 
   {% if is_paid %}
 
     <div class="card result">
-      <h2>Төлбөр амжилттай төлөгдлөө</h2>
+      <h2>{{ t("Payment received") }}</h2>
       <p>
-        {{ purchase.call_count }} дуудлагын эрх таны дансанд нэмэгдлээ.
-        <br>
-        <span class="muted small-text">
-          {{ purchase.call_count }} call tokens have been added to your balance.
-        </span>
+        {{ t("{count} call tokens have been added to your balance.", count=purchase.call_count) }}
       </p>
 
       <div class="actions">
-        <a class="btn" href="/web/profile">Үлдэгдэл харах</a>
+        <a class="btn" href="/web/profile">{{ t("View balance") }}</a>
       </div>
     </div>
 
@@ -53,48 +49,47 @@
     <div class="payment-layout">
 
       <div class="card">
-        <h2>QR кодоор төлөх</h2>
+        <h2>{{ t("Pay by QR code") }}</h2>
 
         <p class="muted small-text">
-          Банкны аппликейшнээ нээж QR кодыг уншуулна уу. Төлбөр төлөгдмөгц
-          энэ хуудас автоматаар шинэчлэгдэнэ.
+          {{ t("Open your banking app and scan the QR code. This page updates automatically once the payment arrives.") }}
         </p>
 
         <div class="qr-frame">
           <img class="qr-image"
                src="/web/payments/{{ purchase.id }}/qr.svg"
-               alt="QPay төлбөрийн QR код"
+               alt="{{ t('QPay payment QR code') }}"
                width="260"
                height="260">
         </div>
 
         <div id="paymentStatus" class="alert alert-info">
-          Төлбөр хүлээгдэж байна...
+          {{ t("Waiting for payment...") }}
         </div>
 
         <div class="actions">
-          <button class="btn" type="button" id="checkNow">Төлбөрөө шалгах</button>
+          <button class="btn" type="button" id="checkNow">{{ t("Check payment") }}</button>
 
           {% if short_url %}
             <a class="btn btn-secondary" href="{{ short_url }}" target="_blank" rel="noopener">
-              QPay холбоос нээх
+              {{ t("Open QPay link") }}
             </a>
           {% endif %}
 
           <form class="inline-form"
                 method="post"
                 action="/web/payments/{{ purchase.id }}/cancel"
-                onsubmit="return confirm('Энэ захиалгыг цуцлах уу?');">
-            <button class="btn btn-danger" type="submit">Цуцлах</button>
+                onsubmit="return confirm({{ t('Cancel this order?') | tojson }});">
+            <button class="btn btn-danger" type="submit">{{ t("Cancel") }}</button>
           </form>
         </div>
       </div>
 
       <div class="card">
-        <h2>Банкны апп-аар төлөх</h2>
+        <h2>{{ t("Pay with a banking app") }}</h2>
 
         <p class="muted small-text">
-          Утаснаасаа орсон бол доорх банкаа сонгоход апп шууд нээгдэнэ.
+          {{ t("On a phone, choosing your bank below opens its app directly.") }}
         </p>
 
         {% if bank_urls %}
@@ -110,7 +105,7 @@
           </div>
         {% else %}
           <div class="empty-state">
-            Банкны холбоос ирсэнгүй. QR кодыг ашиглана уу.
+            {{ t("No bank links were returned. Please use the QR code.") }}
           </div>
         {% endif %}
       </div>
@@ -125,6 +120,15 @@
 <script>
 (function () {
   "use strict";
+
+  var LABELS = {
+    paid: {{ t("Payment received. Refreshing...") | tojson }},
+    closed: {{ t("This order is now") | tojson }},
+    notYet: {{ t("The payment has not arrived yet. Please wait and check again.") | tojson }},
+    checking: {{ t("Checking...") | tojson }},
+    checkFailed: {{ t("Could not check the payment:") | tojson }},
+    timedOut: {{ t("Waiting timed out. If you have paid, press Check payment.") | tojson }}
+  };
 
   var statusEl = document.getElementById("paymentStatus");
   var checkBtn = document.getElementById("checkNow");
@@ -146,32 +150,33 @@
 
     if (manual) {
       checkBtn.disabled = true;
-      setStatus("Шалгаж байна...", "info");
+      setStatus(LABELS.checking, "info");
     }
 
     try {
-      var response = await fetch(statusUrl, { headers: { "Accept": "application/json" } });
+      var url = statusUrl + (manual ? "?manual=1" : "");
+      var response = await fetch(url, { headers: { "Accept": "application/json" } });
       var data = await response.json();
 
       if (data.status === "paid") {
         stopped = true;
-        setStatus("Төлбөр амжилттай! Хуудсыг шинэчилж байна...", "success");
+        setStatus(LABELS.paid, "success");
         window.location.reload();
         return;
       }
 
       if (data.status === "cancelled" || data.status === "failed") {
         stopped = true;
-        setStatus("Энэ захиалга " + data.status + " төлөвтэй байна.", "error");
+        setStatus(LABELS.closed + " " + data.status, "error");
         return;
       }
 
       if (manual) {
-        setStatus("Төлбөр хараахан ирээгүй байна. Түр хүлээгээд дахин шалгана уу.", "info");
+        setStatus(LABELS.notYet, "info");
       }
 
     } catch (err) {
-      if (manual) setStatus("Шалгахад алдаа гарлаа: " + err.message, "error");
+      if (manual) setStatus(LABELS.checkFailed + " " + err.message, "error");
 
     } finally {
       if (manual) checkBtn.disabled = false;
@@ -185,14 +190,14 @@
       clearInterval(timer);
 
       if (!stopped) {
-        setStatus("Хүлээх хугацаа дууслаа. Төлсөн бол «Төлбөрөө шалгах» дарна уу.", "info");
+        setStatus(LABELS.timedOut, "info");
       }
 
       return;
     }
 
     check(false);
-  }, 5000);
+  }, 10000);
 })();
 </script>
 {% endif %}

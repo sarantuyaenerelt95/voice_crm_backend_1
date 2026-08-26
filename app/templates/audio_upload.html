@@ -1,12 +1,12 @@
 <!-- app/templates/audio_upload.html -->
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
   <title>Audio Library | Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/voicecrm.css?v=20260825-qpay-1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260826-i18n-1">
 </head>
 
 <body>
@@ -17,15 +17,15 @@
 
   <div class="page-header">
     <div>
-      <p class="page-eyebrow">Audio Library</p>
-      <h1>Audio</h1>
+      <p class="page-eyebrow">{{ t("Audio Library") }}</p>
+      <h1>{{ t("Audio") }}</h1>
       <p class="muted">
-        Record your own voice, upload a file, or generate speech from text.
+        {{ t("Record your own voice, upload a file, or generate speech from text.") }}
       </p>
     </div>
 
     <div class="actions">
-      <a class="btn btn-secondary" href="/web/dashboard">← Back to dashboard</a>
+      <a class="btn btn-secondary" href="/web/dashboard">{{ t("← Back to dashboard") }}</a>
     </div>
   </div>
 
@@ -43,23 +43,23 @@
 
   {% if result %}
     <div class="card result">
-      <h2>Saved</h2>
+      <h2>{{ t("Saved") }}</h2>
 
       <div class="grid grid-4">
         <div class="stat">
-          <div>Audio No.</div>
+          <div>{{ t("Audio No.") }}</div>
           <b>{{ result.display_id }}</b>
         </div>
 
         <div class="stat">
-          <div>Name</div>
+          <div>{{ t("Name") }}</div>
           <b class="small-text">{{ result.filename }}</b>
         </div>
 
         <div class="stat">
-          <div>Duration</div>
+          <div>{{ t("Duration") }}</div>
           <b>{{ result.duration_sec }}</b>
-          <span class="muted small-text">seconds</span>
+          <span class="muted small-text">{{ t("seconds") }}</span>
         </div>
 
       </div>
@@ -67,21 +67,20 @@
   {% endif %}
 
   <div class="card">
-    <h2>Record Your Voice</h2>
+    <h2>{{ t("Record Your Voice") }}</h2>
 
     <div class="alert alert-info">
-      Your browser will ask for microphone permission the first time.
-      Maximum length: <b>5 minutes</b>.
+      {{ t("Your browser will ask for microphone permission the first time. Maximum length: {limit}.", limit="<b>5 minutes</b>") | safe }}
     </div>
 
     <div id="recorderUnsupported" class="alert alert-error" style="display:none">
-      This browser cannot record audio on this page. You can still upload a file below.
+      {{ t("This browser cannot record audio on this page. You can still upload a file below.") }}
     </div>
 
     <div id="recorderBox">
       <div class="audio-recorder">
-        <button class="btn" type="button" id="recStart">● Start recording</button>
-        <button class="btn btn-danger" type="button" id="recStop" disabled>■ Stop</button>
+        <button class="btn" type="button" id="recStart">{{ t("● Start recording") }}</button>
+        <button class="btn btn-danger" type="button" id="recStop" disabled>{{ t("■ Stop") }}</button>
         <span class="rec-timer" id="recTimer">00:00</span>
         <span class="rec-dot" id="recDot" aria-hidden="true"></span>
       </div>
@@ -89,18 +88,18 @@
       <div id="recStatus" class="small-text muted" style="margin-top:10px"></div>
 
       <div class="soft-panel" id="recPreview" style="display:none; margin-top:14px">
-        <label>Listen back before saving</label>
+        <label>{{ t("Listen back before saving") }}</label>
         <audio id="recPlayer" controls class="audio-player"></audio>
 
         <div class="form-grid" style="margin-top:12px">
           <div>
-            <label for="recName">Name this recording</label>
-            <input type="text" id="recName" maxlength="200" placeholder="Morning promo message">
+            <label for="recName">{{ t("Name this recording") }}</label>
+            <input type="text" id="recName" maxlength="200" placeholder="{{ t('Morning promo message') }}">
           </div>
 
           <div class="actions">
-            <button class="btn" type="button" id="recSave">Save to library</button>
-            <button class="btn btn-secondary" type="button" id="recDiscard">Discard</button>
+            <button class="btn" type="button" id="recSave">{{ t("Save to library") }}</button>
+            <button class="btn btn-secondary" type="button" id="recDiscard">{{ t("Discard") }}</button>
           </div>
         </div>
       </div>
@@ -108,51 +107,50 @@
   </div>
 
   <div class="card">
-    <h2>Upload New Audio</h2>
+    <h2>{{ t("Upload New Audio") }}</h2>
 
     <div class="alert alert-info">
-      Supported formats: <b>mp3, wav, m4a, ogg, flac, gsm</b>.
-      Maximum duration: <b>5 minutes</b>.
+      {{ t("Supported formats: {formats}. Maximum duration: {limit}.", formats="<b>mp3, wav, m4a, ogg, flac, gsm</b>", limit="<b>5 minutes</b>") | safe }}
     </div>
 
     <form class="form-grid" method="post" action="/web/audio/upload" enctype="multipart/form-data">
       <div>
-        <label>Audio file</label>
+        <label>{{ t("Audio file") }}</label>
         <input type="file" name="file" accept=".mp3,.wav,.m4a,.ogg,.flac,.gsm" required>
       </div>
 
       <div class="actions">
         <button class="btn" type="submit">
-          Upload Audio
+          {{ t("Upload Audio") }}
         </button>
       </div>
     </form>
   </div>
 
   <div class="card">
-    <h2>Generate from Text (Text-to-Speech)</h2>
+    <h2>{{ t("Generate from Text (Text-to-Speech)") }}</h2>
 
     <div class="alert alert-info">
-      Type the message text below and choose a voice.
+      {{ t("Type the message text below and choose a voice.") }}
     </div>
 
     <form class="form-grid" method="post" action="/web/audio/tts">
       <div>
-        <label>Message text</label>
+        <label>{{ t("Message text") }}</label>
         <textarea name="text" rows="4" required></textarea>
       </div>
 
       <div>
-        <label>Voice</label>
+        <label>{{ t("Voice") }}</label>
         <select name="voice">
-          <option value="mn-MN-YesuiNeural">Mongolian — Female (Yesui)</option>
-          <option value="mn-MN-BataaNeural">Mongolian — Male (Bataa)</option>
+          <option value="mn-MN-YesuiNeural">{{ t("Mongolian — Female (Yesui)") }}</option>
+          <option value="mn-MN-BataaNeural">{{ t("Mongolian — Male (Bataa)") }}</option>
         </select>
       </div>
 
       <div class="actions">
         <button class="btn" type="submit">
-          Generate Audio
+          {{ t("Generate Audio") }}
         </button>
       </div>
     </form>
@@ -161,9 +159,9 @@
   <div class="card">
     <div class="section-title-row">
       <div>
-        <h2>Audio Files</h2>
+        <h2>{{ t("Audio Files") }}</h2>
         <p class="muted small-text">
-          Play any file, rename it, or cut a section out of it.
+          {{ t("Play any file, rename it, or cut a section out of it.") }}
         </p>
       </div>
     </div>
@@ -172,11 +170,11 @@
       <table>
         <thead>
           <tr>
-            <th>No.</th>
-            <th>Name</th>
-            <th>Duration</th>
-            <th>Listen</th>
-            <th>Action</th>
+            <th>{{ t("No.") }}</th>
+            <th>{{ t("Name") }}</th>
+            <th>{{ t("Duration") }}</th>
+            <th>{{ t("Listen") }}</th>
+            <th>{{ t("Action") }}</th>
           </tr>
         </thead>
 
@@ -207,13 +205,13 @@
                   <button class="btn btn-secondary btn-sm"
                           type="button"
                           data-toggle-panel="panel-{{ audio.id }}">
-                    Edit
+                    {{ t("Edit") }}
                   </button>
 
                   <a class="btn btn-secondary btn-sm"
                      href="/web/audio/{{ audio.id }}/stream"
                      download>
-                    Download
+                    {{ t("Download") }}
                   </a>
 
                   <form class="inline-form"
@@ -221,7 +219,7 @@
                         action="/web/audio/{{ audio.id }}/delete"
                         onsubmit="return confirm('Delete this audio from future campaigns? Old reports will remain.');">
                     <button type="submit" class="btn btn-danger btn-sm">
-                      Delete
+                      {{ t("Delete") }}
                     </button>
                   </form>
                 </div>
@@ -235,7 +233,7 @@
                   <form class="audio-panel-block"
                         method="post"
                         action="/web/audio/{{ audio.id }}/rename">
-                    <label for="rename-{{ audio.id }}">Rename</label>
+                    <label for="rename-{{ audio.id }}">{{ t("Rename") }}</label>
 
                     <div class="rename-row">
                       <input type="text"
@@ -244,7 +242,7 @@
                              maxlength="200"
                              value="{{ audio.display_name or '' }}"
                              placeholder="{{ audio.filename }}">
-                      <button class="btn btn-sm" type="submit">Save name</button>
+                      <button class="btn btn-sm" type="submit">{{ t("Save name") }}</button>
                     </div>
                   </form>
 
@@ -253,12 +251,12 @@
                         action="/web/audio/{{ audio.id }}/trim"
                         data-audio-id="{{ audio.id }}"
                         data-duration="{{ audio.duration_sec or 0 }}">
-                    <label>Trim</label>
+                    <label>{{ t("Trim") }}</label>
 
                     <div class="trim-grid">
                       <div>
                         <label class="small-text" for="trim-start-{{ audio.id }}">
-                          Start — <span class="trim-readout" data-readout="start">0:00.0</span>
+                          {{ t("Start —") }} <span class="trim-readout" data-readout="start">0:00.0</span>
                         </label>
                         <input type="range"
                                id="trim-start-{{ audio.id }}"
@@ -272,7 +270,7 @@
 
                       <div>
                         <label class="small-text" for="trim-end-{{ audio.id }}">
-                          End — <span class="trim-readout" data-readout="end">0:00.0</span>
+                          {{ t("End —") }} <span class="trim-readout" data-readout="end">0:00.0</span>
                         </label>
                         <input type="range"
                                id="trim-end-{{ audio.id }}"
@@ -290,19 +288,19 @@
 
                     <div class="trim-actions">
                       <button class="btn btn-secondary btn-sm" type="button" data-action="preview">
-                        ▶ Preview selection
+                        {{ t("▶ Preview selection") }}
                       </button>
 
                       <span class="muted small-text">
-                        Keeps <b class="trim-readout" data-readout="length">0:00.0</b>
+                        {{ t("Keeps") }} <b class="trim-readout" data-readout="length">0:00.0</b>
                       </span>
 
                       <label class="checkbox-inline">
                         <input type="checkbox" name="replace_original" value="1">
-                        Replace the original
+                        {{ t("Replace the original") }}
                       </label>
 
-                      <button class="btn btn-sm" type="submit">Save trimmed copy</button>
+                      <button class="btn btn-sm" type="submit">{{ t("Save trimmed copy") }}</button>
                     </div>
                   </form>
 
@@ -313,7 +311,7 @@
             <tr>
               <td colspan="5">
                 <div class="empty-state">
-                  No audio files yet. Record your voice, upload a file, or generate one from text.
+                  {{ t("No audio files yet. Record your voice, upload a file, or generate one from text.") }}
                 </div>
               </td>
             </tr>

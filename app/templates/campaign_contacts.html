@@ -1,12 +1,12 @@
 <!-- app/templates/campaign_contacts.html -->
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
   <title>Campaign Numbers - Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/voicecrm.css?v=20260825-qpay-1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260826-i18n-1">
 </head>
 
 <body>
@@ -16,8 +16,8 @@
 <div class="page-shell" id="main-content">
   <div class="page-header">
     <div>
-      <a class="back-link" href="/web/campaigns/{{ campaign.id }}">← Back to campaign</a>
-      <p class="page-eyebrow">Campaign targets</p>
+      <a class="back-link" href="/web/campaigns/{{ campaign.id }}">{{ t("← Back to campaign") }}</a>
+      <p class="page-eyebrow">{{ t("Campaign targets") }}</p>
       <h1>Campaign #{{ campaign_display_id }} Numbers</h1>
       <p class="muted">
         <strong>{{ campaign.name }}</strong>
@@ -27,11 +27,11 @@
 
   {% if can_edit %}
     <div class="warning">
-      This campaign has not been executed yet. You can remove selected numbers from this campaign.
+      {{ t("This campaign has not been executed yet. You can remove selected numbers from this campaign.") }}
     </div>
   {% else %}
     <div class="warning">
-      This campaign is locked because it was executed or has call logs. Numbers cannot be removed.
+      {{ t("This campaign is locked because it was executed or has call logs. Numbers cannot be removed.") }}
     </div>
   {% endif %}
 
@@ -39,18 +39,18 @@
     {% if can_edit %}
       <div class="actions">
         <button class="btn btn-secondary" type="button" id="selectAllBtn">
-          Select All
+          {{ t("Select All") }}
         </button>
 
         <button class="btn btn-secondary" type="button" id="clearSelectionBtn">
-          Clear
+          {{ t("Clear") }}
         </button>
       </div>
 
       <form id="bulkForm" method="post" action="/web/campaigns/{{ campaign.id }}/contacts/remove">
         <div class="actions" style="margin-top:12px;">
           <button class="btn btn-danger" type="submit" id="removeSelectedBtn">
-            Remove Selected From Campaign
+            {{ t("Remove Selected From Campaign") }}
           </button>
         </div>
     {% endif %}
@@ -65,13 +65,13 @@
       <div class="actions">
         {% if page > 1 %}
           <a class="btn btn-secondary" href="/web/campaigns/{{ campaign.id }}/contacts?page={{ page - 1 }}">
-            Previous
+            {{ t("Previous") }}
           </a>
         {% endif %}
 
         {% if page < total_pages %}
           <a class="btn btn-secondary" href="/web/campaigns/{{ campaign.id }}/contacts?page={{ page + 1 }}">
-            Next
+            {{ t("Next") }}
           </a>
         {% endif %}
       </div>
@@ -92,7 +92,7 @@
             <span class="phone-text">{{ contact.phone }}</span>
 
             <a class="history-btn" href="/web/contacts/{{ contact.id }}">
-              History
+              {{ t("History") }}
             </a>
           </div>
 
@@ -102,7 +102,7 @@
 
           {% if contact.target_status is defined %}
             <div class="muted small-text">
-              Status:
+              {{ t("Status:") }}
               <span class="badge badge-{{ contact.target_status }}">
                 {{ contact.target_status }}
               </span>
@@ -112,7 +112,7 @@
         </div>
       {% else %}
         <div class="empty-state">
-          No numbers in this campaign.
+          {{ t("No numbers in this campaign.") }}
         </div>
       {% endfor %}
     </div>

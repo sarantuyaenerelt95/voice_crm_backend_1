@@ -1,12 +1,12 @@
 <!-- app/templates/dashboard.html -->
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
   <title>Voicebro Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/voicecrm.css?v=20260825-qpay-1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260826-i18n-1">
 </head>
 
 <body>
@@ -17,30 +17,30 @@
   <div class="page-header dashboard-hero">
     <div>
       <p class="page-eyebrow">{{ company_name }}</p>
-      <h1>Broadcast workspace</h1>
+      <h1>{{ t("Broadcast workspace") }}</h1>
     </div>
 
     <div class="actions dashboard-hero-actions">
-      <a class="btn" href="/web/campaigns/new">Create campaign</a>
-      <a class="btn btn-secondary" href="/web/campaigns">View campaigns</a>
+      <a class="btn" href="/web/campaigns/new">{{ t("Create campaign") }}</a>
+      <a class="btn btn-secondary" href="/web/campaigns">{{ t("View campaigns") }}</a>
     </div>
   </div>
 
   <section class="grid grid-4 dashboard-metrics">
     <div class="stat">
-      <div class="stat-label">Campaigns</div>
+      <div class="stat-label">{{ t("Campaigns") }}</div>
       <div class="stat-value">{{ total_campaigns or 0 }}</div>
     </div>
     <div class="stat">
-      <div class="stat-label">Draft</div>
+      <div class="stat-label">{{ t("Draft") }}</div>
       <div class="stat-value">{{ draft_campaigns or 0 }}</div>
     </div>
     <div class="stat">
-      <div class="stat-label">Queued / Running</div>
+      <div class="stat-label">{{ t("Queued / Running") }}</div>
       <div class="stat-value">{{ running_campaigns or 0 }}</div>
     </div>
     <div class="stat">
-      <div class="stat-label">Active contacts</div>
+      <div class="stat-label">{{ t("Active contacts") }}</div>
       <div class="stat-value">{{ contact_count or 0 }}</div>
     </div>
   </section>
@@ -48,23 +48,23 @@
   <section class="grid grid-4 dashboard-actions-grid">
     <a class="feature-card action-card" href="/web/campaigns/new">
       <div class="feature-icon">01</div>
-      <h3>New campaign</h3>
-      <p>Build a target list and preview it before any real start.</p>
+      <h3>{{ t("New campaign") }}</h3>
+      <p>{{ t("Build a target list and preview it before any real start.") }}</p>
     </a>
     <a class="feature-card action-card" href="/web/contacts/import">
       <div class="feature-icon">02</div>
-      <h3>Import contacts</h3>
-      <p>Upload CSV/TXT numbers and reuse existing company contacts.</p>
+      <h3>{{ t("Import contacts") }}</h3>
+      <p>{{ t("Upload CSV/TXT numbers and reuse existing company contacts.") }}</p>
     </a>
     <a class="feature-card action-card" href="/web/audio/upload">
       <div class="feature-icon">03</div>
-      <h3>Audio library</h3>
-      <p>Manage reusable broadcast audio files. Current files: {{ audio_count or 0 }}.</p>
+      <h3>{{ t("Audio library") }}</h3>
+      <p>{{ t("Manage reusable broadcast audio files. Current files: {count}.", count=audio_count or 0) }}</p>
     </a>
     <a class="feature-card action-card" href="/web/campaigns/not-executed">
       <div class="feature-icon">04</div>
-      <h3>Cleanup</h3>
-      <p>Find campaigns that were created but never executed.</p>
+      <h3>{{ t("Cleanup") }}</h3>
+      <p>{{ t("Find campaigns that were created but never executed.") }}</p>
     </a>
   </section>
 </main>

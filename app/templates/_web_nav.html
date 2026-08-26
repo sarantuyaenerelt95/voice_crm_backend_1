@@ -1,10 +1,10 @@
 <!-- app/templates/_web_nav.html -->
 
-<a class="skip-link" href="#main-content">Skip to main content</a>
+<a class="skip-link" href="#main-content">{{ t("Skip to main content") }}</a>
 
-<nav class="top-nav" aria-label="Main">
+<nav class="top-nav" aria-label="{{ t('Main') }}">
   <div class="top-nav-inner">
-    <a class="brand" href="/web/dashboard" aria-label="Voicebro home">
+    <a class="brand" href="/web/dashboard" aria-label="Voicebro">
       <span class="brand-mark" aria-hidden="true">VB</span>
       <span class="brand-text">Voicebro</span>
     </a>
@@ -13,41 +13,43 @@
       <a href="/web/dashboard"
          class="{% if request.url.path == '/web/dashboard' %}active{% endif %}"
          {% if request.url.path == '/web/dashboard' %}aria-current="page"{% endif %}>
-        Dashboard
+        {{ t("Dashboard") }}
       </a>
 
       <a href="/web/stt"
          class="{% if request.url.path.startswith('/web/stt') %}active{% endif %}"
          {% if request.url.path.startswith('/web/stt') %}aria-current="page"{% endif %}>
-        STT
+        {{ t("STT") }}
       </a>
 
       <a href="/web/campaigns"
          class="{% if request.url.path.startswith('/web/campaigns') %}active{% endif %}"
          {% if request.url.path.startswith('/web/campaigns') %}aria-current="page"{% endif %}>
-        Campaigns
+        {{ t("Campaigns") }}
       </a>
 
       <a href="/web/contacts"
          class="{% if request.url.path.startswith('/web/contacts') %}active{% endif %}"
          {% if request.url.path.startswith('/web/contacts') %}aria-current="page"{% endif %}>
-        Contacts
+        {{ t("Contacts") }}
       </a>
 
       <a href="/web/audio/upload"
          class="{% if request.url.path.startswith('/web/audio') %}active{% endif %}"
          {% if request.url.path.startswith('/web/audio') %}aria-current="page"{% endif %}>
-        Audio
+        {{ t("Audio") }}
       </a>
 
       <a href="/web/profile"
          class="{% if request.url.path == '/web/profile' %}active{% endif %}"
          {% if request.url.path == '/web/profile' %}aria-current="page"{% endif %}>
-        Profile
+        {{ t("Profile") }}
       </a>
 
+      {% include "_language_switch.html" %}
+
       <form class="nav-logout" method="post" action="/web/logout">
-        <button type="submit">Logout</button>
+        <button type="submit">{{ t("Logout") }}</button>
       </form>
     </div>
   </div>

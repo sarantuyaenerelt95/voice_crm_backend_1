@@ -1,12 +1,12 @@
 <!-- app/templates/campaigns_not_executed.html -->
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
   <title>Not Executed Campaigns | Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/voicecrm.css?v=20260825-qpay-1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260826-i18n-1">
 </head>
 
 <body>
@@ -17,17 +17,17 @@
 
   <div class="page-header">
     <div>
-      <a class="back-link" href="/web/dashboard">← Back to dashboard</a>
-      <p class="page-eyebrow">Draft campaigns</p>
-      <h1>Not Executed Campaigns</h1>
+      <a class="back-link" href="/web/dashboard">{{ t("← Back to dashboard") }}</a>
+      <p class="page-eyebrow">{{ t("Draft campaigns") }}</p>
+      <h1>{{ t("Not Executed Campaigns") }}</h1>
       <p class="muted">
-        These campaigns are still editable. You can manage or remove numbers before execution.
+        {{ t("These campaigns are still editable. You can manage or remove numbers before execution.") }}
       </p>
     </div>
 
     <div class="actions">
       <a class="btn" href="/web/campaigns/new">
-        Create Campaign
+        {{ t("Create Campaign") }}
       </a>
     </div>
   </div>
@@ -35,9 +35,9 @@
   <div class="card">
     <div class="section-title-row">
       <div>
-        <h2>Editable Campaigns</h2>
+        <h2>{{ t("Editable Campaigns") }}</h2>
         <p class="muted small-text">
-          Contacts and audio files will not be deleted when deleting a not-executed campaign.
+          {{ t("Contacts and audio files will not be deleted when deleting a not-executed campaign.") }}
         </p>
       </div>
     </div>
@@ -46,14 +46,14 @@
       <table>
         <thead>
           <tr>
-            <th>No.</th>
-            <th>Campaign Name</th>
-            <th>Status</th>
-            <th>Total Numbers</th>
-            <th>Created</th>
-            <th>Open</th>
-            <th>Manage Numbers</th>
-            <th>Delete</th>
+            <th>{{ t("No.") }}</th>
+            <th>{{ t("Campaign Name") }}</th>
+            <th>{{ t("Status") }}</th>
+            <th>{{ t("Total Numbers") }}</th>
+            <th>{{ t("Created") }}</th>
+            <th>{{ t("Open") }}</th>
+            <th>{{ t("Manage Numbers") }}</th>
+            <th>{{ t("Delete") }}</th>
           </tr>
         </thead>
 
@@ -68,7 +68,7 @@
 
               <td>
                 <span class="badge badge-draft">
-                  Not Executed
+                  {{ t("Not Executed") }}
                 </span>
               </td>
 
@@ -82,13 +82,13 @@
 
               <td>
                 <a class="btn btn-secondary" href="/web/campaigns/{{ row.campaign.id }}">
-                  Open
+                  {{ t("Open") }}
                 </a>
               </td>
 
               <td>
                 <a class="btn btn-secondary" href="/web/campaigns/{{ row.campaign.id }}/contacts">
-                  Manage Numbers
+                  {{ t("Manage Numbers") }}
                 </a>
               </td>
 
@@ -98,7 +98,7 @@
                       action="/web/campaigns/{{ row.campaign.id }}/delete-not-executed">
                   <button type="submit"
                           class="btn btn-danger delete-not-executed-btn">
-                    Delete
+                    {{ t("Delete") }}
                   </button>
                 </form>
               </td>
@@ -107,7 +107,7 @@
             <tr>
               <td colspan="8">
                 <div class="empty-state">
-                  No not-executed campaigns.
+                  {{ t("No not-executed campaigns.") }}
                 </div>
               </td>
             </tr>

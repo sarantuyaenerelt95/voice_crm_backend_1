@@ -15,6 +15,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
+from app import i18n
+from app.i18n import templating as i18n_templating
 from app.routes import (
     auth_routes,
     campaign_routes,
@@ -42,6 +44,9 @@ app = FastAPI(
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
+# Gives every template t(), lang and languages.
+i18n_templating.install(templates)
+
 
 
 if STATIC_DIR.exists():
@@ -50,6 +55,52 @@ if STATIC_DIR.exists():
         StaticFiles(directory=str(STATIC_DIR)),
         name="static",
     )
+
+
+@app.middleware("http")
+async def resolve_request_language(request: Request, call_next):
+    """Decide the interface language once, before anything renders.
+
+    Order of preference: an explicit ?lang= on the URL, then the saved cookie,
+    then the browser's Accept-Language, then the default. Putting it on
+    request.state means templates and error pages all agree, even when the
+    response is produced somewhere that never saw a route handler.
+    """
+    request.state.language = i18n.resolve_language(
+        explicit=request.query_params.get("lang"),
+        cookie=request.cookies.get(i18n.LANGUAGE_COOKIE),
+        accept_header=request.headers.get("accept-language"),
+    )
+
+    return await call_next(request)
+
+
+@app.get("/lang/{code}", include_in_schema=False)
+def set_language(code: str, request: Request):
+    """Switch language and return to the page the user was on.
+
+    `next` is accepted but only ever used as a path on this site: an absolute
+    URL here would turn the switcher into an open redirect that could bounce a
+    logged-in user to an attacker's copy of the login page.
+    """
+    language = i18n.normalize_language(code) or i18n.DEFAULT_LANGUAGE
+
+    target = request.query_params.get("next") or request.headers.get("referer") or "/"
+
+    if not str(target).startswith("/") or str(target).startswith("//"):
+        target = "/"
+
+    response = RedirectResponse(url=target, status_code=303)
+    response.set_cookie(
+        i18n.LANGUAGE_COOKIE,
+        language,
+        max_age=i18n.LANGUAGE_COOKIE_MAX_AGE,
+        httponly=False,
+        samesite="lax",
+        path="/",
+    )
+
+    return response
 
 
 @app.middleware("http")
@@ -79,6 +130,7 @@ async def require_web_login(request: Request, call_next):
         or path.startswith("/auth")
         or path.startswith("/campaigns")
         or path.startswith("/payments")
+        or path.startswith("/lang/")
     ):
         return await call_next(request)
 

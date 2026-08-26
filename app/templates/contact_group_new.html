@@ -1,12 +1,12 @@
 <!-- app/templates/contact_group_new.html -->
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
   <title>New Contact Group | Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/voicecrm.css?v=20260825-qpay-1">
+  <link rel="stylesheet" href="/static/voicecrm.css?v=20260826-i18n-1">
 </head>
 
 <body>
@@ -17,22 +17,22 @@
 
   <div class="page-header">
     <div>
-      <p class="page-eyebrow">Contact groups</p>
-      <h1>New Contact Group</h1>
+      <p class="page-eyebrow">{{ t("Contact groups") }}</p>
+      <h1>{{ t("New Contact Group") }}</h1>
       <p class="muted">
-        Create a reusable target group from pasted numbers or a CSV/TXT file.
+        {{ t("Create a reusable target group from pasted numbers or a CSV/TXT file.") }}
       </p>
     </div>
 
     <div class="actions">
       <a class="btn btn-secondary" href="/web/contact-groups">
-        ← Back to groups
+        {{ t("← Back to groups") }}
       </a>
     </div>
   </div>
 
   <section class="card">
-    <h2>Group Information</h2>
+    <h2>{{ t("Group Information") }}</h2>
 
     <form method="post"
           action="/web/contact-groups/new"
@@ -40,38 +40,38 @@
           class="form-grid">
 
       <div>
-        <label>Group name</label>
+        <label>{{ t("Group name") }}</label>
         <input type="text" name="group_name" required>
       </div>
 
       <div>
-        <label>Description</label>
-        <textarea name="description" rows="3" placeholder="Optional group description"></textarea>
+        <label>{{ t("Description") }}</label>
+        <textarea name="description" rows="3" placeholder="{{ t('Optional group description') }}"></textarea>
       </div>
 
       <div>
-        <label>Paste numbers</label>
+        <label>{{ t("Paste numbers") }}</label>
         <textarea name="bulk_numbers"
                   rows="8"
                   placeholder="90300226&#10;99112233&#10;88001122"></textarea>
         <p class="muted small-text">
-          One phone number per line, or separated by comma/space.
+          {{ t("One phone number per line, or separated by comma/space.") }}
         </p>
       </div>
 
       <div>
-        <label>Or upload CSV/TXT</label>
+        <label>{{ t("Or upload CSV/TXT") }}</label>
         <input type="file" name="contact_file" accept=".csv,.txt">
 
         <div class="alert alert-info" style="margin-top:12px;">
-          TXT: one phone number per line.<br>
-          CSV format: <code>phone,full_name,notes</code>
+          {{ t("TXT: one phone number per line.") }}<br>
+          {{ t("CSV format: {columns}", columns="<code>phone,full_name,notes</code>") | safe }}
         </div>
       </div>
 
       <div class="actions">
         <button class="btn" type="submit">
-          Create Group
+          {{ t("Create Group") }}
         </button>
       </div>
     </form>

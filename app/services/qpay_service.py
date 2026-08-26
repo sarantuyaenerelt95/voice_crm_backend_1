@@ -198,6 +198,27 @@ def _post(path: str, body: dict) -> dict:
     raise QPayError("QPay kept rejecting the access token.")
 
 
+def may_check_payment(purchase_id: int, min_interval_sec: int) -> bool:
+    """Rate limit payment/check calls for one order.
+
+    QPay's documentation forbids polling payment/check continuously - the
+    callback is meant to be what triggers a check. But a lost callback must not
+    strand a buyer who really paid, so the payment page still checks, just
+    rarely: this returns True at most once per min_interval_sec.
+
+    If Redis is unavailable the check is allowed, because failing closed here
+    would mean never settling an order whose callback went missing.
+    """
+    key = f"qpay:checked:{purchase_id}"
+
+    try:
+        # set-if-absent with a TTL is the whole rate limiter: whoever sets the
+        # key wins the slot, everyone else is told to wait.
+        return bool(_redis_client().set(key, b"1", nx=True, ex=max(1, int(min_interval_sec))))
+    except redis.RedisError:
+        return True
+
+
 def callback_signature(purchase_id: int) -> str:
     """Short HMAC proving a callback URL came from an invoice we created.
 

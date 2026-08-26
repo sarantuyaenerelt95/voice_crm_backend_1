@@ -4,7 +4,7 @@
 <html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
-  <title>Contacts | Voicebro</title>
+  <title>{{ t("Contacts") }} | Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="/static/voicecrm.css?v=20260826-i18n-1">
 </head>
@@ -23,7 +23,7 @@
       <p class="muted">
         {{ t("Active:") }} <strong>{{ total_active }}</strong>
         &nbsp; | &nbsp;
-        Inactive: <strong>{{ total_inactive }}</strong>
+        {{ t("Inactive:") }} <strong>{{ total_inactive }}</strong>
       </p>
     </div>
 
@@ -92,14 +92,14 @@
         <button class="btn btn-danger bulk-action-btn"
                 type="submit"
                 formaction="/web/contacts/bulk-deactivate"
-                data-confirm-message="Deactivate selected numbers? Logs and reports will remain.">
+                data-confirm-message="{{ t('Deactivate selected numbers? Logs and reports will remain.') }}">
           {{ t("Deactivate Selected") }}
         </button>
 
         <button class="btn btn-success bulk-action-btn"
                 type="submit"
                 formaction="/web/contacts/bulk-restore"
-                data-confirm-message="Restore selected numbers?">
+                data-confirm-message="{{ t('Restore selected numbers?') }}">
           {{ t("Restore Selected") }}
         </button>
       </div>
@@ -209,11 +209,11 @@
     button.addEventListener("click", function (event) {
       if (selectedCount() <= 0) {
         event.preventDefault();
-        alert("Please select at least one contact.");
+        alert({{ t("Please select at least one contact.") | tojson }});
         return;
       }
 
-      const message = button.dataset.confirmMessage || "Apply this action?";
+      const message = button.dataset.confirmMessage || {{ t("Apply this action?") | tojson }};
 
       if (!confirm(message)) {
         event.preventDefault();

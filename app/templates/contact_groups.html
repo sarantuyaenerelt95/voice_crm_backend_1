@@ -4,7 +4,7 @@
 <html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
-  <title>Contact Groups | Voicebro</title>
+  <title>{{ t("Contact Groups") }} | Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="/static/voicecrm.css?v=20260826-i18n-1">
 </head>
@@ -112,7 +112,7 @@
 (function () {
   document.querySelectorAll(".delete-group-btn").forEach(function (button) {
     button.addEventListener("click", function (event) {
-      if (!confirm("Delete this group? Contacts will NOT be deleted.")) {
+      if (!confirm({{ t("Delete this group? Contacts will NOT be deleted.") | tojson }})) {
         event.preventDefault();
       }
     });

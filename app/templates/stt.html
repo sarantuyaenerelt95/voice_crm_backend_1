@@ -4,7 +4,7 @@
 <html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
-  <title>Speech to Text | Voicebro</title>
+  <title>{{ t("Speech to Text") }} | Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="/static/voicecrm.css?v=20260826-i18n-1">
 </head>
@@ -30,7 +30,7 @@
     <h2>{{ t("Upload Audio") }}</h2>
 
     <div class="alert alert-info">
-      {{ t("Supported formats: {formats}. Max {size}.", formats="<b>wav, mp3, m4a, ogg, flac, gsm, webm</b>", size="<b>25MB</b>") | safe }}
+      {{ t("Supported formats: {formats}. Max {size}.", formats="<b>wav, mp3, m4a, ogg, flac, gsm, webm</b>", size=("<b>" ~ t("25MB") ~ "</b>")) | safe }}
     </div>
 
     <div class="form-grid">

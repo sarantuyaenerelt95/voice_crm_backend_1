@@ -770,3 +770,52 @@ _add("billing", {
 _add("status", {
     "Paid": "Төлөгдсөн",
 })
+
+# ------------------------------------------- full-sweep pass: titles + alerts
+#
+# Found by a systematic audit for raw English left unwrapped after the register
+# page turned up the same bug: browser-tab <title>s across nearly every page,
+# and confirm()/alert() dialogs whose strings were hardcoded inside <script>
+# or an onsubmit/data-confirm-message attribute rather than run through t().
+
+_add("titles", {
+    "Campaign Detail": "Дэлгэрэнгүй",
+    "Campaign Numbers": "Кампанит ажлын дугаарууд",
+    "Contact Group Detail": "Бүлгийн дэлгэрэнгүй",
+    "Dry-run Preview": "Урьдчилсан харагдац",
+    "Forgot Password": "Нууц үг сэргээх",
+    "Reset Password": "Нууц үг сэргээх",
+    "Voicebro — Voice broadcast campaigns, contacts and reports":
+        "Voicebro — Дуут мэдээллийн систем: кампанит ажил, харилцагч, тайлан",
+})
+
+_add("confirm", {
+    "Delete this audio from future campaigns? Old reports will remain.":
+        "Энэ аудиог цаашдын кампанит ажилд ашиглахгүй байхаар устгах уу? Хуучин тайлан хэвээр үлдэнэ.",
+    "Delete this not-executed campaign? Contacts and audio will NOT be deleted.":
+        "Энэ эхлүүлээгүй кампанит ажлыг устгах уу? Харилцагч, аудио устахгүй.",
+    "Delete this group? Contacts will NOT be deleted.":
+        "Энэ бүлгийг устгах уу? Харилцагч устахгүй.",
+    "Start REAL campaign calls now?": "Кампанит ажлын дуудлагыг яг одоо эхлүүлэх үү?",
+    "Cancel this running campaign? Pending numbers will be marked cancelled.":
+        "Явагдаж буй кампанит ажлыг цуцлах уу? Хүлээгдэж буй дугаарууд цуцлагдсан гэж тэмдэглэгдэнэ.",
+    "Remove selected numbers from this campaign only?":
+        "Сонгосон дугааруудыг зөвхөн энэ кампанит ажлаас хасах уу?",
+    "Please select at least one number.": "Дор хаяж нэг дугаар сонгоно уу.",
+    "Please select at least one contact.": "Дор хаяж нэг харилцагч сонгоно уу.",
+    "Simulate this campaign? This will not make real calls.":
+        "Энэ кампанит ажлыг туршилтаар ажиллуулах уу? Жинхэнэ дуудлага хийгдэхгүй.",
+    "Apply this action?": "Энэ үйлдлийг хийх үү?",
+    "Deactivate selected numbers? Logs and reports will remain.":
+        "Сонгосон дугааруудыг идэвхгүй болгох уу? Бүртгэл, тайлан хэвээр үлдэнэ.",
+    "Restore selected numbers?": "Сонгосон дугааруудыг сэргээх үү?",
+    "The selected section is too short. Please keep at least {min} seconds.":
+        "Сонгосон хэсэг хэт богино байна. Хамгийн багадаа {min} секунд байлгана уу.",
+})
+
+_add("misc", {
+    "Filter call results by status": "Дуудлагын үр дүнг төлөвөөр шүүх",
+    "Inactive:": "Идэвхгүй:",
+    "5 minutes": "5 минут",
+    "25MB": "25МБ",
+})

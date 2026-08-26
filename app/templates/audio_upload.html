@@ -4,7 +4,7 @@
 <html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
-  <title>Audio Library | Voicebro</title>
+  <title>{{ t("Audio Library") }} | Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="/static/voicecrm.css?v=20260826-i18n-1">
 </head>
@@ -70,7 +70,7 @@
     <h2>{{ t("Record Your Voice") }}</h2>
 
     <div class="alert alert-info">
-      {{ t("Your browser will ask for microphone permission the first time. Maximum length: {limit}.", limit="<b>5 minutes</b>") | safe }}
+      {{ t("Your browser will ask for microphone permission the first time. Maximum length: {limit}.", limit=("<b>" ~ t("5 minutes") ~ "</b>")) | safe }}
     </div>
 
     <div id="recorderUnsupported" class="alert alert-error" style="display:none">
@@ -110,7 +110,7 @@
     <h2>{{ t("Upload New Audio") }}</h2>
 
     <div class="alert alert-info">
-      {{ t("Supported formats: {formats}. Maximum duration: {limit}.", formats="<b>mp3, wav, m4a, ogg, flac, gsm</b>", limit="<b>5 minutes</b>") | safe }}
+      {{ t("Supported formats: {formats}. Maximum duration: {limit}.", formats="<b>mp3, wav, m4a, ogg, flac, gsm</b>", limit=("<b>" ~ t("5 minutes") ~ "</b>")) | safe }}
     </div>
 
     <form class="form-grid" method="post" action="/web/audio/upload" enctype="multipart/form-data">
@@ -217,7 +217,7 @@
                   <form class="inline-form"
                         method="post"
                         action="/web/audio/{{ audio.id }}/delete"
-                        onsubmit="return confirm('Delete this audio from future campaigns? Old reports will remain.');">
+                        onsubmit="return confirm({{ t('Delete this audio from future campaigns? Old reports will remain.') | tojson }});">
                     <button type="submit" class="btn btn-danger btn-sm">
                       {{ t("Delete") }}
                     </button>
@@ -438,7 +438,7 @@
 
       if (length < 0.5) {
         event.preventDefault();
-        alert("The selected section is too short. Please keep at least 0.5 seconds.");
+        alert({{ t("The selected section is too short. Please keep at least {min} seconds.", min="0.5") | tojson }});
       }
     });
   });

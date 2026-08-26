@@ -4,7 +4,7 @@
 <html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
-  <title>Campaign Detail - Voicebro</title>
+  <title>{{ t("Campaign Detail") }} - Voicebro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="/static/voicecrm.css?v=20260826-i18n-1">
 </head>
@@ -292,7 +292,7 @@
       </div>
 
       <div class="monitor-controls">
-        <select id="callStatusFilter" class="status-filter" aria-label="Filter call results by status">
+        <select id="callStatusFilter" class="status-filter" aria-label="{{ t('Filter call results by status') }}">
           <option value="all">{{ t("All statuses") }}</option>
           <option value="pending">{{ t("Pending") }}</option>
           <option value="calling">{{ t("Calling") }}</option>
@@ -516,7 +516,7 @@
 
   if (realStartForm) {
     realStartForm.addEventListener("submit", function (event) {
-      if (!confirm("Start REAL campaign calls now?")) {
+      if (!confirm({{ t("Start REAL campaign calls now?") | tojson }})) {
         event.preventDefault();
       }
     });
@@ -524,7 +524,7 @@
 
   if (cancelCampaignForm) {
     cancelCampaignForm.addEventListener("submit", function (event) {
-      if (!confirm("Cancel this running campaign? Pending numbers will be marked cancelled.")) {
+      if (!confirm({{ t("Cancel this running campaign? Pending numbers will be marked cancelled.") | tojson }})) {
         event.preventDefault();
       }
     });

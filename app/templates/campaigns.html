@@ -67,7 +67,7 @@
             {% set status = c.status.value if c.status.value is defined else c.status|string %}
 
             <tr>
-              <td class="num muted">{{ loop.index }}</td>
+              <td class="num muted">{{ loop.revindex }}</td>
 
               <td>
                 <strong>{{ c.name }}</strong>

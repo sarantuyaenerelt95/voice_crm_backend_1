@@ -851,3 +851,7 @@ _add("monitor", {
         "{status} - энэ хуудсанд {count} мөр харагдаж байна.",
     "Auto-refresh 5s on": "5 секундын автомат шинэчлэлт идэвхтэй",
 })
+
+_add("footer", {
+    "In association with МУИС": "МУИС-тай хамтран",
+})

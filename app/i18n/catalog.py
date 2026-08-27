@@ -855,3 +855,14 @@ _add("monitor", {
 _add("footer", {
     "In association with МУИС": "МУИС-тай хамтран",
 })
+
+_add("pagination", {
+    "Showing {from}–{to} of {total}": "{total}-аас {from}–{to} харуулж байна",
+    "Page {page} / {total_pages}": "Хуудас {page} / {total_pages}",
+    "Selection applies to this page. Use search to narrow the list before selecting.":
+        "Сонголт зөвхөн энэ хуудсанд үйлчилнэ. Сонгохын өмнө хайлтаар жагсаалтаа багасгана уу.",
+})
+
+_add("campaigns", {
+    "e.g. Autumn Promotion": "жишээ нь: Намрын урамшуулал",
+})

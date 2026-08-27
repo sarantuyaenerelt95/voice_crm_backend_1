@@ -31,6 +31,12 @@
     </div>
   </div>
 
+  {% if error %}
+    <div class="alert alert-error">
+      {{ t(error) }}
+    </div>
+  {% endif %}
+
   <div class="alert alert-info">
     {{ t("This page creates only a draft campaign and frozen target list.
     After create, dry-run opens automatically.") }}
@@ -48,14 +54,14 @@
           <div class="form-grid">
             <div>
               <label>{{ t("Campaign Name") }}</label>
-              <input type="text" name="name" value="Web test campaign" required>
+              <input type="text" name="name" value="{{ form.name if form else '' }}" placeholder="{{ t('e.g. Autumn Promotion') }}" required>
             </div>
 
             <div>
               <label>{{ t("Audio File") }}</label>
               <select name="audio_file_id" required>
                 {% for audio in audio_files %}
-                  <option value="{{ audio.id }}">
+                  <option value="{{ audio.id }}" {% if form and form.audio_file_id == audio.id %}selected{% endif %}>
                     #{{ loop.index }} - {{ audio.label }} - {{ audio.duration_sec }} sec
                   </option>
                 {% endfor %}
@@ -76,7 +82,7 @@
               <div class="choice-grid">
                 {% for row in contact_groups %}
                   <label class="choice-card" data-group-id="{{ row.group.id }}" data-group-name="{{ row.group.name }}">
-                    <input type="checkbox" name="group_ids" value="{{ row.group.id }}">
+                    <input type="checkbox" name="group_ids" value="{{ row.group.id }}" {% if form and row.group.id in form.group_ids %}checked{% endif %}>
 
                     <div class="choice-index muted small-text">
                       #{{ loop.index }}
@@ -122,12 +128,12 @@
               <div class="grid grid-2">
                 <div>
                   <label>{{ t("Phone number") }}</label>
-                  <input type="text" name="single_phone" placeholder="90300226">
+                  <input type="text" name="single_phone" value="{{ form.single_phone if form else '' }}" placeholder="90300226">
                 </div>
 
                 <div>
                   <label>{{ t("Name") }}</label>
-                  <input type="text" name="single_name" placeholder="{{ t('Optional name') }}">
+                  <input type="text" name="single_name" value="{{ form.single_name if form else '' }}" placeholder="{{ t('Optional name') }}">
                 </div>
               </div>
             </div>
@@ -143,7 +149,7 @@
                 {{ t("One number per line, or separated by comma/space.") }}
               </p>
 
-              <textarea name="bulk_numbers" placeholder="90300226&#10;99112233&#10;88001122"></textarea>
+              <textarea name="bulk_numbers" placeholder="90300226&#10;99112233&#10;88001122">{{ form.bulk_numbers if form else '' }}</textarea>
             </div>
           </details>
         </div>
@@ -184,7 +190,7 @@
               <div class="contact-grid selectable-grid" id="contactGrid" style="margin-top:14px;">
                 {% for contact in contacts %}
                   <div class="contact-card" data-contact-id="{{ contact.id }}" data-phone="{{ contact.phone }}">
-                    <input type="checkbox" name="contact_ids" value="{{ contact.id }}">
+                    <input type="checkbox" name="contact_ids" value="{{ contact.id }}" {% if form and contact.id in form.contact_ids %}checked{% endif %}>
 
                     <div class="muted small-text">
                       #{{ contact.id }}
@@ -805,6 +811,18 @@
       reader.readAsText(file);
     });
   }
+
+  // If the form is re-rendering after a validation error, the server already
+  // marked the right checkboxes as checked - contact-card's highlight relies
+  // on the .selected class rather than pure CSS, so it needs this one pass
+  // to match, or a restored selection would be functionally checked but look
+  // untouched until the user clicks something.
+  document.querySelectorAll(".contact-card").forEach(function (card) {
+    var checkbox = card.querySelector("input[type='checkbox']");
+    if (checkbox && checkbox.checked) {
+      card.classList.add("selected");
+    }
+  });
 
   updateSelectedCount();
 })();

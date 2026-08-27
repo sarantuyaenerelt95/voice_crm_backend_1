@@ -159,6 +159,7 @@ def web_login(
             {
                 "request": request,
                 "error": "Invalid email or password",
+                "form": {"email": email},
             },
             status_code=400,
         )
@@ -171,6 +172,7 @@ def web_login(
             {
                 "request": request,
                 "error": "Invalid email or password",
+                "form": {"email": email},
             },
             status_code=400,
         )
@@ -181,6 +183,7 @@ def web_login(
             {
                 "request": request,
                 "error": "User is inactive",
+                "form": {"email": email},
             },
             status_code=400,
         )
@@ -238,6 +241,11 @@ def web_register(
             {
                 "request": request,
                 "error": "Passwords do not match",
+                "form": {
+                    "company_name": company_name,
+                    "full_name": full_name,
+                    "email": email,
+                },
             },
             status_code=400,
         )
@@ -248,6 +256,11 @@ def web_register(
             {
                 "request": request,
                 "error": "Password must be at least 6 characters",
+                "form": {
+                    "company_name": company_name,
+                    "full_name": full_name,
+                    "email": email,
+                },
             },
             status_code=400,
         )
@@ -259,6 +272,11 @@ def web_register(
             {
                 "request": request,
                 "error": "Password is too long. Please use 72 bytes or less.",
+                "form": {
+                    "company_name": company_name,
+                    "full_name": full_name,
+                    "email": email,
+                },
             },
             status_code=400,
         )
@@ -276,6 +294,11 @@ def web_register(
             {
                 "request": request,
                 "error": "Email already registered",
+                "form": {
+                    "company_name": company_name,
+                    "full_name": full_name,
+                    "email": email,
+                },
             },
             status_code=400,
         )
@@ -356,6 +379,11 @@ def web_register(
             {
                 "request": request,
                 "error": "Company or email already exists",
+                "form": {
+                    "company_name": company_name,
+                    "full_name": full_name,
+                    "email": email,
+                },
             },
             status_code=400,
         )

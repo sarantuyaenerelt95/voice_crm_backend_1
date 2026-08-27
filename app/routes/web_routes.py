@@ -97,6 +97,10 @@ RECORDING_MIME_EXTENSIONS = {
 # How often the payment page may actually ask QPay about one order. QPay's
 # documentation forbids continuously polling payment/check, so the callback is
 # the primary path and these are just the safety net for a lost one.
+# One screen's worth of selectable contact cards. Kept well under the
+# 30,000-contact plan ceiling so the page stays usable on a phone.
+CONTACTS_PER_PAGE = 200
+
 AUTO_CHECK_INTERVAL_SEC = 30
 MANUAL_CHECK_INTERVAL_SEC = 8
 
@@ -686,13 +690,15 @@ async def web_update_company_profile(
     )
 
 
-@router.get("/campaigns/new", response_class=HTMLResponse)
-def web_new_campaign(
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    user = get_current_web_user(request, db)
+def build_campaign_new_context(request: Request, user: User, db: Session) -> dict:
+    """Everything the campaign-builder page needs to render.
 
+    Shared by the GET page and the POST handler's validation-failure paths,
+    so a mistake (no name, no audio picked, no numbers selected) re-renders
+    the same page with the user's typed name, pasted numbers, and selected
+    groups/contacts still in place - rather than raising HTTPException and
+    throwing them onto a bare error page with everything lost.
+    """
     audio_files = active_audio_files(db, user.company_id)
 
     active_contacts_count = db.query(Contact).filter(
@@ -762,15 +768,49 @@ def web_new_campaign(
         for group, member_count in group_rows
     ]
 
+    return {
+        "request": request,
+        "audio_files": audio_files,
+        "active_contacts_count": active_contacts_count,
+        "contacts": contacts,
+        "contact_groups": contact_groups,
+    }
+
+
+@router.get("/campaigns/new", response_class=HTMLResponse)
+def web_new_campaign(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = get_current_web_user(request, db)
+
     return templates.TemplateResponse(
         "campaign_new.html",
-        {
-            "request": request,
-            "audio_files": audio_files,
-            "active_contacts_count": active_contacts_count,
-            "contacts": contacts,
-            "contact_groups": contact_groups,
-        },
+        build_campaign_new_context(request, user, db),
+    )
+
+
+def render_campaign_new_error(
+    request: Request,
+    user: User,
+    db: Session,
+    error: str,
+    form_values: dict,
+) -> HTMLResponse:
+    """Re-render the builder page with the user's input intact.
+
+    form_values carries back exactly what was submitted - name, the single
+    number, the pasted list, which groups/contacts were checked - so a
+    mistake never means retyping or reselecting everything from scratch.
+    """
+    context = build_campaign_new_context(request, user, db)
+    context["error"] = error
+    context["form"] = form_values
+
+    return templates.TemplateResponse(
+        "campaign_new.html",
+        context,
+        status_code=400,
     )
 
 
@@ -808,8 +848,25 @@ async def web_create_campaign(
 
     contact_file = form.get("contact_file")
 
+    # Carries the user's input back into the page if any check below fails,
+    # so a mistake never means retyping the name or reselecting every
+    # contact and group from scratch.
+    form_values = {
+        "name": name,
+        "audio_file_id": audio_file_id,
+        "single_phone": single_phone,
+        "single_name": single_name,
+        "bulk_numbers": bulk_numbers,
+        "contact_ids": contact_ids,
+        "group_ids": group_ids,
+    }
+
     if not name:
-        raise HTTPException(status_code=400, detail="Campaign name is required")
+        return render_campaign_new_error(
+            request, user, db,
+            error="Campaign name is required",
+            form_values=form_values,
+        )
 
     audio = db.query(AudioFile).filter(
         AudioFile.id == audio_file_id,
@@ -818,7 +875,11 @@ async def web_create_campaign(
     ).first()
 
     if not audio:
-        raise HTTPException(status_code=404, detail="Audio file not found")
+        return render_campaign_new_error(
+            request, user, db,
+            error="Audio file not found",
+            form_values=form_values,
+        )
 
     target_contact_ids = []
     seen_target_ids = set()
@@ -934,18 +995,20 @@ async def web_create_campaign(
         filename = contact_file.filename.lower()
 
         if not (filename.endswith(".csv") or filename.endswith(".txt")):
-            raise HTTPException(
-                status_code=400,
-                detail="Only CSV or TXT contact files are allowed",
+            return render_campaign_new_error(
+                request, user, db,
+                error="Only CSV or TXT contact files are allowed",
+                form_values=form_values,
             )
 
         try:
             raw_content = await contact_file.read()
             content = raw_content.decode("utf-8-sig")
         except UnicodeDecodeError:
-            raise HTTPException(
-                status_code=400,
-                detail="Contact file must be UTF-8 encoded",
+            return render_campaign_new_error(
+                request, user, db,
+                error="Contact file must be UTF-8 encoded",
+                form_values=form_values,
             )
 
         if filename.endswith(".txt"):
@@ -990,9 +1053,10 @@ async def web_create_campaign(
                     add_target(contact)
 
     if not target_contact_ids:
-        raise HTTPException(
-            status_code=400,
-            detail="Please select, add, paste, or import at least one phone number",
+        return render_campaign_new_error(
+            request, user, db,
+            error="Please select, add, paste, or import at least one phone number",
+            form_values=form_values,
         )
 
     campaign = Campaign(**build_campaign_kwargs(
@@ -1180,6 +1244,7 @@ def web_import_contacts(
 @router.get("/contacts", response_class=HTMLResponse)
 def web_contacts(
     request: Request,
+    page: int = Query(1, ge=1),
     db: Session = Depends(get_db),
 ):
     user = get_current_web_user(request, db)
@@ -1204,8 +1269,22 @@ def web_contacts(
             )
         )
 
+    # Paginated rather than .all(): a company on the default 30,000-contact
+    # limit rendered every one of them as a selectable card in a single
+    # response - measured at 7.8 MB of HTML for 12,000 contacts, which is a
+    # page no phone will enjoy. Search and the status filter still apply
+    # across the whole set; only the rendering is capped.
+    matching_total = query.count()
+
+    total_pages = max(1, (matching_total + CONTACTS_PER_PAGE - 1) // CONTACTS_PER_PAGE)
+    page = min(max(1, page), total_pages)
+
     contacts = query.order_by(
         Contact.id.asc(),
+    ).offset(
+        (page - 1) * CONTACTS_PER_PAGE
+    ).limit(
+        CONTACTS_PER_PAGE
     ).all()
 
     total_active = db.query(Contact).filter(
@@ -1226,6 +1305,10 @@ def web_contacts(
             "contacts": contacts,
             "q": q,
             "status": status,
+            "page": page,
+            "total_pages": total_pages,
+            "matching_total": matching_total,
+            "per_page": CONTACTS_PER_PAGE,
             "total_active": total_active,
             "total_inactive": total_inactive,
         },

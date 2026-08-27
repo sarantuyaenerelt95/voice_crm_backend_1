@@ -54,17 +54,17 @@
       <form method="post" action="/web/register" class="form-grid">
         <div>
           <label>{{ t("Company name") }}</label>
-          <input type="text" name="company_name" required>
+          <input type="text" name="company_name" value="{{ form.company_name if form else '' }}" required>
         </div>
 
         <div>
           <label>{{ t("Your name") }}</label>
-          <input type="text" name="full_name" required>
+          <input type="text" name="full_name" value="{{ form.full_name if form else '' }}" required>
         </div>
 
         <div>
           <label>{{ t("Email") }}</label>
-          <input type="email" name="email" autocomplete="email" required>
+          <input type="email" name="email" autocomplete="email" value="{{ form.email if form else '' }}" required>
         </div>
 
         <div>

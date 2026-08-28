@@ -1,34 +1,103 @@
 <!-- app/templates/_partners.html -->
 
 <!--
-  Partner / association strip, laid out as a flowing row rather than items
-  pinned to opposite edges - so adding a second or third partner later just
-  extends the flow instead of needing the layout rethought.
+  Partner / association strip.
 
-  The logo is resolved at render time by app/branding.py: the image when the
-  asset is present, a typographic wordmark when it is not, so this never
-  renders a broken image.
+  Renders as a plain row while the partners fit. Once there are enough that
+  the row would overflow, the script below duplicates the set and starts it
+  scrolling, so the strip flows continuously instead of clipping.
+
+  Whether to flow is decided by measuring real overflow rather than counting
+  partners: logo widths vary, so a count threshold would start scrolling a
+  row that still fits, or clip one that does not.
+
+  Each logo comes from app/branding.py at render time - an <img> when the
+  asset exists, a typographic wordmark when it does not, so a partner added
+  before its logo never shows a broken image.
 -->
 
 <section class="partners">
-  <div class="page-shell partners-inner">
+  <div class="page-shell">
     <h2 class="partners-title">{{ t("Partner organizations") }}</h2>
+  </div>
 
-    <div class="partners-row">
-      <div class="partner">
-        {% if partner_logo_url() %}
-          <img class="partner-logo"
-               src="{{ partner_logo_url() }}"
-               alt="{{ t('National University of Mongolia') }}"
-               loading="lazy">
-        {% else %}
-          <span class="partner-wordmark" aria-label="{{ t('National University of Mongolia') }}">
-            МУИС
-          </span>
-        {% endif %}
-      </div>
-
-      <a class="partner-phone" href="tel:{{ contact_phone }}">{{ contact_phone }}</a>
+  <div class="partners-viewport" id="partnersViewport">
+    <div class="partners-track" id="partnersTrack">
+      {% for partner in partners() %}
+        <div class="partner">
+          {% if partner.logo_url %}
+            <img class="partner-logo"
+                 src="{{ partner.logo_url }}"
+                 alt="{{ t(partner.name) }}"
+                 loading="lazy">
+          {% else %}
+            <span class="partner-wordmark" aria-label="{{ t(partner.name) }}">
+              {{ partner.wordmark }}
+            </span>
+          {% endif %}
+        </div>
+      {% endfor %}
     </div>
   </div>
 </section>
+
+<script>
+(function () {
+  "use strict";
+
+  var viewport = document.getElementById("partnersViewport");
+  var track = document.getElementById("partnersTrack");
+
+  if (!viewport || !track) return;
+
+  // Someone who has asked the OS to reduce motion should never get a moving
+  // strip; the static row is the correct experience for them, not a slower
+  // version of the animation.
+  var reduceMotion = window.matchMedia
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (reduceMotion) return;
+
+  var duplicated = false;
+
+  function sync() {
+    // Once duplicated the track is intentionally wider than the viewport, so
+    // re-measuring would always say "overflowing" and duplicate again.
+    if (duplicated) return;
+
+    if (track.scrollWidth <= viewport.clientWidth) {
+      return;
+    }
+
+    // The animation travels exactly -50%, so the second copy lands where the
+    // first began and the loop is seamless.
+    //
+    // aria-hidden goes on each copied element rather than on a wrapper: the
+    // children get moved out of the clone into the track, so an attribute set
+    // on the wrapper would stay behind on the discarded node and a screen
+    // reader would announce every partner twice.
+    var originals = Array.prototype.slice.call(track.children);
+
+    originals.forEach(function (node) {
+      var copy = node.cloneNode(true);
+      copy.setAttribute("aria-hidden", "true");
+
+      // Duplicated logos are decorative; the originals already name them.
+      Array.prototype.forEach.call(copy.querySelectorAll("img"), function (img) {
+        img.setAttribute("alt", "");
+      });
+
+      track.appendChild(copy);
+    });
+
+    track.classList.add("is-flowing");
+    duplicated = true;
+  }
+
+  sync();
+
+  // Logos load lazily and can change the measurement after first paint.
+  window.addEventListener("load", sync);
+  window.addEventListener("resize", sync);
+})();
+</script>

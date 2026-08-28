@@ -2,11 +2,12 @@
 
 """Partner / association branding exposed to every template.
 
-The МУИС logo is an image file dropped into app/static/partners/. It is
-looked up at render time rather than hardcoded so the page degrades to a
-typographic wordmark when the file is absent, instead of showing a broken
-image icon - and upgrades itself the moment the real asset is added, with
-no code change.
+Partners are declared here as data so adding one is a one-line change plus
+dropping its logo into app/static/partners/ - no markup edits.
+
+Each logo is resolved at render time rather than hardcoded, so a partner
+whose image has not been added yet degrades to a typographic wordmark
+instead of a broken image, and upgrades itself the moment the file appears.
 """
 
 from __future__ import annotations
@@ -17,28 +18,43 @@ from pathlib import Path
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 PARTNER_DIR = STATIC_DIR / "partners"
 
-# Contact number shown alongside the partner strip.
-CONTACT_PHONE = "88997936"
+# Extensions tried for each partner's logo, in order. SVG first so a vector
+# asset wins over a raster one when both are present.
+_LOGO_EXTENSIONS = (".svg", ".png", ".webp", ".jpg")
 
-# Checked in order; the first that exists wins. SVG first so a vector logo is
-# preferred over a raster one when both are present.
-_LOGO_CANDIDATES = ("muis.svg", "muis.png", "muis.webp", "muis.jpg")
+# slug -> the English name, which doubles as the translation key.
+PARTNERS: tuple[tuple[str, str], ...] = (
+    ("muis", "National University of Mongolia"),
+)
 
 
-def partner_logo_url() -> str | None:
-    """Public URL of the МУИС logo, or None if the asset has not been added.
-
-    Resolved per call rather than cached at import, so dropping the file in
-    takes effect on the next page load without restarting the app.
-    """
-    for name in _LOGO_CANDIDATES:
-        if (PARTNER_DIR / name).is_file():
-            return f"/static/partners/{name}"
+def _logo_url(slug: str) -> str | None:
+    for ext in _LOGO_EXTENSIONS:
+        if (PARTNER_DIR / f"{slug}{ext}").is_file():
+            return f"/static/partners/{slug}{ext}"
 
     return None
 
 
+def partners() -> list[dict]:
+    """The partner list for templates: name key, logo URL (or None), slug.
+
+    Resolved per call rather than cached at import, so dropping a logo in
+    takes effect on the next page load without restarting the app.
+    """
+    return [
+        {
+            "slug": slug,
+            "name": name,
+            "logo_url": _logo_url(slug),
+            # Wordmark fallback: the acronym reads better than a truncated
+            # full name at logo size.
+            "wordmark": "МУИС" if slug == "muis" else slug.upper(),
+        }
+        for slug, name in PARTNERS
+    ]
+
+
 def install(templates) -> None:
     """Make the branding values available to every template."""
-    templates.env.globals["partner_logo_url"] = partner_logo_url
-    templates.env.globals["contact_phone"] = CONTACT_PHONE
+    templates.env.globals["partners"] = partners

@@ -1924,16 +1924,15 @@ textarea:focus-visible,
 /* ==========================================================================
    Partner / association strip
    --------------------------------------------------------------------------
-   A flowing row rather than items pushed to opposite edges: the partners sit
-   together as one strip, so adding another later simply extends the flow.
+   A plain row while the partners fit; once they overflow, the markup script
+   duplicates the set and .is-flowing scrolls it continuously. The animation
+   travels exactly -50% so the duplicate lands where the original started and
+   the loop is seamless.
    ========================================================================== */
 
 .partners {
   border-top: 1px solid var(--border);
   background: var(--surface);
-}
-
-.partners-inner {
   padding: 48px 0 52px;
 }
 
@@ -1945,16 +1944,46 @@ textarea:focus-visible,
   letter-spacing: -0.022em;
 }
 
-.partners-row {
+/* Full-bleed so a scrolling strip runs to both edges of the screen rather
+   than stopping at the content gutter, which is what makes it read as a
+   continuous flow instead of a clipped box. */
+.partners-viewport {
+  overflow: hidden;
+  /* Softens both ends so logos enter and leave rather than popping. */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+
+.partners-track {
   display: flex;
   align-items: center;
-  gap: 24px 56px;
-  flex-wrap: wrap;
+  gap: 64px;
+  /* Matches .page-shell's gutter so a non-flowing row lines up with the
+     heading above it. */
+  padding: 0 max(20px, calc((100% - 1240px) / 2));
+}
+
+.partners-track.is-flowing {
+  width: max-content;
+  padding-left: 0;
+  padding-right: 0;
+  animation: partners-scroll 42s linear infinite;
+}
+
+/* Pausing on hover lets someone actually look at a logo they noticed. */
+.partners-viewport:hover .partners-track.is-flowing {
+  animation-play-state: paused;
+}
+
+@keyframes partners-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
 }
 
 .partner {
   display: inline-flex;
   align-items: center;
+  flex: 0 0 auto;
 }
 
 .partner-logo {
@@ -1987,6 +2016,7 @@ textarea:focus-visible,
   font-size: 21px;
   font-weight: 800;
   letter-spacing: 0.14em;
+  white-space: nowrap;
   opacity: 0.8;
   transition: opacity 200ms var(--ease), border-color 200ms var(--ease);
 }
@@ -1996,39 +2026,23 @@ textarea:focus-visible,
   border-color: var(--navy-500);
 }
 
-/* Sits in the same flow as the logos, weighted to read as a peer rather than
-   a caption. */
-.partner-phone {
-  color: var(--navy-800);
-  font-size: 26px;
-  font-weight: 750;
-  letter-spacing: -0.012em;
-  font-variant-numeric: tabular-nums;
-  text-decoration: none;
-  transition: color 160ms var(--ease);
-}
-
-.partner-phone:hover {
-  color: var(--navy-600);
-  text-decoration: underline;
-  text-underline-offset: 4px;
+@media (prefers-reduced-motion: reduce) {
+  .partners-track.is-flowing {
+    animation: none;
+  }
 }
 
 @media (max-width: 620px) {
-  .partners-inner {
+  .partners {
     padding: 36px 0 40px;
   }
 
-  .partners-row {
-    gap: 20px 32px;
+  .partners-track {
+    gap: 40px;
   }
 
   .partner-logo,
   .partner-wordmark {
     height: 52px;
-  }
-
-  .partner-phone {
-    font-size: 22px;
   }
 }

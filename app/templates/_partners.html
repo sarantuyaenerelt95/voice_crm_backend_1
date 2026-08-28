@@ -1,0 +1,34 @@
+<!-- app/templates/_partners.html -->
+
+<!--
+  Partner / association strip, laid out as a flowing row rather than items
+  pinned to opposite edges - so adding a second or third partner later just
+  extends the flow instead of needing the layout rethought.
+
+  The logo is resolved at render time by app/branding.py: the image when the
+  asset is present, a typographic wordmark when it is not, so this never
+  renders a broken image.
+-->
+
+<section class="partners">
+  <div class="page-shell partners-inner">
+    <h2 class="partners-title">{{ t("Partner organizations") }}</h2>
+
+    <div class="partners-row">
+      <div class="partner">
+        {% if partner_logo_url() %}
+          <img class="partner-logo"
+               src="{{ partner_logo_url() }}"
+               alt="{{ t('National University of Mongolia') }}"
+               loading="lazy">
+        {% else %}
+          <span class="partner-wordmark" aria-label="{{ t('National University of Mongolia') }}">
+            МУИС
+          </span>
+        {% endif %}
+      </div>
+
+      <a class="partner-phone" href="tel:{{ contact_phone }}">{{ contact_phone }}</a>
+    </div>
+  </div>
+</section>

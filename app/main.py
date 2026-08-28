@@ -18,6 +18,7 @@ from app.config import settings
 from app import i18n
 from app.i18n import templating as i18n_templating
 from app.i18n import dates as i18n_dates
+from app import branding
 from app.routes import (
     auth_routes,
     campaign_routes,
@@ -48,6 +49,7 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 # Gives every template t(), lang and languages.
 i18n_templating.install(templates)
 i18n_dates.install(templates)
+branding.install(templates)
 
 
 

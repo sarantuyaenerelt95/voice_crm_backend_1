@@ -866,3 +866,8 @@ _add("pagination", {
 _add("campaigns", {
     "e.g. Autumn Promotion": "жишээ нь: Намрын урамшуулал",
 })
+
+_add("partners", {
+    "Partner organizations": "Хамтрагч байгууллагууд",
+    "National University of Mongolia": "Монгол Улсын Их Сургууль",
+})

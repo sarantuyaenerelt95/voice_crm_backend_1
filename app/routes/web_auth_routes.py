@@ -17,6 +17,7 @@ from app.config import settings
 from app.database import get_db
 from app.i18n import templating as i18n_templating
 from app.i18n import dates as i18n_dates
+from app import branding
 from app.i18n.templating import request_language
 from app.models.user import User
 from app.models.company import Company
@@ -29,6 +30,7 @@ templates = Jinja2Templates(directory="app/templates")
 # Gives every template t(), lang and languages.
 i18n_templating.install(templates)
 i18n_dates.install(templates)
+branding.install(templates)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

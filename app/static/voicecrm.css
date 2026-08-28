@@ -1920,3 +1920,115 @@ textarea:focus-visible,
     gap: 10px;
   }
 }
+
+/* ==========================================================================
+   Partner / association strip
+   --------------------------------------------------------------------------
+   A flowing row rather than items pushed to opposite edges: the partners sit
+   together as one strip, so adding another later simply extends the flow.
+   ========================================================================== */
+
+.partners {
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.partners-inner {
+  padding: 48px 0 52px;
+}
+
+.partners-title {
+  margin: 0 0 28px;
+  color: var(--text-strong);
+  font-size: clamp(20px, 2.4vw, 27px);
+  font-weight: 700;
+  letter-spacing: -0.022em;
+}
+
+.partners-row {
+  display: flex;
+  align-items: center;
+  gap: 24px 56px;
+  flex-wrap: wrap;
+}
+
+.partner {
+  display: inline-flex;
+  align-items: center;
+}
+
+.partner-logo {
+  height: 60px;
+  width: auto;
+  max-width: 240px;
+  object-fit: contain;
+  /* Shown in its own colour rather than desaturated. Greyscaling is the right
+     move for a row of many logos, where it stops them competing - but with a
+     single institutional crest it just reads as washed out, and the МУИС blue
+     already sits comfortably beside the navy. */
+  opacity: 0.9;
+  transition: opacity 200ms var(--ease);
+}
+
+.partner:hover .partner-logo {
+  opacity: 1;
+}
+
+/* Stand-in until a logo asset is added. Deliberately typographic rather than
+   a placeholder box, so it looks intentional on its own. */
+.partner-wordmark {
+  display: inline-flex;
+  align-items: center;
+  height: 60px;
+  padding: 0 22px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  color: var(--navy-800);
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  opacity: 0.8;
+  transition: opacity 200ms var(--ease), border-color 200ms var(--ease);
+}
+
+.partner:hover .partner-wordmark {
+  opacity: 1;
+  border-color: var(--navy-500);
+}
+
+/* Sits in the same flow as the logos, weighted to read as a peer rather than
+   a caption. */
+.partner-phone {
+  color: var(--navy-800);
+  font-size: 26px;
+  font-weight: 750;
+  letter-spacing: -0.012em;
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+  transition: color 160ms var(--ease);
+}
+
+.partner-phone:hover {
+  color: var(--navy-600);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+@media (max-width: 620px) {
+  .partners-inner {
+    padding: 36px 0 40px;
+  }
+
+  .partners-row {
+    gap: 20px 32px;
+  }
+
+  .partner-logo,
+  .partner-wordmark {
+    height: 52px;
+  }
+
+  .partner-phone {
+    font-size: 22px;
+  }
+}

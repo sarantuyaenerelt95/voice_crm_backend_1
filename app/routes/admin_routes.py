@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.i18n import templating as i18n_templating
 from app.i18n import dates as i18n_dates
+from app import branding
 from app.models.user import User
 from app.models.sip_trunk import SIPTrunk
 from app.models.call_log import CallLog, CallStatus
@@ -26,6 +27,7 @@ templates = Jinja2Templates(directory="app/templates")
 # Gives every template t(), lang and languages.
 i18n_templating.install(templates)
 i18n_dates.install(templates)
+branding.install(templates)
 
 
 def utc_now():

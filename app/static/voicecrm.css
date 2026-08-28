@@ -1893,26 +1893,6 @@ textarea:focus-visible,
   letter-spacing: -0.015em;
 }
 
-.site-footer-assoc {
-  display: inline-flex;
-  align-items: center;
-  gap: 11px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 650;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-/* Short gold rule, echoing the one on the stat cards and the hero edge. */
-.site-footer-rule {
-  width: 22px;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--gold-500);
-  flex: 0 0 auto;
-}
-
 @media (max-width: 620px) {
   .site-footer-inner {
     flex-direction: column;

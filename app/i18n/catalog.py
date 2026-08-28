@@ -852,10 +852,6 @@ _add("monitor", {
     "Auto-refresh 5s on": "5 секундын автомат шинэчлэлт идэвхтэй",
 })
 
-_add("footer", {
-    "In association with МУИС": "МУИС-тай хамтран",
-})
-
 _add("pagination", {
     "Showing {from}–{to} of {total}": "{total}-аас {from}–{to} харуулж байна",
     "Page {page} / {total_pages}": "Хуудас {page} / {total_pages}",

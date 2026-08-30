@@ -455,7 +455,7 @@ _add("profile", {
     "One token = one answered call. Busy, no-answer and failed calls cost nothing.":
         "Нэг эрх = нэг хариулсан дуудлага. Завгүй, хариулаагүй, амжилтгүй дуудлагад эрх зарцуулагдахгүй.",
     "No call tokens left. Buy a package below before starting a campaign.":
-        "Дуудлагын эрх дууссан байна. Доорх багцаас аваарай.",
+        "Дуудлагын эрх дууссан байна. Доорх багцаас худалдан аваарай.",
 })
 
 # ------------------------------------------------------------- admin/SIP page

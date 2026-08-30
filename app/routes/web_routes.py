@@ -3248,6 +3248,20 @@ def web_cancel_campaign(
     )
 
 
+@router.get("/campaigns/{campaign_id}/real-start")
+def web_real_start_campaign_reload(campaign_id: int):
+    """A refresh after a failed real-start POST lands here as a GET.
+
+    Without this, that reload hits a POST-only route and Starlette's default
+    405 buries whatever the actual error was (insufficient tokens, no SIP
+    line, etc.) behind a generic "Method Not Allowed" page.
+    """
+    return RedirectResponse(
+        url=f"/web/campaigns/{campaign_id}",
+        status_code=303,
+    )
+
+
 @router.post("/campaigns/{campaign_id}/real-start")
 def web_real_start_campaign(
     campaign_id: int,

@@ -16,7 +16,7 @@ from typing import Optional
 from app.i18n.catalog import CATALOG
 
 
-DEFAULT_LANGUAGE = "mn"
+DEFAULT_LANGUAGE = "en"
 SUPPORTED_LANGUAGES = ("mn", "en")
 
 LANGUAGE_NAMES = {

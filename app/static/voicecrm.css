@@ -1967,9 +1967,9 @@ textarea:focus-visible,
 }
 
 .partner-logo {
-  height: 60px;
+  height: 88px;
   width: auto;
-  max-width: 240px;
+  max-width: 300px;
   object-fit: contain;
   /* Shown in its own colour rather than desaturated. Greyscaling is the right
      move for a row of many logos, where it stops them competing - but with a
@@ -1988,12 +1988,12 @@ textarea:focus-visible,
 .partner-wordmark {
   display: inline-flex;
   align-items: center;
-  height: 60px;
-  padding: 0 22px;
+  height: 88px;
+  padding: 0 28px;
   border: 1px solid var(--border-strong);
   border-radius: var(--r);
   color: var(--navy-800);
-  font-size: 21px;
+  font-size: 26px;
   font-weight: 800;
   letter-spacing: 0.14em;
   white-space: nowrap;
@@ -2023,6 +2023,6 @@ textarea:focus-visible,
 
   .partner-logo,
   .partner-wordmark {
-    height: 52px;
+    height: 68px;
   }
 }

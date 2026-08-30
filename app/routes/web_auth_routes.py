@@ -327,7 +327,7 @@ def web_register(
         company_kwargs["is_active"] = True
 
     if "max_contacts" in company_cols:
-        company_kwargs["max_contacts"] = 30000
+        company_kwargs["max_contacts"] = 100000
 
     if "max_campaigns" in company_cols:
         company_kwargs["max_campaigns"] = 1000

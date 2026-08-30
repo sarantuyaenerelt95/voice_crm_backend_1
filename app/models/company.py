@@ -18,7 +18,7 @@ class Company(Base):
     email = Column(String(200), unique=True, nullable=False)
     plan = Column(String(50), default="starter")    # starter / pro / enterprise
     is_active = Column(Boolean, default=True)
-    max_contacts = Column(Integer, default=30000)   # contact list size limit
+    max_contacts = Column(Integer, default=100000)  # contact list size limit
     max_campaigns = Column(Integer, default=1000)   # monthly campaign limit
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

@@ -173,8 +173,13 @@ def generate_pjsip_config(trunks) -> dict:
         lines.append(f"server_uri=sip:{server}")
         lines.append(f"client_uri=sip:{sip_username}@{sip_domain}")
         lines.append(f"contact_user={sip_username}")
+        # Every rejection has to stay retryable. With Asterisk's defaults an
+        # auth rejection is permanent: one 401/403 from the provider - a blip,
+        # a registrar restart - latches the trunk into "Rejected" for good and
+        # only a pjsip reload brings it back.
         lines.append("retry_interval=60")
         lines.append("forbidden_retry_interval=60")
+        lines.append("fatal_retry_interval=30")
         lines.append("auth_rejection_permanent=false")
         lines.append("expiration=3600")
         lines.append("")

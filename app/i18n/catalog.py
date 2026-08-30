@@ -182,7 +182,7 @@ _add("campaigns", {
     "Start Readiness": "Эхлүүлэх бэлэн байдал",
     "Target Count": "Дуудах тоо",
     "Target Number Status": "Дугаарын төлөв",
-    "Targets": "Дуудах дугаар",
+    "Targets": "Нийт дугаар",
     "Estimated unique targets": "Давхардалгүй дугаарын тоо",
     "Unique selected numbers": "Сонгосон давхардалгүй дугаар",
     "Total Numbers": "Нийт дугаар",
@@ -294,7 +294,7 @@ _add("contacts", {
     "TXT: one phone number per line.": "TXT: мөр бүрт нэг дугаар.",
     "TXT: one phone per line. CSV:": "TXT: мөр бүрт нэг дугаар. CSV:",
     "Import CSV or TXT files, organize groups, and keep duplicate numbers clean.":
-        "CSV, TXT файл оруулж, бүлэг зохион байгуулж, давхардлыг цэвэрлэнэ.",
+        "CSV, TXT файл оруулж, бүлэг зохион байгуулж, дугаар оруулах нэг үйлдлээр.",
     "Deactivate Selected": "Сонгосныг идэвхгүй болгох",
     "Restore Selected": "Сонгосныг сэргээх",
     "Select All": "Бүгдийг сонгох",
@@ -540,13 +540,13 @@ _add("home", {
     "Enterprise voice broadcast workspace": "Байгууллагын дуут мэдээллийн систем",
     "One calm command center for campaigns, contacts, audio, and reports.":
         "Кампанит ажил, харилцагч, аудио, тайланг нэг дороос.",
-    "Build targeted voice campaigns, preview unique numbers before launch,\n        monitor outcomes, and keep company data separated in one practical\n        communication platform.":
-        "Зорилтот дуут кампанит ажил үүсгэж, эхлүүлэхийн өмнө дугаараа шалгаж, үр дүнг хянаж, байгууллагынхаа мэдээллийг тусад нь хадгална.",
+    "Deliver your targeted voice message to many numbers at once, in a single action.":
+        "Нэг үйлдлээр олон зэрэг зорилтот дугаар руу зорилтот дуут мессежээ хүргүүлээрэй.",
     "Campaign Control": "Кампанит ажлын удирдлага",
     "Create campaigns from frozen contact lists and review targets before real start.":
-        "Бэлдсэн жагсаалтаас кампанит ажил үүсгэж, эхлүүлэхийн өмнө шалгана.",
+        "Бэлдсэн жагсаалтаас кампанит ажил үүсгэнэ.",
     "Upload reusable broadcast audio and track duration for reporting.":
-        "Дахин ашиглах аудио оруулж, урт хугацааг тайланд бүртгэнэ.",
+        "Ашиглах аудиог нэмж, хугацааг тайланд бүртгэнэ.",
     "See call status, duration, and export campaign result CSV files.":
         "Дуудлагын төлөв, хугацааг харж, үр дүнг CSV болгон татна.",
     "Example report": "Жишээ тайлан",
